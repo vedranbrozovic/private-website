@@ -53,11 +53,7 @@ const PROJECTS: Project[] = [];
 
 const BLOG_POSTS: BlogPost[] = [];
 
-const QUOTES = [
-  { text: "The measure of intelligence is the ability to change.", author: "Albert Einstein" },
-  { text: "In the middle of difficulty lies opportunity.", author: "Albert Einstein" },
-  { text: "Simplicity is the ultimate sophistication.", author: "Leonardo da Vinci" },
-];
+const QUOTES: { text: string; author: string }[] = [];
 
 // --- Sub-components ---
 
@@ -157,19 +153,22 @@ const Hero = () => (
   </section>
 );
 
-const QuotesSection = () => (
-  <section id="quotes" className="py-20 border-t border-black/5 dark:border-white/5">
-    <SectionHeading icon={Heart}>Inspiration</SectionHeading>
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-      {QUOTES.map((quote, i) => (
-        <div key={i} className="flex flex-col">
-          <p className="text-lg font-serif italic opacity-80 mb-4">"{quote.text}"</p>
-          <span className="text-[10px] uppercase tracking-widest font-bold opacity-30">— {quote.author}</span>
-        </div>
-      ))}
-    </div>
-  </section>
-);
+const QuotesSection = () => {
+  if (QUOTES.length === 0) return null;
+  return (
+    <section id="quotes" className="py-20 border-t border-black/5 dark:border-white/5">
+      <SectionHeading icon={Heart}>Inspiration</SectionHeading>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        {QUOTES.map((quote, i) => (
+          <div key={i} className="flex flex-col">
+            <p className="text-lg font-serif italic opacity-80 mb-4">"{quote.text}"</p>
+            <span className="text-[10px] uppercase tracking-widest font-bold opacity-30">— {quote.author}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+};
 
 const ContactSection = () => {
   const [formData, setFormData] = useState({ name: '', message: '' });
@@ -292,13 +291,9 @@ const VisionBoard = () => (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       {[
         { label: 'Data Strategy', icon: '📊' },
-        { label: 'NGO Scale', icon: '🌍' },
-        { label: 'Entrep. Mindset', icon: '💡' },
         { label: 'Supply Chain', icon: '📦' },
         { label: 'AI Products', icon: '🤖' },
-        { label: 'Economics', icon: '📈' },
-        { label: 'Analytics', icon: '📉' },
-        { label: 'Wicked Problems', icon: '🧩' },
+        { label: 'NGO Impact', icon: '🌍' },
       ].map((item, i) => (
         <div 
           key={item.label}
