@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import Matter from 'matter-js';
 import { motion, AnimatePresence, useScroll, useSpring } from 'motion/react';
 import { 
   Github, 
@@ -115,110 +116,216 @@ const SectionHeading = ({ children, icon: Icon }: { children: React.ReactNode, i
 
 const HeroSketchVisual = () => {
   const containerRef = useRef<HTMLDivElement>(null);
-  
+  const [gravityActive, setGravityActive] = useState(false);
+  const gravityActiveRef = useRef(gravityActive);
+  const itemsRef = useRef<{ [key: string]: HTMLDivElement | null }>({});
+  const engineRef = useRef<Matter.Engine | null>(null);
+  const bodiesRef = useRef<{ [key: string]: Matter.Body }>({});
+  const [isReady, setIsReady] = useState(false);
+
+  // Update ref when state changes
+  useEffect(() => {
+    gravityActiveRef.current = gravityActive;
+    if (engineRef.current) {
+      engineRef.current.world.gravity.y = gravityActive ? 1 : 0;
+    }
+  }, [gravityActive]);
+
+  // Define positions and initial states
+  const SKETCH_ITEMS = [
+    { id: 'ai', Icon: Brain, size: 80, class: 'p-5 rounded-2xl bg-white dark:bg-black shadow-lg border border-black/10 dark:border-white/10 z-10', iconSize: 42, iconClass: 'text-blue-500', x: 0, y: 0 },
+    { id: 'laptop', Icon: Monitor, size: 36, class: 'opacity-50 dark:opacity-70 text-zinc-700 dark:text-zinc-300', x: -160, y: -60 },
+    { id: 'camera', Icon: Camera, size: 36, class: 'opacity-50 dark:opacity-70 text-zinc-700 dark:text-zinc-300', x: 160, y: -40 },
+    { id: 'basketball', type: 'svg', size: 34, class: 'opacity-70 text-orange-600 dark:text-orange-500', x: -120, y: 80 },
+    { id: 'books', Icon: BookOpen, size: 30, class: 'opacity-50 dark:opacity-70 text-zinc-700 dark:text-zinc-300', x: 120, y: 60 },
+    { id: 'croatia', type: 'croatia', size: 35, class: 'text-red-600 dark:text-red-500', x: 200, y: 0 },
+  ];
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    setIsReady(true);
+
+    const { Engine, Render, World, Bodies, Runner, MouseConstraint, Mouse, Composite } = Matter;
+    
+    // Create engine
+    const engine = Engine.create();
+    engineRef.current = engine;
+    const world = engine.world;
+
+    world.gravity.y = gravityActiveRef.current ? 1 : 0;
+
+    const width = containerRef.current.clientWidth;
+    const height = containerRef.current.clientHeight;
+
+    // Boundaries
+    const ground = Bodies.rectangle(width / 2, height + 50, width, 100, { isStatic: true });
+    const ceiling = Bodies.rectangle(width / 2, -50, width, 100, { isStatic: true });
+    const leftWall = Bodies.rectangle(-50, height / 2, 100, height, { isStatic: true });
+    const rightWall = Bodies.rectangle(width + 50, height / 2, 100, height, { isStatic: true });
+
+    Composite.add(world, [ground, ceiling, leftWall, rightWall]);
+
+    // Create bodies for items
+    SKETCH_ITEMS.forEach(item => {
+      const body = Bodies.rectangle(
+        width / 2 + item.x, 
+        height / 2 + item.y, 
+        item.size, 
+        item.size, 
+        { 
+          restitution: 0.6, 
+          friction: 0.1,
+          frictionAir: 0.05
+        }
+      );
+      bodiesRef.current[item.id] = body;
+      Composite.add(world, body);
+    });
+
+    // Mouse control
+    const mouse = Mouse.create(containerRef.current);
+    const mouseConstraint = MouseConstraint.create(engine, {
+      mouse: mouse,
+      constraint: {
+        stiffness: 0.2,
+        render: { visible: false }
+      }
+    });
+
+    Composite.add(world, mouseConstraint);
+
+    // Run the engine
+    const runner = Runner.create();
+    Runner.run(runner, engine);
+
+    // Sync bodies with DOM
+    let animationId: number;
+    const update = () => {
+      if (engineRef.current) {
+        if (!gravityActiveRef.current) {
+          // Add gentle floating forces when gravity is off
+          SKETCH_ITEMS.forEach(item => {
+            const body = bodiesRef.current[item.id];
+            if (body) {
+              const time = Date.now() * 0.001;
+              const ix = SKETCH_ITEMS.indexOf(item);
+              const forceMagnitude = 0.00002;
+              
+              Matter.Body.applyForce(body, body.position, {
+                x: Math.sin(time + ix) * forceMagnitude,
+                y: Math.cos(time * 0.8 + ix) * forceMagnitude
+              });
+
+              // Keep them centered-ish when floating
+              const dx = (width / 2 + item.x) - body.position.x;
+              const dy = (height / 2 + item.y) - body.position.y;
+              Matter.Body.applyForce(body, body.position, {
+                x: dx * 0.00001,
+                y: dy * 0.00001
+              });
+            }
+          });
+        }
+
+        SKETCH_ITEMS.forEach(item => {
+          const body = bodiesRef.current[item.id];
+          const element = itemsRef.current[item.id];
+          if (body && element) {
+            const x = body.position.x - width / 2;
+            const y = body.position.y - height / 2;
+            element.style.transform = `translate(${x}px, ${y}px) rotate(${body.angle}rad)`;
+          }
+        });
+      }
+      animationId = requestAnimationFrame(update);
+    };
+
+    update();
+
+    return () => {
+      Runner.stop(runner);
+      Engine.clear(engine);
+      cancelAnimationFrame(animationId);
+    };
+  }, [isReady]);
+
   return (
-    <div ref={containerRef} className="relative w-full h-48 md:h-64 mb-10 rounded-3xl overflow-hidden border border-black/5 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.02] flex items-center justify-center">
-      {/* SVG filter for sketchy look */}
-      <svg className="hidden">
-        <filter id="sketchy">
-          <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" result="noise" />
-          <feDisplacementMap in="SourceGraphic" in2="noise" scale="3" xChannelSelector="R" yChannelSelector="G" />
-        </filter>
-      </svg>
-      {/* Subtle gradient glow */}
-      <div className="absolute inset-0 opacity-30 dark:opacity-40 pointer-events-none" style={{ background: 'radial-gradient(circle at center, rgba(150,150,150,0.15) 0%, transparent 60%)' }} />
-      
-      <div className="relative w-full max-w-lg h-full mx-auto flex items-center justify-center" style={{ filter: 'url(#sketchy)' }}>
-        {/* Center AI / Computer Focus */}
-        <motion.div 
-          drag
-          dragConstraints={containerRef}
-          whileHover={{ scale: 1.1, rotate: 5, cursor: 'grab' }}
-          whileDrag={{ scale: 1.2, rotate: -5, cursor: 'grabbing' }}
-          animate={{ y: [-4, 4, -4] }} 
-          transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-          className="absolute z-10 p-5 rounded-2xl bg-white dark:bg-black shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-black/10 dark:border-white/10"
-        >
-          <Brain size={42} strokeWidth={2} className="text-blue-500" />
-        </motion.div>
+    <div className="relative group">
+      <div 
+        ref={containerRef} 
+        className="relative w-full h-48 md:h-64 mb-10 rounded-3xl overflow-hidden border border-black/5 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.02] flex items-center justify-center cursor-crosshair"
+      >
+        {/* SVG filter for sketchy look */}
+        <svg className="hidden">
+          <filter id="sketchy">
+            <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" result="noise" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="3" xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+        </svg>
+
+        {/* Subtle gradient glow */}
+        <div className="absolute inset-0 opacity-30 dark:opacity-40 pointer-events-none" style={{ background: 'radial-gradient(circle at center, rgba(150,150,150,0.15) 0%, transparent 60%)' }} />
         
-        {/* Laptop / Monitor */}
-        <motion.div 
-           drag
-           dragConstraints={containerRef}
-           whileHover={{ scale: 1.2, cursor: 'grab' }}
-           whileDrag={{ scale: 1.3, cursor: 'grabbing' }}
-           animate={{ y: [0, -8, 0] }}
-           transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-           className="absolute left-[10%] md:left-[15%] top-12 opacity-50 dark:opacity-70 text-zinc-700 dark:text-zinc-300"
-        >
-          <Monitor size={36} strokeWidth={2} />
-        </motion.div>
+        <div className="relative w-full h-full" style={{ filter: 'url(#sketchy)' }}>
+          {SKETCH_ITEMS.map((item) => (
+            <div
+              key={item.id}
+              ref={el => itemsRef.current[item.id] = el}
+              className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none ${item.class}`}
+              style={{ width: item.size, height: item.size }}
+            >
+              <div className="w-full h-full flex items-center justify-center">
+                {item.Icon && <item.Icon size={item.iconSize || item.size} className={item.iconClass} strokeWidth={2} />}
+                
+                {item.type === 'svg' && (
+                  <svg width={item.size} height={item.size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M2 12h20"></path>
+                    <path d="M12 2v20"></path>
+                    <path d="M4.9 4.9C6.9 8.2 6.9 15.8 4.9 19.1"></path>
+                    <path d="M19.1 4.9C17.1 8.2 17.1 15.8 19.1 19.1"></path>
+                  </svg>
+                )}
 
-        {/* Photography / Camera */}
-        <motion.div 
-           drag
-           dragConstraints={containerRef}
-           whileHover={{ scale: 1.2, cursor: 'grab' }}
-           whileDrag={{ scale: 1.3, cursor: 'grabbing' }}
-           animate={{ y: [0, 8, 0], rotate: [0, -4, 0] }}
-           transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
-           className="absolute right-[10%] md:right-[20%] top-16 opacity-50 dark:opacity-70 text-zinc-700 dark:text-zinc-300"
-        >
-           <Camera size={36} strokeWidth={2} />
-        </motion.div>
+                {item.type === 'croatia' && (
+                  <div className="grid grid-cols-2 gap-1 w-full h-full p-1">
+                    <div className="bg-current opacity-80 rounded-[2px]"></div>
+                    <div className="bg-transparent border-2 border-current opacity-60 rounded-[2px]"></div>
+                    <div className="bg-transparent border-2 border-current opacity-60 rounded-[2px]"></div>
+                    <div className="bg-current opacity-80 rounded-[2px]"></div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
 
-        {/* Basketball Custom SVG */}
-        <motion.div 
-           drag
-           dragConstraints={containerRef}
-           whileHover={{ scale: 1.2, cursor: 'grab' }}
-           whileDrag={{ scale: 1.3, cursor: 'grabbing' }}
-           animate={{ y: [0, -10, 0], rotate: 45 }}
-           transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut', delay: 1.5 }}
-           className="absolute left-[20%] md:left-[25%] bottom-10 opacity-70 text-orange-600 dark:text-orange-500"
-        >
-           <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              {/* Outline */}
-              <circle cx="12" cy="12" r="10"></circle>
-              {/* Cross Lines */}
-              <path d="M2 12h20"></path>
-              <path d="M12 2v20"></path>
-              {/* Curved Basketball Lines */}
-              <path d="M4.9 4.9C6.9 8.2 6.9 15.8 4.9 19.1"></path>
-              <path d="M19.1 4.9C17.1 8.2 17.1 15.8 19.1 19.1"></path>
-           </svg>
-        </motion.div>
-
-        {/* Reading / Books */}
-        <motion.div 
-           drag
-           dragConstraints={containerRef}
-           whileHover={{ scale: 1.2, cursor: 'grab' }}
-           whileDrag={{ scale: 1.3, cursor: 'grabbing' }}
-           animate={{ y: [0, 10, 0] }}
-           transition={{ duration: 4.2, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
-           className="absolute right-[20%] md:right-[25%] bottom-14 opacity-50 dark:opacity-70 text-zinc-700 dark:text-zinc-300"
-        >
-           <BookOpen size={30} strokeWidth={2} />
-        </motion.div>
-
-        {/* Croatia Checkerboard Core */}
-        <motion.div 
-           drag
-           dragConstraints={containerRef}
-           whileHover={{ scale: 1.2, cursor: 'grab' }}
-           whileDrag={{ scale: 1.3, cursor: 'grabbing' }}
-           animate={{ opacity: [0.3, 0.7, 0.3] }}
-           transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-           className="absolute top-1/2 right-[8%] -translate-y-1/2 grid grid-cols-2 gap-1 text-red-600 dark:text-red-500"
-        >
-           <div className="w-3.5 h-3.5 bg-current opacity-80 rounded-[2px]"></div>
-           <div className="w-3.5 h-3.5 bg-transparent border-2 border-current opacity-60 rounded-[2px]"></div>
-           <div className="w-3.5 h-3.5 bg-transparent border-2 border-current opacity-60 rounded-[2px]"></div>
-           <div className="w-3.5 h-3.5 bg-current opacity-80 rounded-[2px]"></div>
-        </motion.div>
+        {/* Gravity Control Overlay */}
+        <div className="absolute bottom-4 right-4 z-20 flex gap-2">
+          <button 
+            onClick={(e) => { e.stopPropagation(); setGravityActive(!gravityActive); }}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-wider transition-all border ${
+              gravityActive 
+                ? 'bg-blue-500 text-white border-blue-400' 
+                : 'bg-white/80 dark:bg-black/80 text-black dark:text-white border-black/10 dark:border-white/10'
+            } hover:scale-105 active:scale-95`}
+          >
+            <Target size={12} className={gravityActive ? 'animate-bounce' : ''} />
+            {gravityActive ? 'Gravity ON' : 'Gravity OFF'}
+          </button>
+        </div>
       </div>
+      
+      {/* Interaction Hint */}
+      {!gravityActive && (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          whileHover={{ opacity: 1 }}
+          className="absolute -top-4 left-1/2 -translate-x-1/2 text-[8px] font-bold uppercase tracking-[0.2em] opacity-40 pointer-events-none"
+        >
+          Toggle gravity to see physics in action
+        </motion.div>
+      )}
     </div>
   );
 };
