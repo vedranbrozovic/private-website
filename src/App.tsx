@@ -121,78 +121,111 @@ const HeroSketchVisual = () => {
   const itemsRef = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const engineRef = useRef<Matter.Engine | null>(null);
   const bodiesRef = useRef<{ [key: string]: Matter.Body }>({});
+  const boundariesRef = useRef<Matter.Body[]>([]);
   const [isReady, setIsReady] = useState(false);
 
   // Update ref when state changes
   useEffect(() => {
     gravityActiveRef.current = gravityActive;
     if (engineRef.current) {
-      engineRef.current.world.gravity.y = gravityActive ? 1 : 0;
+      engineRef.current.world.gravity.y = gravityActive ? 1.2 : 0;
+      // When turning off gravity, give them a tiny nudge to start floating
+      if (!gravityActive) {
+        Object.values(bodiesRef.current).forEach(body => {
+          Matter.Body.setVelocity(body, {
+            x: (Math.random() - 0.5) * 2,
+            y: (Math.random() - 0.5) * 2
+          });
+        });
+      }
     }
   }, [gravityActive]);
 
   // Define positions and initial states
   const SKETCH_ITEMS = [
-    { id: 'ai', Icon: Brain, size: 80, class: 'p-5 rounded-2xl bg-white dark:bg-black shadow-lg border border-black/10 dark:border-white/10 z-10', iconSize: 42, iconClass: 'text-blue-500', x: 0, y: 0 },
-    { id: 'laptop', Icon: Monitor, size: 36, class: 'opacity-50 dark:opacity-70 text-zinc-700 dark:text-zinc-300', x: -160, y: -60 },
-    { id: 'camera', Icon: Camera, size: 36, class: 'opacity-50 dark:opacity-70 text-zinc-700 dark:text-zinc-300', x: 160, y: -40 },
-    { id: 'basketball', type: 'svg', size: 34, class: 'opacity-70 text-orange-600 dark:text-orange-500', x: -120, y: 80 },
-    { id: 'books', Icon: BookOpen, size: 30, class: 'opacity-50 dark:opacity-70 text-zinc-700 dark:text-zinc-300', x: 120, y: 60 },
-    { id: 'croatia', type: 'croatia', size: 35, class: 'text-red-600 dark:text-red-500', x: 200, y: 0 },
+    { id: 'amazon', type: 'amazon', size: 100, class: 'z-10 text-zinc-900 dark:text-zinc-100', x: 0, y: 0 },
+    { id: 'laptop', Icon: Monitor, size: 40, class: 'opacity-40 dark:opacity-60 text-zinc-700 dark:text-zinc-300', x: -160, y: -60 },
+    { id: 'camera', Icon: Camera, size: 40, class: 'opacity-40 dark:opacity-60 text-zinc-700 dark:text-zinc-300', x: 160, y: -40 },
+    { id: 'basketball', type: 'svg', size: 38, class: 'opacity-60 text-orange-600 dark:text-orange-500', x: -120, y: 80 },
+    { id: 'books', Icon: BookOpen, size: 60, class: 'opacity-70 dark:opacity-90 text-zinc-800 dark:text-zinc-200', x: 120, y: 60 },
+    { id: 'acap', type: 'acap', size: 65, class: 'text-red-600 dark:text-red-500', x: 180, y: 30 },
   ];
 
   useEffect(() => {
     if (!containerRef.current) return;
     setIsReady(true);
 
-    const { Engine, Render, World, Bodies, Runner, MouseConstraint, Mouse, Composite } = Matter;
+    const { Engine, World, Bodies, Runner, MouseConstraint, Mouse, Composite } = Matter;
     
     // Create engine
     const engine = Engine.create();
     engineRef.current = engine;
     const world = engine.world;
-
-    world.gravity.y = gravityActiveRef.current ? 1 : 0;
+    world.gravity.y = gravityActiveRef.current ? 1.2 : 0;
 
     const width = containerRef.current.clientWidth;
     const height = containerRef.current.clientHeight;
 
-    // Boundaries
-    const ground = Bodies.rectangle(width / 2, height + 50, width, 100, { isStatic: true });
-    const ceiling = Bodies.rectangle(width / 2, -50, width, 100, { isStatic: true });
-    const leftWall = Bodies.rectangle(-50, height / 2, 100, height, { isStatic: true });
-    const rightWall = Bodies.rectangle(width + 50, height / 2, 100, height, { isStatic: true });
+    // Boundaries Creator helper
+    const createBoundaries = (w: number, h: number) => {
+      const thickness = 200;
+      return [
+        Bodies.rectangle(w / 2, h + thickness / 2, w, thickness, { isStatic: true, label: 'ground' }),
+        Bodies.rectangle(w / 2, -thickness / 2, w, thickness, { isStatic: true, label: 'ceiling' }),
+        Bodies.rectangle(-thickness / 2, h / 2, thickness, h, { isStatic: true, label: 'leftWall' }),
+        Bodies.rectangle(w + thickness / 2, h / 2, thickness, h, { isStatic: true, label: 'rightWall' })
+      ];
+    };
 
-    Composite.add(world, [ground, ceiling, leftWall, rightWall]);
+    const boundaries = createBoundaries(width, height);
+    boundariesRef.current = boundaries;
+    Composite.add(world, boundaries);
 
     // Create bodies for items
     SKETCH_ITEMS.forEach(item => {
+      // Use larger collision boxes for logos
       const body = Bodies.rectangle(
         width / 2 + item.x, 
         height / 2 + item.y, 
         item.size, 
-        item.size, 
+        item.id === 'amazon' ? item.size * 0.6 : item.size, 
         { 
-          restitution: 0.6, 
-          friction: 0.1,
-          frictionAir: 0.05
+          restitution: 0.5, 
+          friction: 0.2,
+          frictionAir: 0.04,
+          density: 0.001
         }
       );
       bodiesRef.current[item.id] = body;
       Composite.add(world, body);
     });
 
-    // Mouse control
+    // Mouse control - Essential for interaction
     const mouse = Mouse.create(containerRef.current);
+    // Important: Mouse needs to know its element might have been translated or in an iframe
     const mouseConstraint = MouseConstraint.create(engine, {
       mouse: mouse,
       constraint: {
-        stiffness: 0.2,
+        stiffness: 0.1,
         render: { visible: false }
       }
     });
 
     Composite.add(world, mouseConstraint);
+
+    // Handle Resize
+    const resizeObserver = new ResizeObserver((entries) => {
+      if (!entries[0] || !engineRef.current) return;
+      const { width: newW, height: newH } = entries[0].contentRect;
+      
+      // Update boundaries
+      Composite.remove(engineRef.current.world, boundariesRef.current);
+      const newBoundaries = createBoundaries(newW, newH);
+      boundariesRef.current = newBoundaries;
+      Composite.add(engineRef.current.world, newBoundaries);
+    });
+    
+    resizeObserver.observe(containerRef.current);
 
     // Run the engine
     const runner = Runner.create();
@@ -201,7 +234,10 @@ const HeroSketchVisual = () => {
     // Sync bodies with DOM
     let animationId: number;
     const update = () => {
-      if (engineRef.current) {
+      if (engineRef.current && containerRef.current) {
+        const w = containerRef.current.clientWidth;
+        const h = containerRef.current.clientHeight;
+
         if (!gravityActiveRef.current) {
           // Add gentle floating forces when gravity is off
           SKETCH_ITEMS.forEach(item => {
@@ -209,19 +245,19 @@ const HeroSketchVisual = () => {
             if (body) {
               const time = Date.now() * 0.001;
               const ix = SKETCH_ITEMS.indexOf(item);
-              const forceMagnitude = 0.00002;
+              const forceMagnitude = 0.00003;
               
               Matter.Body.applyForce(body, body.position, {
                 x: Math.sin(time + ix) * forceMagnitude,
                 y: Math.cos(time * 0.8 + ix) * forceMagnitude
               });
 
-              // Keep them centered-ish when floating
-              const dx = (width / 2 + item.x) - body.position.x;
-              const dy = (height / 2 + item.y) - body.position.y;
+              // Gentle pull back to center if they wander too far
+              const dx = (w / 2 + item.x) - body.position.x;
+              const dy = (h / 2 + item.y) - body.position.y;
               Matter.Body.applyForce(body, body.position, {
-                x: dx * 0.00001,
-                y: dy * 0.00001
+                x: dx * 0.000005,
+                y: dy * 0.000005
               });
             }
           });
@@ -231,8 +267,8 @@ const HeroSketchVisual = () => {
           const body = bodiesRef.current[item.id];
           const element = itemsRef.current[item.id];
           if (body && element) {
-            const x = body.position.x - width / 2;
-            const y = body.position.y - height / 2;
+            const x = body.position.x - w / 2;
+            const y = body.position.y - h / 2;
             element.style.transform = `translate(${x}px, ${y}px) rotate(${body.angle}rad)`;
           }
         });
@@ -246,6 +282,7 @@ const HeroSketchVisual = () => {
       Runner.stop(runner);
       Engine.clear(engine);
       cancelAnimationFrame(animationId);
+      resizeObserver.disconnect();
     };
   }, [isReady]);
 
@@ -253,7 +290,7 @@ const HeroSketchVisual = () => {
     <div className="relative group">
       <div 
         ref={containerRef} 
-        className="relative w-full h-48 md:h-64 mb-10 rounded-3xl overflow-hidden border border-black/5 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.02] flex items-center justify-center cursor-crosshair"
+        className="relative w-full h-48 md:h-64 mb-10 rounded-3xl overflow-hidden border border-black/5 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.02] flex items-center justify-center cursor-grab active:cursor-grabbing"
       >
         {/* SVG filter for sketchy look */}
         <svg className="hidden">
@@ -266,12 +303,12 @@ const HeroSketchVisual = () => {
         {/* Subtle gradient glow */}
         <div className="absolute inset-0 opacity-30 dark:opacity-40 pointer-events-none" style={{ background: 'radial-gradient(circle at center, rgba(150,150,150,0.15) 0%, transparent 60%)' }} />
         
-        <div className="relative w-full h-full" style={{ filter: 'url(#sketchy)' }}>
+        <div className="relative w-full h-full pointer-events-none" style={{ filter: 'url(#sketchy)' }}>
           {SKETCH_ITEMS.map((item) => (
             <div
               key={item.id}
               ref={el => itemsRef.current[item.id] = el}
-              className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none ${item.class}`}
+              className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 ${item.class}`}
               style={{ width: item.size, height: item.size }}
             >
               <div className="w-full h-full flex items-center justify-center">
@@ -287,12 +324,26 @@ const HeroSketchVisual = () => {
                   </svg>
                 )}
 
-                {item.type === 'croatia' && (
-                  <div className="grid grid-cols-2 gap-1 w-full h-full p-1">
-                    <div className="bg-current opacity-80 rounded-[2px]"></div>
-                    <div className="bg-transparent border-2 border-current opacity-60 rounded-[2px]"></div>
-                    <div className="bg-transparent border-2 border-current opacity-60 rounded-[2px]"></div>
-                    <div className="bg-current opacity-80 rounded-[2px]"></div>
+                {item.type === 'amazon' && (
+                  <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-white dark:bg-black shadow-lg border border-black/10 dark:border-white/10">
+                    <div className="flex flex-col items-center">
+                      <span className="text-xl font-bold tracking-tighter lowercase leading-none mb-1">amazon</span>
+                      <svg width={70} height={15} viewBox="0 0 70 15" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-orange-500">
+                        <path d="M5 2C15 12 55 12 65 2" />
+                        <path d="M58 2L65 2L62 9" />
+                      </svg>
+                    </div>
+                  </div>
+                )}
+
+                {item.type === 'acap' && (
+                  <div className="flex flex-col items-center justify-center bg-white dark:bg-black p-3 rounded-xl border border-black/10 dark:border-white/10 shadow-md">
+                    <div className="grid grid-cols-3 gap-0.5 w-10 h-10 border border-current p-0.5 rounded-sm">
+                      {[...Array(9)].map((_, i) => (
+                        <div key={i} className={`w-full h-full rounded-[1px] ${i % 2 === 0 ? 'bg-red-600' : 'bg-transparent'}`}></div>
+                      ))}
+                    </div>
+                    <span className="text-[12px] font-black tracking-tight mt-1 leading-none">ACAP</span>
                   </div>
                 )}
               </div>
@@ -303,6 +354,7 @@ const HeroSketchVisual = () => {
         {/* Gravity Control Overlay */}
         <div className="absolute bottom-4 right-4 z-20 flex gap-2">
           <button 
+            type="button"
             onClick={(e) => { e.stopPropagation(); setGravityActive(!gravityActive); }}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-wider transition-all border ${
               gravityActive 
@@ -323,7 +375,7 @@ const HeroSketchVisual = () => {
           whileHover={{ opacity: 1 }}
           className="absolute -top-4 left-1/2 -translate-x-1/2 text-[8px] font-bold uppercase tracking-[0.2em] opacity-40 pointer-events-none"
         >
-          Toggle gravity to see physics in action
+          Grab and throw the icons!
         </motion.div>
       )}
     </div>
