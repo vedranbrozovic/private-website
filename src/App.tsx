@@ -47,13 +47,18 @@ const SOCIAL_LINKS: SocialLink[] = [
   { id: 'linkedin', name: 'LinkedIn', url: 'https://www.linkedin.com/in/vedranbrozovic/', icon: Linkedin },
   { id: 'github', name: 'GitHub', url: 'https://github.com/vedranbrozovic', icon: Github },
   { id: 'instagram', name: 'Instagram', url: 'https://instagram.com/vedranbrozovic', icon: Instagram },
+  { id: 'youtube', name: 'YouTube', url: 'https://www.youtube.com/@vedran.brozovic', icon: Youtube },
 ];
 
 const PROJECTS: Project[] = [];
 
 const BLOG_POSTS: BlogPost[] = [];
 
-const QUOTES: { text: string; author: string }[] = [];
+const QUOTES: { text: string; author: string }[] = [
+  { text: "Price is what you pay. Value is what you get.", author: "Warren Buffett" },
+  { text: "Someone's sitting in the shade today because someone planted a tree a long time ago.", author: "Warren Buffett" },
+  { text: "Risk comes from not knowing what you're doing.", author: "Warren Buffett" },
+];
 
 // --- Sub-components ---
 
@@ -72,7 +77,7 @@ const Navbar = ({ theme, toggle }: { theme: 'light' | 'dark', toggle: () => void
     <div className="flex items-center gap-6">
       <a href="/" className="font-sans font-bold tracking-tighter text-base hover:text-accent transition-colors">VAB</a>
       <div className="hidden md:flex gap-5">
-        {['Projects', 'Blog', 'Vision'].map((item) => (
+        {['Projects', 'Blog'].map((item) => (
           <a 
             key={item} 
             href={`#${item.toLowerCase()}`} 
@@ -105,7 +110,7 @@ const SectionHeading = ({ children, icon: Icon }: { children: React.ReactNode, i
 // --- Main Components ---
 
 const Hero = () => (
-  <section className="flex flex-col justify-start max-w-4xl pt-8 pb-20 md:pt-16">
+  <section className="flex flex-col justify-start max-w-4xl pb-12 pt-4">
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
@@ -127,7 +132,7 @@ const Hero = () => (
           I'm a <span className="font-semibold text-text opacity-100">Product Manager at Amazon</span> and Board Member at the <span className="font-semibold text-text opacity-100">Association of Croatian-American Professionals (ACAP)</span>. My background lays in the intersection of data, product and finance.
         </p>
         <p>
-          I have plenty of experience takcling projects in which I have no prior experience. I approach every project with a researcher’s curiosity and an entrepreneur’s bias for action.
+          As an eclectic generalist, I have plenty of experience tackling projects in which I have no prior experience. I approach every project with a researcher’s curiosity and an entrepreneur’s bias for action.
         </p>
         <p className="text-xs italic leading-relaxed">
           Based in Seattle. Reach out for NGO strategy, career growth, or to grab a coffee/play some <span className="text-orange-500 not-italic font-bold">basketball 🏀</span>.
@@ -156,8 +161,8 @@ const Hero = () => (
 const QuotesSection = () => {
   if (QUOTES.length === 0) return null;
   return (
-    <section id="quotes" className="py-20 border-t border-black/5 dark:border-white/5">
-      <SectionHeading icon={Heart}>Inspiration</SectionHeading>
+    <section id="quotes" className="py-12 border-t border-black/5 dark:border-white/5">
+      <SectionHeading icon={Heart}>Favourite Quotes</SectionHeading>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {QUOTES.map((quote, i) => (
           <div key={i} className="flex flex-col">
@@ -181,7 +186,7 @@ const ContactSection = () => {
   };
 
   return (
-    <section id="contact" className="py-20 border-t border-black/5 dark:border-white/5">
+    <section id="contact" className="py-12 border-t border-black/5 dark:border-white/5">
       <SectionHeading icon={Mail}>Connect</SectionHeading>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
         <div>
@@ -230,7 +235,7 @@ const ContactSection = () => {
 const ProjectsList = () => {
   if (PROJECTS.length === 0) return null;
   return (
-    <section id="projects" className="py-20 border-t border-black/5 dark:border-white/5">
+    <section id="projects" className="py-12 border-t border-black/5 dark:border-white/5">
       <SectionHeading icon={Code2}>Impact & Strategy</SectionHeading>
       <div className="space-y-2">
         {PROJECTS.map((project) => (
@@ -262,7 +267,7 @@ const ProjectsList = () => {
 const BlogList = () => {
   if (BLOG_POSTS.length === 0) return null;
   return (
-    <section id="blog" className="py-20 border-t border-black/5 dark:border-white/5">
+    <section id="blog" className="py-12 border-t border-black/5 dark:border-white/5">
       <SectionHeading icon={FileText}>Writing</SectionHeading>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {BLOG_POSTS.map((post) => (
@@ -285,30 +290,8 @@ const BlogList = () => {
   );
 };
 
-const VisionBoard = () => (
-  <section id="vision" className="py-20 border-t border-black/5 dark:border-white/5">
-    <SectionHeading icon={Target}>2026 Focus</SectionHeading>
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-      {[
-        { label: 'Data Strategy', icon: '📊' },
-        { label: 'Supply Chain', icon: '📦' },
-        { label: 'AI Products', icon: '🤖' },
-        { label: 'NGO Impact', icon: '🌍' },
-      ].map((item, i) => (
-        <div 
-          key={item.label}
-          className="p-5 rounded-xl bg-black/[0.01] dark:bg-white/[0.01] border border-black/5 dark:border-white/5 flex flex-col items-center justify-center gap-2 text-center"
-        >
-          <span className="text-xl">{item.icon}</span>
-          <span className="text-[9px] uppercase tracking-widest font-bold opacity-50">{item.label}</span>
-        </div>
-      ))}
-    </div>
-  </section>
-);
-
 const Footer = () => (
-  <footer className="py-16 border-t border-black/5 dark:border-white/5 flex flex-col items-center text-center">
+  <footer className="py-10 border-t border-black/5 dark:border-white/5 flex flex-col items-center text-center">
     <div className="mb-6 opacity-20">
       <Heart size={18} fill="currentColor" strokeWidth={0} />
     </div>
@@ -361,7 +344,6 @@ export default function App() {
           <ProjectsList />
           <BlogList />
           <QuotesSection />
-          <VisionBoard />
           <ContactSection />
           <Footer />
         </div>
