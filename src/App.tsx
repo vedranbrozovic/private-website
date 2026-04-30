@@ -1,0 +1,380 @@
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence, useScroll, useSpring } from 'motion/react';
+import { 
+  Github, 
+  Linkedin, 
+  Twitter, 
+  Mail, 
+  Instagram, 
+  Youtube, 
+  FileText, 
+  Moon, 
+  Sun, 
+  ArrowUpRight, 
+  ChevronRight,
+  Code2,
+  Heart,
+  Target
+} from 'lucide-react';
+
+// --- Types ---
+interface SocialLink {
+  id: string;
+  name: string;
+  url: string;
+  icon: React.ElementType;
+}
+
+interface Project {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  year: string;
+}
+
+interface BlogPost {
+  id: string;
+  title: string;
+  date: string;
+  readingTime: string;
+}
+
+// --- Data ---
+const CONTACT_EMAIL = 'brozovic.vedran@gmail.com';
+
+const SOCIAL_LINKS: SocialLink[] = [
+  { id: 'linkedin', name: 'LinkedIn', url: 'https://www.linkedin.com/in/vedranbrozovic/', icon: Linkedin },
+  { id: 'github', name: 'GitHub', url: 'https://github.com/vedranbrozovic', icon: Github },
+  { id: 'instagram', name: 'Instagram', url: 'https://instagram.com/vedranbrozovic', icon: Instagram },
+];
+
+const PROJECTS: Project[] = [];
+
+const BLOG_POSTS: BlogPost[] = [];
+
+const QUOTES = [
+  { text: "The measure of intelligence is the ability to change.", author: "Albert Einstein" },
+  { text: "In the middle of difficulty lies opportunity.", author: "Albert Einstein" },
+  { text: "Simplicity is the ultimate sophistication.", author: "Leonardo da Vinci" },
+];
+
+// --- Sub-components ---
+
+const ThemeToggle = ({ theme, toggle }: { theme: 'light' | 'dark', toggle: () => void }) => (
+  <button 
+    onClick={toggle}
+    className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+    aria-label="Toggle theme"
+  >
+    {theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
+  </button>
+);
+
+const Navbar = ({ theme, toggle }: { theme: 'light' | 'dark', toggle: () => void }) => (
+  <nav className="fixed top-0 left-0 right-0 z-50 glass-nav px-6 py-3 flex justify-between items-center transition-all">
+    <div className="flex items-center gap-6">
+      <a href="/" className="font-sans font-bold tracking-tighter text-base hover:text-accent transition-colors">VAB</a>
+      <div className="hidden md:flex gap-5">
+        {['Projects', 'Blog', 'Vision'].map((item) => (
+          <a 
+            key={item} 
+            href={`#${item.toLowerCase()}`} 
+            className="text-[10px] font-bold uppercase tracking-wider opacity-50 hover:opacity-100 transition-opacity"
+          >
+            {item}
+          </a>
+        ))}
+      </div>
+    </div>
+    <div className="flex items-center gap-3">
+      <ThemeToggle theme={theme} toggle={toggle} />
+      <button 
+        onClick={() => window.location.href = `mailto:${CONTACT_EMAIL}`}
+        className="px-4 py-1.5 rounded-full bg-black dark:bg-white text-white dark:text-black text-[10px] font-bold tracking-wide hover:scale-105 transition-transform"
+      >
+        CONTACT
+      </button>
+    </div>
+  </nav>
+);
+
+const SectionHeading = ({ children, icon: Icon }: { children: React.ReactNode, icon: React.ElementType }) => (
+  <div className="flex items-center gap-2 mb-8 opacity-40">
+    <Icon size={14} strokeWidth={2} />
+    <h2 className="text-[9px] uppercase tracking-[0.2em] font-bold">{children}</h2>
+  </div>
+);
+
+// --- Main Components ---
+
+const Hero = () => (
+  <section className="min-h-[75vh] flex flex-col justify-center max-w-4xl py-20">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.8 }}
+    >
+      <div className="mb-6 inline-flex flex-wrap items-center gap-2 px-3 py-1 rounded-full bg-black/[0.03] dark:bg-white/[0.03] border border-black/5 dark:border-white/5">
+        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+        <span className="text-[9px] font-bold uppercase tracking-widest opacity-60">
+          PM @ Amazon | Board Member @ ACAP
+        </span>
+      </div>
+      
+      <h1 className="text-3xl md:text-5xl font-bold tracking-tight mb-8">
+        Vedran Brozović
+      </h1>
+      
+      <div className="max-w-2xl text-sm md:text-base leading-relaxed opacity-70 mb-10 space-y-4">
+        <p>
+          I'm a <span className="font-semibold text-text opacity-100">Product Manager at Amazon</span> and Board Member at the <span className="font-semibold text-text opacity-100">Association of Croatian-American Professionals (ACAP)</span>. My background lays in the intersection of data, product and finance.
+        </p>
+        <p>
+          I have plenty of experience takcling projects in which I have no prior experience. I approach every project with a researcher’s curiosity and an entrepreneur’s bias for action.
+        </p>
+        <p className="text-xs italic leading-relaxed">
+          Based in Seattle. Reach out for NGO strategy, career growth, or to grab a coffee/play some <span className="text-orange-500 not-italic font-bold">basketball 🏀</span>.
+        </p>
+      </div>
+      
+      <div className="flex flex-wrap gap-3">
+        {SOCIAL_LINKS.map((link) => (
+          <motion.a 
+            key={link.id} 
+            href={link.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            whileHover={{ y: -2, backgroundColor: 'var(--text)', color: 'var(--bg)' }}
+            className="flex items-center gap-2 px-4 py-2 rounded-full border border-black/10 dark:border-white/10 transition-all group"
+          >
+            <link.icon size={14} strokeWidth={2} />
+            <span className="text-[11px] font-bold uppercase">{link.name}</span>
+          </motion.a>
+        ))}
+      </div>
+    </motion.div>
+  </section>
+);
+
+const QuotesSection = () => (
+  <section id="quotes" className="py-20 border-t border-black/5 dark:border-white/5">
+    <SectionHeading icon={Heart}>Inspiration</SectionHeading>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      {QUOTES.map((quote, i) => (
+        <div key={i} className="flex flex-col">
+          <p className="text-lg font-serif italic opacity-80 mb-4">"{quote.text}"</p>
+          <span className="text-[10px] uppercase tracking-widest font-bold opacity-30">— {quote.author}</span>
+        </div>
+      ))}
+    </div>
+  </section>
+);
+
+const ContactSection = () => {
+  const [formData, setFormData] = useState({ name: '', message: '' });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const subject = encodeURIComponent(`Message from ${formData.name} (Bio Site)`);
+    const body = encodeURIComponent(formData.message);
+    window.location.href = `mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}`;
+  };
+
+  return (
+    <section id="contact" className="py-20 border-t border-black/5 dark:border-white/5">
+      <SectionHeading icon={Mail}>Connect</SectionHeading>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+        <div>
+          <h3 className="text-2xl font-bold mb-6">Have a bold idea?</h3>
+          <p className="opacity-50 text-sm mb-10 leading-relaxed">
+            I'm always open to discussing supply chain innovation, NGO impact, or career development. Drop me a note and let's see what we can solve together.
+          </p>
+          <div className="flex gap-4 opacity-30">
+             {SOCIAL_LINKS.slice(0, 3).map(link => (
+                <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 transition-colors">
+                  <link.icon size={16} />
+                </a>
+             ))}
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input 
+            type="text" 
+            placeholder="Name"
+            required
+            className="w-full px-5 py-3 rounded-xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/5 dark:border-white/5 focus:border-blue-500 outline-none transition-all text-sm font-medium"
+            value={formData.name}
+            onChange={e => setFormData({ ...formData, name: e.target.value })}
+          />
+          <textarea 
+            placeholder="Your message..."
+            required
+            rows={4}
+            className="w-full px-5 py-3 rounded-xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/5 dark:border-white/5 focus:border-blue-500 outline-none transition-all text-sm font-medium resize-none"
+            value={formData.message}
+            onChange={e => setFormData({ ...formData, message: e.target.value })}
+          />
+          <button 
+            type="submit"
+            className="w-full py-3 rounded-xl bg-black dark:bg-white text-white dark:text-black font-bold text-[10px] uppercase tracking-widest hover:bg-blue-600 dark:hover:bg-blue-500 transition-colors"
+          >
+            Send Message
+          </button>
+        </form>
+      </div>
+    </section>
+  );
+};
+
+const ProjectsList = () => {
+  if (PROJECTS.length === 0) return null;
+  return (
+    <section id="projects" className="py-20 border-t border-black/5 dark:border-white/5">
+      <SectionHeading icon={Code2}>Impact & Strategy</SectionHeading>
+      <div className="space-y-2">
+        {PROJECTS.map((project) => (
+          <motion.div
+            key={project.id}
+            whileHover={{ x: 4 }}
+            className="group flex flex-col md:flex-row justify-between items-start md:items-center py-6 border-b border-black/5 dark:border-white/5 cursor-pointer"
+          >
+            <div className="max-w-xl">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[9px] uppercase tracking-widest font-bold text-blue-500">{project.category}</span>
+                <span className="text-[9px] opacity-20">{project.year}</span>
+              </div>
+              <h3 className="text-xl font-bold group-hover:opacity-60 transition-opacity">{project.title}</h3>
+              <p className="mt-1 text-xs opacity-50 group-hover:opacity-80 transition-opacity leading-relaxed max-w-lg">
+                {project.description}
+              </p>
+            </div>
+            <div className="mt-4 md:mt-0 opacity-0 group-hover:opacity-100 transition-all">
+               <ArrowUpRight size={16} className="text-blue-500" />
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    </section>
+  );
+};
+
+const BlogList = () => {
+  if (BLOG_POSTS.length === 0) return null;
+  return (
+    <section id="blog" className="py-20 border-t border-black/5 dark:border-white/5">
+      <SectionHeading icon={FileText}>Writing</SectionHeading>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {BLOG_POSTS.map((post) => (
+          <a key={post.id} href="#" className="group">
+            <div className="h-full p-6 rounded-2xl bg-black/[0.01] dark:bg-white/[0.01] border border-black/5 dark:border-white/5 group-hover:border-black/20 dark:group-hover:border-white/20 transition-all flex flex-col justify-between">
+              <div>
+                <div className="flex justify-between items-center mb-4 opacity-40">
+                  <span className="text-[9px] uppercase tracking-widest">{post.date}</span>
+                  <span className="text-[9px] uppercase tracking-widest">{post.readingTime}</span>
+                </div>
+                <h3 className="text-base font-semibold leading-tight group-hover:text-blue-500 transition-colors">
+                  {post.title}
+                </h3>
+              </div>
+            </div>
+          </a>
+        ))}
+      </div>
+    </section>
+  );
+};
+
+const VisionBoard = () => (
+  <section id="vision" className="py-20 border-t border-black/5 dark:border-white/5">
+    <SectionHeading icon={Target}>2026 Focus</SectionHeading>
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {[
+        { label: 'Data Strategy', icon: '📊' },
+        { label: 'NGO Scale', icon: '🌍' },
+        { label: 'Entrep. Mindset', icon: '💡' },
+        { label: 'Supply Chain', icon: '📦' },
+        { label: 'AI Products', icon: '🤖' },
+        { label: 'Economics', icon: '📈' },
+        { label: 'Analytics', icon: '📉' },
+        { label: 'Wicked Problems', icon: '🧩' },
+      ].map((item, i) => (
+        <div 
+          key={item.label}
+          className="p-5 rounded-xl bg-black/[0.01] dark:bg-white/[0.01] border border-black/5 dark:border-white/5 flex flex-col items-center justify-center gap-2 text-center"
+        >
+          <span className="text-xl">{item.icon}</span>
+          <span className="text-[9px] uppercase tracking-widest font-bold opacity-50">{item.label}</span>
+        </div>
+      ))}
+    </div>
+  </section>
+);
+
+const Footer = () => (
+  <footer className="py-16 border-t border-black/5 dark:border-white/5 flex flex-col items-center text-center">
+    <div className="mb-6 opacity-20">
+      <Heart size={18} fill="currentColor" strokeWidth={0} />
+    </div>
+    <div className="flex gap-6 opacity-40 text-[9px] uppercase tracking-[0.2em] font-bold">
+      <span>© 2026 Vedran Brozović</span>
+      <a href="https://www.linkedin.com/in/vedranbrozovic/" target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 transition-colors">LinkedIn</a>
+      <a href="https://github.com/vedranbrozovic" target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 transition-colors">GitHub</a>
+    </div>
+  </footer>
+);
+
+// --- App Entry ---
+
+export default function App() {
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, {
+    stiffness: 100,
+    damping: 30,
+    restDelta: 0.001
+  });
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+    document.documentElement.classList.toggle('dark');
+  };
+
+  useEffect(() => {
+    // Check initial user preference
+    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (isDark) {
+      setTheme('dark');
+      document.documentElement.classList.add('dark');
+    }
+  }, []);
+
+  return (
+    <div className={`selection:bg-accent selection:text-white`}>
+      <motion.div 
+        className="fixed top-0 left-0 right-0 h-1 bg-accent z-[60] origin-left" 
+        style={{ scaleX }} 
+      />
+      
+      <div className="noise" />
+      <Navbar theme={theme} toggle={toggleTheme} />
+      
+      <main className="px-6 md:px-12 lg:px-24 pt-20">
+        <div className="max-w-6xl mx-auto">
+          <Hero />
+          <ProjectsList />
+          <BlogList />
+          <QuotesSection />
+          <VisionBoard />
+          <ContactSection />
+          <Footer />
+        </div>
+      </main>
+
+      {/* Decorative gradients for that "Surya/Marijana" feel */}
+      <div className="fixed -top-[20%] -left-[10%] w-[50%] h-[50%] bg-accent/5 rounded-full blur-[120px] pointer-events-none" />
+      <div className="fixed -bottom-[20%] -right-[10%] w-[50%] h-[50%] bg-accent/5 rounded-full blur-[120px] pointer-events-none" />
+    </div>
+  );
+}
