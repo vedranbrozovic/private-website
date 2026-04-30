@@ -105,7 +105,7 @@ const SectionHeading = ({ children, icon: Icon }: { children: React.ReactNode, i
 // --- Main Components ---
 
 const Hero = () => (
-  <section className="min-h-[75vh] flex flex-col justify-center max-w-4xl py-20">
+  <section className="flex flex-col justify-start max-w-4xl pt-8 pb-20 md:pt-16">
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
