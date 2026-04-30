@@ -133,22 +133,24 @@ const HeroSketchVisual = () => {
       if (!gravityActive) {
         Object.values(bodiesRef.current).forEach(body => {
           Matter.Body.setVelocity(body, {
-            x: (Math.random() - 0.5) * 2,
-            y: (Math.random() - 0.5) * 2
+            x: (Math.random() - 0.5) * 3,
+            y: (Math.random() - 0.5) * 3
           });
         });
       }
     }
   }, [gravityActive]);
 
-  // Define positions and initial states
+  // Define positions and exact dimensions for accurate physics bounding boxes
   const SKETCH_ITEMS = [
-    { id: 'amazon', type: 'amazon', size: 100, class: 'z-10 text-zinc-900 dark:text-zinc-100', x: 0, y: 0 },
-    { id: 'laptop', Icon: Monitor, size: 40, class: 'opacity-40 dark:opacity-60 text-zinc-700 dark:text-zinc-300', x: -160, y: -60 },
-    { id: 'camera', Icon: Camera, size: 40, class: 'opacity-40 dark:opacity-60 text-zinc-700 dark:text-zinc-300', x: 160, y: -40 },
-    { id: 'basketball', type: 'svg', size: 38, class: 'opacity-60 text-orange-600 dark:text-orange-500', x: -120, y: 80 },
-    { id: 'books', Icon: BookOpen, size: 60, class: 'opacity-70 dark:opacity-90 text-zinc-800 dark:text-zinc-200', x: 120, y: 60 },
-    { id: 'acap', type: 'acap', size: 65, class: 'text-red-600 dark:text-red-500', x: 180, y: 30 },
+    { id: 'efzg', type: 'efzg', w: 70, h: 60, class: 'z-10', x: -160, y: -60 },
+    { id: 'ikea', type: 'ikea', w: 100, h: 42, class: 'z-10', x: -50, y: -60 },
+    { id: 'ey', type: 'ey', w: 66, h: 50, class: 'z-10 text-zinc-900 dark:text-zinc-100', x: 60, y: -60 },
+    { id: 'amazon', type: 'amazon', w: 120, h: 45, class: 'z-10 text-zinc-900 dark:text-zinc-100', x: 160, y: -60 },
+    { id: 'acap', type: 'acap', w: 160, h: 55, class: 'z-10', x: -140, y: 30 },
+    { id: 'basketball', type: 'basketball', w: 60, h: 60, class: 'z-10', x: -30, y: 30 },
+    { id: 'reading', type: 'reading', w: 65, h: 65, class: 'z-10', x: 60, y: 30 },
+    { id: 'photography', type: 'photography', w: 60, h: 60, class: 'z-10 text-zinc-900 dark:text-zinc-100', x: 150, y: 30 },
   ];
 
   useEffect(() => {
@@ -183,12 +185,12 @@ const HeroSketchVisual = () => {
 
     // Create bodies for items
     SKETCH_ITEMS.forEach(item => {
-      // Use larger collision boxes for logos
+      // Create a precisely sized bounding box for each SVG
       const body = Bodies.rectangle(
         width / 2 + item.x, 
         height / 2 + item.y, 
-        item.size, 
-        item.id === 'amazon' ? item.size * 0.6 : item.size, 
+        item.w, 
+        item.h, 
         { 
           restitution: 0.5, 
           friction: 0.2,
@@ -202,7 +204,13 @@ const HeroSketchVisual = () => {
 
     // Mouse control - Essential for interaction
     const mouse = Mouse.create(containerRef.current);
-    // Important: Mouse needs to know its element might have been translated or in an iframe
+    
+    // Fix for mobile/touch events in matter-js in an iframe
+    // @ts-ignore
+    mouse.element.removeEventListener("mousewheel", mouse.mousewheel);
+    // @ts-ignore
+    mouse.element.removeEventListener("DOMMouseScroll", mouse.mousewheel);
+
     const mouseConstraint = MouseConstraint.create(engine, {
       mouse: mouse,
       constraint: {
@@ -287,10 +295,11 @@ const HeroSketchVisual = () => {
   }, [isReady]);
 
   return (
-    <div className="relative group">
+    <div className="relative group mb-10">
       <div 
         ref={containerRef} 
-        className="relative w-full h-48 md:h-64 mb-10 rounded-3xl overflow-hidden border border-black/5 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.02] flex items-center justify-center cursor-grab active:cursor-grabbing"
+        style={{ touchAction: 'pan-y' }}
+        className="relative w-full h-56 md:h-72 rounded-3xl overflow-hidden border border-black/10 dark:border-white/10 bg-[#fafafa] dark:bg-[#0a0a0a] shadow-inner flex items-center justify-center cursor-grab active:cursor-grabbing"
       >
         {/* SVG filter for sketchy look */}
         <svg className="hidden">
@@ -309,63 +318,139 @@ const HeroSketchVisual = () => {
               key={item.id}
               ref={el => itemsRef.current[item.id] = el}
               className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 ${item.class}`}
-              style={{ width: item.size, height: item.size }}
+              style={{ width: item.w, height: item.h }}
             >
-              <div className="w-full h-full flex items-center justify-center">
-                {item.Icon && <item.Icon size={item.iconSize || item.size} className={item.iconClass} strokeWidth={2} />}
+              <div className="w-full h-full flex items-center justify-center filter drop-shadow-md">
                 
-                {item.type === 'svg' && (
-                  <svg width={item.size} height={item.size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <path d="M2 12h20"></path>
-                    <path d="M12 2v20"></path>
-                    <path d="M4.9 4.9C6.9 8.2 6.9 15.8 4.9 19.1"></path>
-                    <path d="M19.1 4.9C17.1 8.2 17.1 15.8 19.1 19.1"></path>
+                {item.type === 'efzg' && (
+                  <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-sm text-[#460F40] dark:text-[#d946c8]">
+                    <path d="M 5 20 H 95 V 36 H 54 Q 50 36 50 42 Q 50 36 46 36 H 5 Z" fill="currentColor" />
+                    <path d="M 25 48 H 80 V 64 H 54 Q 50 64 50 70 Q 50 64 46 64 H 25 Z" fill="currentColor" />
+                    <path d="M 5 76 H 68 V 92 H 54 Q 50 92 50 98 Q 50 92 46 92 H 5 Z" fill="currentColor" />
+                  </svg>
+                )}
+
+                {item.type === 'ikea' && (
+                  <svg viewBox="0 0 120 50" className="w-full h-full drop-shadow-sm">
+                    <rect x="0" y="0" width="120" height="50" fill="#0051BA" />
+                    <ellipse cx="60" cy="25" rx="55" ry="22" fill="#FFCC00" />
+                    <text x="60" y="36.5" fontFamily="Verdana, Geneva, sans-serif" fontWeight="900" fontSize="33" fontStyle="italic" fill="#0051BA" textAnchor="middle" letterSpacing="-1.5">IKEA</text>
+                  </svg>
+                )}
+
+                {item.type === 'ey' && (
+                  <svg viewBox="0 0 80 50" className="w-full h-full text-[#333333] dark:text-[#f8f8f8]">
+                    <text x="0" y="42" fontFamily="Arial, Helvetica, sans-serif" fontWeight="900" fontSize="48" fill="currentColor" letterSpacing="-4">EY</text>
+                    <polygon points="61,42 66,16 76,16" fill="#FFE600" /> 
                   </svg>
                 )}
 
                 {item.type === 'amazon' && (
-                  <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-white dark:bg-black shadow-lg border border-black/10 dark:border-white/10">
-                    <div className="flex flex-col items-center">
-                      <span className="text-xl font-bold tracking-tighter lowercase leading-none mb-1">amazon</span>
-                      <svg width={70} height={15} viewBox="0 0 70 15" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-orange-500">
-                        <path d="M5 2C15 12 55 12 65 2" />
-                        <path d="M58 2L65 2L62 9" />
-                      </svg>
-                    </div>
-                  </div>
+                  <svg viewBox="0 0 130 50" className="w-full h-full drop-shadow-sm text-current overflow-visible">
+                    <text x="0" y="30" fontFamily="Arial, Helvetica, sans-serif" fontWeight="900" fontSize="36" letterSpacing="-1.5" fill="currentColor">amazon</text>
+                    <path d="M 12 36 Q 50 51 106 34" fill="none" stroke="#FF9900" strokeWidth="3.5" strokeLinecap="round"/>
+                    <polygon points="106,34 100,29 96,35" fill="#FF9900"/>
+                  </svg>
                 )}
 
                 {item.type === 'acap' && (
-                  <div className="flex flex-col items-center justify-center bg-white dark:bg-black p-3 rounded-xl border border-black/10 dark:border-white/10 shadow-md">
-                    <div className="grid grid-cols-3 gap-0.5 w-10 h-10 border border-current p-0.5 rounded-sm">
-                      {[...Array(9)].map((_, i) => (
-                        <div key={i} className={`w-full h-full rounded-[1px] ${i % 2 === 0 ? 'bg-red-600' : 'bg-transparent'}`}></div>
-                      ))}
-                    </div>
-                    <span className="text-[12px] font-black tracking-tight mt-1 leading-none">ACAP</span>
-                  </div>
+                  <svg viewBox="0 0 180 50" className="w-full h-full text-[#E31D3B] drop-shadow-sm overflow-visible">
+                    <text x="0" y="42" fontFamily="Arial, Helvetica, sans-serif" fontWeight="900" fontSize="48" letterSpacing="-3.5" fill="currentColor">A</text>
+                    
+                    <g transform="translate(36, 12)">
+                      <rect x="0" y="0" width="10" height="9" fill="currentColor" />
+                      <rect x="0" y="10" width="10" height="10" fill="transparent" />
+                      <rect x="0" y="21" width="10" height="9" fill="currentColor" />
+                      
+                      <rect x="11" y="0" width="10" height="9" fill="transparent" />
+                      <rect x="11" y="10" width="10" height="10" fill="currentColor" />
+                      <rect x="11" y="21" width="10" height="9" fill="transparent" />
+                    </g>
+                    
+                    <path d="M 85,12 A 16,15 0 1,0 85,42" fill="none" stroke="currentColor" strokeWidth="10" strokeLinecap="square" />
+                    
+                    <text x="88" y="42" fontFamily="Arial, Helvetica, sans-serif" fontWeight="900" fontSize="48" letterSpacing="-3.5" fill="currentColor">AP</text>
+                  </svg>
                 )}
+
+                {item.type === 'basketball' && (
+                  <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-md">
+                    <defs>
+                      <radialGradient id="ballGlow" cx="30%" cy="30%" r="70%">
+                        <stop offset="0%" stopColor="#fb923c" />
+                        <stop offset="70%" stopColor="#f97316" />
+                        <stop offset="100%" stopColor="#ea580c" />
+                      </radialGradient>
+                    </defs>
+                    <circle cx="50" cy="50" r="46" fill="url(#ballGlow)" />
+                    <g fill="none" stroke="#431407" strokeWidth="3" className="opacity-90">
+                      <circle cx="50" cy="50" r="46" />
+                      <path d="M 50 4 Q 52 50 50 96" />
+                      <path d="M 4 50 Q 50 52 96 50" />
+                      <path d="M 17 21 C 45 40, 45 60, 17 79" />
+                      <path d="M 83 21 C 55 40, 55 60, 83 79" />
+                    </g>
+                  </svg>
+                )}
+
+                {item.type === 'reading' && (
+                  <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-md">
+                    {/* Layout rotated a bit for style */}
+                    <g transform="rotate(-5 50 50)">
+                      <path d="M 10 80 L 10 20 C 30 15 45 20 50 25 C 55 20 70 15 90 20 L 90 80 C 70 75 55 80 50 85 C 45 80 30 75 10 80 Z" fill="#64748b" className="dark:fill-[#475569]" />
+                      <path d="M 12 78 L 12 22 C 30 18 45 22 50 27 L 50 83 C 45 78 30 74 12 78 Z" fill="#f8fafc" className="dark:fill-[#f1f5f9]" />
+                      <path d="M 88 78 L 88 22 C 70 18 55 22 50 27 L 50 83 C 55 78 70 74 88 78 Z" fill="#e2e8f0" className="dark:fill-[#e2e8f0]" />
+                      {/* Text lines */}
+                      <g stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round">
+                        <line x1="20" y1="35" x2="40" y2="38" />
+                        <line x1="20" y1="45" x2="42" y2="48" />
+                        <line x1="20" y1="55" x2="35" y2="57" />
+                        <line x1="60" y1="38" x2="80" y2="35" />
+                        <line x1="58" y1="48" x2="75" y2="45" />
+                      </g>
+                    </g>
+                    {/* Pen */}
+                    <g transform="translate(68, 48) rotate(-35)">
+                       <rect x="-4" y="-20" width="8" height="40" rx="1" fill="#fcd34d" />
+                       <polygon points="-4,20 4,20 0,30" fill="#e4e4e7" />
+                       <polygon points="-1.5,26 1.5,26 0,30" fill="#1f2937" />
+                       <rect x="-4" y="-25" width="8" height="5" fill="#f87171" rx="1" />
+                    </g>
+                  </svg>
+                )}
+
+                {item.type === 'photography' && (
+                  <svg viewBox="0 0 100 100" className="w-full h-full text-[#4b5563] dark:text-[#9ca3af] drop-shadow-sm">
+                    <rect x="10" y="32" width="80" height="52" rx="8" fill="currentColor" />
+                    <path d="M 28 32 L 35 20 L 65 20 L 72 32 Z" fill="currentColor" className="opacity-80"/>
+                    <circle cx="22" cy="45" r="4.5" fill="#fcd34d" />
+                    <circle cx="80" cy="42" r="3" fill="#000" className="opacity-20" />
+                    <circle cx="50" cy="58" r="18" fill="#1f2937" className="dark:fill-[#0f172a]"/>
+                    <circle cx="50" cy="58" r="9" fill="#9ca3af" className="dark:fill-[#4b5563]" />
+                    <circle cx="47" cy="54" r="2.5" fill="#fff" />
+                  </svg>
+                )}
+
               </div>
             </div>
           ))}
         </div>
+      </div>
 
-        {/* Gravity Control Overlay */}
-        <div className="absolute bottom-4 right-4 z-20 flex gap-2">
-          <button 
-            type="button"
-            onClick={(e) => { e.stopPropagation(); setGravityActive(!gravityActive); }}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-wider transition-all border ${
-              gravityActive 
-                ? 'bg-blue-500 text-white border-blue-400' 
-                : 'bg-white/80 dark:bg-black/80 text-black dark:text-white border-black/10 dark:border-white/10'
-            } hover:scale-105 active:scale-95`}
-          >
-            <Target size={12} className={gravityActive ? 'animate-bounce' : ''} />
-            {gravityActive ? 'Gravity ON' : 'Gravity OFF'}
-          </button>
-        </div>
+      {/* Gravity Control Overlay - Moved outside for better reliability */}
+      <div className="absolute bottom-4 right-4 z-50 flex gap-2">
+        <button 
+          type="button"
+          onPointerDown={(e) => { e.stopPropagation(); setGravityActive(!gravityActive); }}
+          className={`flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all border shadow-lg ${
+            gravityActive 
+              ? 'bg-blue-600 text-white border-blue-400' 
+              : 'bg-white dark:bg-zinc-900 text-black dark:text-white border-black/10 dark:border-white/10'
+          } hover:scale-105 active:scale-95 cursor-pointer touch-manipulation`}
+        >
+          <Target size={14} className={gravityActive ? 'animate-bounce' : ''} />
+          {gravityActive ? 'Gravity ON' : 'Gravity OFF'}
+        </button>
       </div>
       
       {/* Interaction Hint */}
