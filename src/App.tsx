@@ -36,6 +36,8 @@ interface Project {
   description: string;
   category: string;
   year: string;
+  url?: string;
+  isHtml5?: boolean;
 }
 
 interface BlogPost {
@@ -55,7 +57,44 @@ const SOCIAL_LINKS: SocialLink[] = [
   { id: 'youtube', name: 'YouTube', url: 'https://www.youtube.com/@vedran.brozovic', icon: Youtube },
 ];
 
-const PROJECTS: Project[] = [];
+const PROJECTS: Project[] = [
+  {
+    id: 'wolt-game',
+    title: 'Wolt Delivery Game (v2)',
+    description: 'A fun, single-file HTML5 arcade game about delivering food on time. Built in one quick vibe coding session.',
+    category: 'HTML5 CANVAS / GAME',
+    year: '2025',
+    url: 'https://htmlpreview.github.io/?https://github.com/vedranbrozovic/vibe_coding_single_html/blob/main/wolt_game_v2.html',
+    isHtml5: true
+  },
+  {
+    id: 'economic-time-traveler',
+    title: 'Economic Time Traveler',
+    description: 'Slide through the years and witness economic and cultural shifts in a single HTML file visualization.',
+    category: 'HTML5 VIZ',
+    year: '2025',
+    url: 'https://htmlpreview.github.io/?https://github.com/vedranbrozovic/vibe_coding_single_html/blob/main/economic_time_traveler_v2',
+    isHtml5: true
+  },
+  {
+    id: 'potato-inflation',
+    title: 'Potato Inflation (v3)',
+    description: 'A whimsical calculator and visualizer for analyzing inflation metrics through the universal currency of potatoes.',
+    category: 'HTML5 APP',
+    year: '2025',
+    url: 'https://htmlpreview.github.io/?https://github.com/vedranbrozovic/vibe_coding_single_html/blob/main/potato_inflation_v3.html',
+    isHtml5: true
+  },
+  {
+    id: 'beer-indicator',
+    title: 'Beer Indicator',
+    description: 'An interactive HTML5 experiment exploring playful data points and indicators.',
+    category: 'HTML5 EXPERIMENT',
+    year: '2025',
+    url: 'https://htmlpreview.github.io/?https://github.com/vedranbrozovic/vibe_coding_single_html/blob/main/beer_indicator.html',
+    isHtml5: true
+  }
+];
 
 const BLOG_POSTS: BlogPost[] = [];
 
@@ -591,30 +630,36 @@ const ContactSection = () => {
   );
 };
 
-const ProjectsList = () => {
+const ProjectsList = ({ onOpenHtml5 }: { onOpenHtml5: (url: string) => void }) => {
   if (PROJECTS.length === 0) return null;
   return (
     <section id="projects" className="py-12 border-t border-black/5 dark:border-white/5">
       <SectionHeading icon={Code2}>Impact & Strategy</SectionHeading>
-      <div className="space-y-2">
+      <div className="space-y-4">
         {PROJECTS.map((project) => (
           <motion.div
             key={project.id}
             whileHover={{ x: 4 }}
-            className="group flex flex-col md:flex-row justify-between items-start md:items-center py-6 border-b border-black/5 dark:border-white/5 cursor-pointer"
+            onClick={() => project.isHtml5 && project.url && onOpenHtml5(project.url)}
+            className="group flex flex-col md:flex-row justify-between items-start md:items-center p-6 rounded-2xl bg-black/[0.01] dark:bg-white/[0.01] border border-black/5 dark:border-white/5 hover:border-black/20 dark:hover:border-white/20 transition-all cursor-pointer"
           >
             <div className="max-w-xl">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-[9px] uppercase tracking-widest font-bold text-blue-500">{project.category}</span>
-                <span className="text-[9px] opacity-20">{project.year}</span>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="px-2 py-0.5 rounded text-[9px] uppercase tracking-widest font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400">{project.category}</span>
+                <span className="text-[9px] font-bold opacity-30">{project.year}</span>
+                {project.isHtml5 && (
+                  <span className="px-2 py-0.5 rounded text-[9px] uppercase tracking-widest font-bold bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center gap-1">
+                    <Monitor size={10} /> HTML5 demo
+                  </span>
+                )}
               </div>
-              <h3 className="text-xl font-bold group-hover:opacity-60 transition-opacity">{project.title}</h3>
-              <p className="mt-1 text-xs opacity-50 group-hover:opacity-80 transition-opacity leading-relaxed max-w-lg">
+              <h3 className="text-xl font-bold group-hover:text-blue-500 transition-colors">{project.title}</h3>
+              <p className="mt-2 text-xs opacity-60 leading-relaxed max-w-lg">
                 {project.description}
               </p>
             </div>
-            <div className="mt-4 md:mt-0 opacity-0 group-hover:opacity-100 transition-all">
-               <ArrowUpRight size={16} className="text-blue-500" />
+            <div className="mt-4 md:mt-0 opacity-0 group-hover:opacity-100 transition-all bg-black/5 dark:bg-white/5 p-3 rounded-full">
+               <ArrowUpRight size={18} className="text-blue-500 group-hover:scale-110 transition-transform" />
             </div>
           </motion.div>
         ))}
@@ -662,10 +707,53 @@ const Footer = () => (
   </footer>
 );
 
+const HTML5Viewer = ({ url, onClose }: { url: string, onClose: () => void }) => {
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 50, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 50, scale: 0.98 }}
+      transition={{ duration: 0.3, ease: 'easeOut' }}
+      className="fixed inset-0 z-[100] bg-white dark:bg-[#0a0a0a] flex flex-col shadow-2xl"
+    >
+      <div className="h-14 border-b border-black/10 dark:border-white/10 flex items-center justify-between px-4 md:px-6 bg-white dark:bg-[#0a0a0a]">
+        <div className="flex items-center gap-3">
+          <button 
+             onClick={onClose}
+             className="flex items-center justify-center p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors group"
+             aria-label="Close demo and return"
+          >
+             <ChevronRight className="rotate-180 group-hover:-translate-x-0.5 transition-transform" size={20} />
+          </button>
+          <div>
+             <span className="font-bold text-sm tracking-tight block leading-none">Interactive Demo</span>
+             <span className="text-[10px] opacity-50 block mt-1 leading-none uppercase tracking-wider">{url.replace(/^https?:\/\//, '')}</span>
+          </div>
+        </div>
+        <a href={url} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded bg-black/5 dark:bg-white/5 text-xs font-bold uppercase tracking-wider hover:bg-black/10 dark:hover:bg-white/10 transition-colors flex items-center gap-2">
+          New Tab <ArrowUpRight size={14} />
+        </a>
+      </div>
+      <div className="flex-1 w-full relative bg-[#f1f1f1] dark:bg-[#111111]">
+        <div className="absolute inset-0 flex items-center justify-center opacity-30 pointer-events-none">
+          <span className="text-xs uppercase tracking-widest font-bold animate-pulse">Loading engine...</span>
+        </div>
+        <iframe 
+          src={url} 
+          className="relative z-10 w-full h-full border-none bg-transparent"
+          title="Project Demo"
+          sandbox="allow-scripts allow-same-origin allow-popups"
+        />
+      </div>
+    </motion.div>
+  );
+};
+
 // --- App Entry ---
 
 export default function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [activeHtml5Url, setActiveHtml5Url] = useState<string | null>(null);
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, {
     stiffness: 100,
@@ -703,7 +791,7 @@ export default function App() {
       <main className="px-6 md:px-12 lg:px-24 pt-20">
         <div className="max-w-6xl mx-auto">
           <Hero />
-          <ProjectsList />
+          <ProjectsList onOpenHtml5={(url) => setActiveHtml5Url(url)} />
           <BlogList />
           <QuotesSection />
           <ContactSection />
@@ -714,6 +802,12 @@ export default function App() {
       {/* Decorative gradients for that "Surya/Marijana" feel */}
       <div className="fixed -top-[20%] -left-[10%] w-[50%] h-[50%] bg-accent/5 rounded-full blur-[120px] pointer-events-none" />
       <div className="fixed -bottom-[20%] -right-[10%] w-[50%] h-[50%] bg-accent/5 rounded-full blur-[120px] pointer-events-none" />
+      
+      <AnimatePresence>
+        {activeHtml5Url && (
+          <HTML5Viewer url={activeHtml5Url} onClose={() => setActiveHtml5Url(null)} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
