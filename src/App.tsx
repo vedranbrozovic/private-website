@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Matter from 'matter-js';
 import { motion, AnimatePresence, useScroll, useSpring } from 'motion/react';
+import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Github, 
   Linkedin, 
@@ -38,6 +39,7 @@ interface Project {
   year: string;
   url?: string;
   isHtml5?: boolean;
+  path?: string;
 }
 
 interface BlogPost {
@@ -58,6 +60,14 @@ const SOCIAL_LINKS: SocialLink[] = [
 ];
 
 const PROJECTS: Project[] = [
+  {
+    id: 'acap-ams',
+    title: 'ACAP AMS (AI Studio)',
+    description: 'A comprehensive Association Management System explicitly designed and deployed via AI Studio.',
+    category: 'FULL-STACK / WEB',
+    year: '2026',
+    path: '/ACAP-AMS'
+  },
   {
     id: 'wolt-game',
     title: 'Wolt Delivery Game (v2)',
@@ -631,6 +641,7 @@ const ContactSection = () => {
 };
 
 const ProjectsList = ({ onOpenHtml5 }: { onOpenHtml5: (url: string) => void }) => {
+  const navigate = useNavigate();
   if (PROJECTS.length === 0) return null;
   return (
     <section id="projects" className="py-12 border-t border-black/5 dark:border-white/5">
@@ -640,7 +651,15 @@ const ProjectsList = ({ onOpenHtml5 }: { onOpenHtml5: (url: string) => void }) =
           <motion.div
             key={project.id}
             whileHover={{ x: 4 }}
-            onClick={() => project.isHtml5 && project.url && onOpenHtml5(project.url)}
+            onClick={() => {
+              if (project.isHtml5 && project.url) {
+                onOpenHtml5(project.url);
+              } else if (project.path) {
+                navigate(project.path);
+              } else if (project.url) {
+                window.open(project.url, '_blank', 'noopener noreferrer');
+              }
+            }}
             className="group flex flex-col md:flex-row justify-between items-start md:items-center p-6 rounded-2xl bg-black/[0.01] dark:bg-white/[0.01] border border-black/5 dark:border-white/5 hover:border-black/20 dark:hover:border-white/20 transition-all cursor-pointer"
           >
             <div className="max-w-xl">
@@ -650,6 +669,11 @@ const ProjectsList = ({ onOpenHtml5 }: { onOpenHtml5: (url: string) => void }) =
                 {project.isHtml5 && (
                   <span className="px-2 py-0.5 rounded text-[9px] uppercase tracking-widest font-bold bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center gap-1">
                     <Monitor size={10} /> HTML5 demo
+                  </span>
+                )}
+                {project.path && (
+                  <span className="px-2 py-0.5 rounded text-[9px] uppercase tracking-widest font-bold bg-green-500/10 text-green-600 dark:text-green-400 flex items-center gap-1">
+                    <Monitor size={10} /> Launch App
                   </span>
                 )}
               </div>
@@ -749,9 +773,64 @@ const HTML5Viewer = ({ url, onClose }: { url: string, onClose: () => void }) => 
   );
 };
 
+// --- Pages ---
+const Home = ({ setActiveHtml5Url }: { setActiveHtml5Url: (url: string | null) => void }) => {
+  return (
+    <>
+      <Hero />
+      <ProjectsList onOpenHtml5={(url) => setActiveHtml5Url(url)} />
+      <BlogList />
+      <QuotesSection />
+      <ContactSection />
+    </>
+  );
+};
+
+const AcapAmsPage = () => {
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 50, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 50, scale: 0.98 }}
+      transition={{ duration: 0.3, ease: 'easeOut' }}
+      className="fixed inset-0 z-[100] bg-white dark:bg-[#0a0a0a] flex flex-col shadow-2xl"
+    >
+      <div className="h-14 border-b border-black/10 dark:border-white/10 flex items-center justify-between px-4 md:px-6 bg-white dark:bg-[#0a0a0a]">
+        <div className="flex items-center gap-3">
+          <Link 
+             to="/"
+             className="flex items-center justify-center p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors group"
+             aria-label="Close app and return"
+          >
+             <ChevronRight className="rotate-180 group-hover:-translate-x-0.5 transition-transform" size={20} />
+          </Link>
+          <div>
+             <span className="font-bold text-sm tracking-tight block leading-none">ACAP AMS</span>
+             <span className="text-[10px] opacity-50 block mt-1 leading-none uppercase tracking-wider">vedranbrozovic.github.io</span>
+          </div>
+        </div>
+        <a href="https://vedranbrozovic.github.io/ACAP-AMS/" target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded bg-black/5 dark:bg-white/5 text-xs font-bold uppercase tracking-wider hover:bg-black/10 dark:hover:bg-white/10 transition-colors flex items-center gap-2">
+           New Tab <ArrowUpRight size={14} />
+        </a>
+      </div>
+      <div className="flex-1 w-full relative bg-[#f1f1f1] dark:bg-[#111111]">
+        <div className="absolute inset-0 flex items-center justify-center opacity-30 pointer-events-none">
+          <span className="text-xs uppercase tracking-widest font-bold animate-pulse">Launching Web App in StackBlitz...</span>
+        </div>
+        <iframe 
+          src="https://stackblitz.com/github/vedranbrozovic/ACAP-AMS?embed=1&file=src/App.tsx&hideNavigation=1&view=preview&terminalHeight=0" 
+          className="relative z-10 w-full h-full border-none bg-transparent"
+          title="ACAP AMS App Simulator"
+          sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+        />
+      </div>
+    </motion.div>
+  );
+};
+
 // --- App Entry ---
 
-export default function App() {
+function AppContent() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [activeHtml5Url, setActiveHtml5Url] = useState<string | null>(null);
   const { scrollYProgress } = useScroll();
@@ -779,7 +858,7 @@ export default function App() {
   }, []);
 
   return (
-    <div className={`selection:bg-accent selection:text-white`}>
+    <div className={`selection:bg-accent selection:text-white min-h-screen flex flex-col`}>
       <motion.div 
         className="fixed top-0 left-0 right-0 h-1 bg-accent z-[60] origin-left" 
         style={{ scaleX }} 
@@ -788,13 +867,12 @@ export default function App() {
       <div className="noise" />
       <Navbar theme={theme} toggle={toggleTheme} />
       
-      <main className="px-6 md:px-12 lg:px-24 pt-20">
+      <main className="px-6 md:px-12 lg:px-24 pt-20 flex-1">
         <div className="max-w-6xl mx-auto">
-          <Hero />
-          <ProjectsList onOpenHtml5={(url) => setActiveHtml5Url(url)} />
-          <BlogList />
-          <QuotesSection />
-          <ContactSection />
+          <Routes>
+            <Route path="/" element={<Home setActiveHtml5Url={setActiveHtml5Url} />} />
+            <Route path="/ACAP-AMS" element={<AcapAmsPage />} />
+          </Routes>
           <Footer />
         </div>
       </main>
@@ -809,5 +887,13 @@ export default function App() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <Router>
+      <AppContent />
+    </Router>
   );
 }
