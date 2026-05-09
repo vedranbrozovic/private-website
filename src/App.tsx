@@ -20,7 +20,8 @@ import {
   Monitor,
   Camera,
   BookOpen,
-  Brain
+  Brain,
+  UserPlus
 } from 'lucide-react';
 
 // --- Types ---
@@ -583,6 +584,32 @@ const QuotesSection = () => {
   );
 };
 
+const RegistrationSection = () => {
+  useEffect(() => {
+    // Outseta might need to be notified of DOM changes in React
+    const outseta = (window as any).Outseta;
+    if (outseta && typeof outseta.init === 'function') {
+      outseta.init();
+    }
+  }, []);
+
+  return (
+    <section id="register" className="py-12 border-t border-black/5 dark:border-white/5">
+      <SectionHeading icon={UserPlus}>Support & Membership</SectionHeading>
+      <div className="w-full flex justify-center mt-6 min-h-[400px]">
+        <div 
+          data-o-auth="1"
+          data-widget-mode="register"
+          data-plan-uid="pWrKXLmn"
+          data-plan-payment-term="month"
+          data-skip-plan-options="true"
+          data-mode="embed"
+        />
+      </div>
+    </section>
+  );
+};
+
 const ContactSection = () => {
   const [formData, setFormData] = useState({ name: '', message: '' });
 
@@ -781,6 +808,7 @@ const Home = ({ setActiveHtml5Url }: { setActiveHtml5Url: (url: string | null) =
       <ProjectsList onOpenHtml5={(url) => setActiveHtml5Url(url)} />
       <BlogList />
       <QuotesSection />
+      <RegistrationSection />
       <ContactSection />
     </>
   );
