@@ -21,7 +21,13 @@ import {
   Camera,
   BookOpen,
   Brain,
-  UserPlus
+  Book,
+  Film,
+  Mic,
+  Quote,
+  ChevronDown,
+  ChevronUp,
+  Play
 } from 'lucide-react';
 
 // --- Types ---
@@ -56,19 +62,13 @@ const CONTACT_EMAIL = 'brozovic.vedran@gmail.com';
 const SOCIAL_LINKS: SocialLink[] = [
   { id: 'linkedin', name: 'LinkedIn', url: 'https://www.linkedin.com/in/vedranbrozovic/', icon: Linkedin },
   { id: 'github', name: 'GitHub', url: 'https://github.com/vedranbrozovic', icon: Github },
+  { id: 'twitter', name: 'Twitter', url: 'https://twitter.com/vedranbrozovic', icon: Twitter },
   { id: 'instagram', name: 'Instagram', url: 'https://instagram.com/vedranbrozovic', icon: Instagram },
   { id: 'youtube', name: 'YouTube', url: 'https://www.youtube.com/@vedran.brozovic', icon: Youtube },
+  { id: 'mail', name: 'Email', url: `mailto:${CONTACT_EMAIL}`, icon: Mail },
 ];
 
 const PROJECTS: Project[] = [
-  {
-    id: 'acap-ams',
-    title: 'ACAP AMS (AI Studio)',
-    description: 'A comprehensive Association Management System explicitly designed and deployed via AI Studio.',
-    category: 'FULL-STACK / WEB',
-    year: '2026',
-    path: '/ACAP-AMS'
-  },
   {
     id: 'wolt-game',
     title: 'Wolt Delivery Game (v2)',
@@ -109,11 +109,7 @@ const PROJECTS: Project[] = [
 
 const BLOG_POSTS: BlogPost[] = [];
 
-const QUOTES: { text: string; author: string }[] = [
-  { text: "Price is what you pay. Value is what you get.", author: "Warren Buffett" },
-  { text: "Someone's sitting in the shade today because someone planted a tree a long time ago.", author: "Warren Buffett" },
-  { text: "Risk comes from not knowing what you're doing.", author: "Warren Buffett" },
-];
+
 
 // --- Sub-components ---
 
@@ -132,7 +128,7 @@ const Navbar = ({ theme, toggle }: { theme: 'light' | 'dark', toggle: () => void
     <div className="flex items-center gap-6">
       <a href="/" className="font-sans font-bold tracking-tighter text-base hover:text-accent transition-colors">VAB</a>
       <div className="hidden md:flex gap-5">
-        {['Projects', 'Blog'].map((item) => (
+        {['Projects', 'Blog', 'Inspiration'].map((item) => (
           <a 
             key={item} 
             href={`#${item.toLowerCase()}`} 
@@ -548,18 +544,18 @@ const Hero = () => (
         </p>
       </div>
       
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-4 mt-2">
         {SOCIAL_LINKS.map((link) => (
           <motion.a 
             key={link.id} 
             href={link.url}
             target="_blank"
             rel="noopener noreferrer"
-            whileHover={{ y: -2, backgroundColor: 'var(--text)', color: 'var(--bg)' }}
-            className="flex items-center gap-2 px-4 py-2 rounded-full border border-black/10 dark:border-white/10 transition-all group"
+            whileHover={{ y: -2, scale: 1.1 }}
+            className="p-3 bg-black/5 dark:bg-white/5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white"
+            title={link.name}
           >
-            <link.icon size={14} strokeWidth={2} />
-            <span className="text-[11px] font-bold uppercase">{link.name}</span>
+            <link.icon size={18} strokeWidth={2} />
           </motion.a>
         ))}
       </div>
@@ -567,44 +563,159 @@ const Hero = () => (
   </section>
 );
 
-const QuotesSection = () => {
-  if (QUOTES.length === 0) return null;
-  return (
-    <section id="quotes" className="py-12 border-t border-black/5 dark:border-white/5">
-      <SectionHeading icon={Heart}>Favourite Quotes</SectionHeading>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {QUOTES.map((quote, i) => (
-          <div key={i} className="flex flex-col">
-            <p className="text-lg font-serif italic opacity-80 mb-4">"{quote.text}"</p>
-            <span className="text-[10px] uppercase tracking-widest font-bold opacity-30">— {quote.author}</span>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-};
+interface InspirationData {
+  quotes: { text: string; author: string }[];
+  poems: { title: string; author: string; significance: string; text: string }[];
+  books: { title: string; author: string; link?: string }[];
+  movies: { title: string; director: string; significance?: string }[];
+  speeches: { title: string; speaker: string; youtubeUrl: string }[];
+}
 
-const RegistrationSection = () => {
+const InspirationSection = () => {
+  const [data, setData] = useState<InspirationData | null>(null);
+  const [activePoem, setActivePoem] = useState<number | null>(null);
+
   useEffect(() => {
-    // Outseta might need to be notified of DOM changes in React
-    const outseta = (window as any).Outseta;
-    if (outseta && typeof outseta.init === 'function') {
-      outseta.init();
-    }
+    fetch('/inspiration.json')
+      .then(res => res.json())
+      .then(setData)
+      .catch(console.error);
   }, []);
 
+  if (!data) return null;
+
   return (
-    <section id="register" className="py-12 border-t border-black/5 dark:border-white/5">
-      <SectionHeading icon={UserPlus}>Support & Membership</SectionHeading>
-      <div className="w-full flex justify-center mt-6 min-h-[400px]">
-        <div 
-          data-o-auth="1"
-          data-widget-mode="register"
-          data-plan-uid="pWrKXLmn"
-          data-plan-payment-term="month"
-          data-skip-plan-options="true"
-          data-mode="embed"
-        />
+    <section id="inspiration" className="py-12 border-t border-black/5 dark:border-white/5">
+      <SectionHeading icon={Heart}>Inspiration</SectionHeading>
+      
+      <div className="space-y-16">
+        
+        {data.quotes && data.quotes.length > 0 && (
+          <div>
+            <h3 className="text-[10px] uppercase tracking-widest font-bold opacity-30 flex items-center gap-2 mb-6">
+              <Quote size={12} /> Quotes
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {data.quotes.map((quote, i) => (
+                <div key={i} className="flex flex-col group p-6 rounded-2xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/5 dark:border-white/5 hover:border-black/20 dark:hover:border-white/20 transition-all">
+                  <p className="text-lg font-serif italic opacity-80 mb-4 flex-1">"{quote.text}"</p>
+                  <span className="text-[10px] uppercase tracking-widest font-bold opacity-40 group-hover:opacity-100 transition-opacity">— {quote.author}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {data.poems && data.poems.length > 0 && (
+          <div>
+            <h3 className="text-[10px] uppercase tracking-widest font-bold opacity-30 flex items-center gap-2 mb-6">
+              <BookOpen size={12} /> Poems
+            </h3>
+            <div className="space-y-4">
+              {data.poems.map((poem, i) => (
+                <div key={i} className="border border-black/5 dark:border-white/5 rounded-2xl overflow-hidden bg-black/[0.01] dark:bg-white/[0.01]">
+                  <button 
+                    onClick={() => setActivePoem(activePoem === i ? null : i)}
+                    className="w-full p-6 flex flex-col md:flex-row md:items-center justify-between text-left hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors"
+                  >
+                    <div className="mb-4 md:mb-0">
+                      <div className="flex items-center gap-3">
+                        <h4 className="text-lg font-bold">{poem.title}</h4>
+                        <span className="px-2 py-0.5 rounded text-[9px] uppercase tracking-widest font-bold bg-black/10 dark:bg-white/10">{poem.author}</span>
+                      </div>
+                      <p className="text-xs opacity-50 mt-2 font-medium">{poem.significance}</p>
+                    </div>
+                    <div className="w-8 h-8 rounded-full border border-black/10 dark:border-white/10 flex items-center justify-center bg-white dark:bg-[#0a0a0a] shadow-sm shrink-0">
+                      {activePoem === i ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                    </div>
+                  </button>
+                  <AnimatePresence>
+                    {activePoem === i && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="border-t border-black/5 dark:border-white/5"
+                      >
+                        <div className="p-6 md:p-8 whitespace-pre-wrap font-serif text-sm opacity-80 leading-loose border-l-4 border-blue-500/20 ml-6 md:ml-8 my-4">
+                          {poem.text}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
+          {data.books && data.books.length > 0 && (
+            <div>
+              <h3 className="text-[10px] uppercase tracking-widest font-bold opacity-30 flex items-center gap-2 mb-6">
+                <Book size={12} /> Books
+              </h3>
+              <div className="space-y-4">
+                {data.books.map((book, i) => (
+                  <a key={i} href={book.link || '#'} target={book.link ? "_blank" : "_self"} rel="noopener noreferrer" className="group flex items-center justify-between p-4 rounded-xl border border-black/5 dark:border-white/5 hover:border-black/20 dark:hover:border-white/20 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-all">
+                    <div>
+                      <h4 className="font-bold text-sm group-hover:text-blue-500 transition-colors">{book.title}</h4>
+                      <span className="text-[10px] uppercase tracking-widest font-bold opacity-40">{book.author}</span>
+                    </div>
+                    {book.link && <ArrowUpRight size={14} className="opacity-30 group-hover:opacity-100 transition-opacity" />}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {data.movies && data.movies.length > 0 && (
+            <div>
+              <h3 className="text-[10px] uppercase tracking-widest font-bold opacity-30 flex items-center gap-2 mb-6">
+                <Film size={12} /> Movies
+              </h3>
+              <div className="space-y-4">
+                {data.movies.map((movie, i) => (
+                  <div key={i} className="p-4 rounded-xl border border-transparent hover:border-black/5 dark:hover:border-white/5 transition-all">
+                    <h4 className="font-bold text-sm flex items-center gap-2">
+                       <Play size={10} className="opacity-40" /> {movie.title}
+                    </h4>
+                    <span className="text-[10px] uppercase tracking-widest font-bold opacity-40 mt-1 block">Dir. {movie.director}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {data.speeches && data.speeches.length > 0 && (
+          <div>
+            <h3 className="text-[10px] uppercase tracking-widest font-bold opacity-30 flex items-center gap-2 mb-6">
+              <Mic size={12} /> Speeches
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {data.speeches.map((speech, i) => (
+                <div key={i} className="rounded-2xl overflow-hidden border border-black/5 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.02]">
+                  <div className="p-4 border-b border-black/5 dark:border-white/5">
+                     <h4 className="font-bold text-sm">{speech.title}</h4>
+                     <span className="text-[10px] uppercase tracking-widest font-bold opacity-40">{speech.speaker}</span>
+                  </div>
+                  <div className="relative pt-[56.25%]">
+                    <iframe 
+                      className="absolute inset-0 w-full h-full" 
+                      src={speech.youtubeUrl} 
+                      title={speech.title} 
+                      frameBorder="0" 
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                      allowFullScreen
+                    ></iframe>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
       </div>
     </section>
   );
@@ -807,54 +918,12 @@ const Home = ({ setActiveHtml5Url }: { setActiveHtml5Url: (url: string | null) =
       <Hero />
       <ProjectsList onOpenHtml5={(url) => setActiveHtml5Url(url)} />
       <BlogList />
-      <QuotesSection />
-      <RegistrationSection />
+      <InspirationSection />
       <ContactSection />
     </>
   );
 };
 
-const AcapAmsPage = () => {
-  return (
-    <motion.div 
-      initial={{ opacity: 0, y: 50, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 50, scale: 0.98 }}
-      transition={{ duration: 0.3, ease: 'easeOut' }}
-      className="fixed inset-0 z-[100] bg-white dark:bg-[#0a0a0a] flex flex-col shadow-2xl"
-    >
-      <div className="h-14 border-b border-black/10 dark:border-white/10 flex items-center justify-between px-4 md:px-6 bg-white dark:bg-[#0a0a0a]">
-        <div className="flex items-center gap-3">
-          <Link 
-             to="/"
-             className="flex items-center justify-center p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors group"
-             aria-label="Close app and return"
-          >
-             <ChevronRight className="rotate-180 group-hover:-translate-x-0.5 transition-transform" size={20} />
-          </Link>
-          <div>
-             <span className="font-bold text-sm tracking-tight block leading-none">ACAP AMS</span>
-             <span className="text-[10px] opacity-50 block mt-1 leading-none uppercase tracking-wider">vedranbrozovic.github.io</span>
-          </div>
-        </div>
-        <a href="https://vedranbrozovic.github.io/ACAP-AMS/" target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded bg-black/5 dark:bg-white/5 text-xs font-bold uppercase tracking-wider hover:bg-black/10 dark:hover:bg-white/10 transition-colors flex items-center gap-2">
-           New Tab <ArrowUpRight size={14} />
-        </a>
-      </div>
-      <div className="flex-1 w-full relative bg-[#f1f1f1] dark:bg-[#111111]">
-        <div className="absolute inset-0 flex items-center justify-center opacity-30 pointer-events-none">
-          <span className="text-xs uppercase tracking-widest font-bold animate-pulse">Launching Web App in StackBlitz...</span>
-        </div>
-        <iframe 
-          src="https://stackblitz.com/github/vedranbrozovic/ACAP-AMS?embed=1&file=src/App.tsx&hideNavigation=1&view=preview&terminalHeight=0" 
-          className="relative z-10 w-full h-full border-none bg-transparent"
-          title="ACAP AMS App Simulator"
-          sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-        />
-      </div>
-    </motion.div>
-  );
-};
 
 // --- App Entry ---
 
@@ -899,7 +968,6 @@ function AppContent() {
         <div className="max-w-6xl mx-auto">
           <Routes>
             <Route path="/" element={<Home setActiveHtml5Url={setActiveHtml5Url} />} />
-            <Route path="/ACAP-AMS" element={<AcapAmsPage />} />
           </Routes>
           <Footer />
         </div>

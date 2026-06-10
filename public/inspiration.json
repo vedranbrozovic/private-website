@@ -1,0 +1,35 @@
+{
+  "quotes": [
+    { "text": "The only way to do great work is to love what you do.", "author": "Steve Jobs" },
+    { "text": "Innovation distinguishes between a leader and a follower.", "author": "Steve Jobs" }
+  ],
+  "poems": [
+    {
+      "title": "Ozymandias",
+      "author": "Percy Bysshe Shelley",
+      "significance": "A minimalist reminder of the fleeting nature of legacy.",
+      "text": "I met a traveller from an antique land,\nWho said—“Two vast and trunkless legs of stone\nStand in the desert. . . . Near them, on the sand,\nHalf sunk a shattered visage lies, whose frown,\nAnd wrinkled lip, and sneer of cold command,\nTell that its sculptor well those passions read\nWhich yet survive, stamped on these lifeless things,\nThe hand that mocked them, and the heart that fed;\nAnd on the pedestal, these words appear:\nMy name is Ozymandias, King of Kings;\nLook on my Works, ye Mighty, and despair!\nNothing beside remains. Round the decay\nOf that colossal Wreck, boundless and bare\nThe lone and level sands stretch far away.”"
+    }
+  ],
+  "books": [
+    {
+      "title": "The Design of Everyday Things",
+      "author": "Don Norman",
+      "link": "https://www.goodreads.com/book/show/840.The_Design_of_Everyday_Things"
+    }
+  ],
+  "movies": [
+    {
+      "title": "Interstellar",
+      "director": "Christopher Nolan",
+      "significance": "A masterpiece of visual storytelling and emotional depth."
+    }
+  ],
+  "speeches": [
+    {
+      "title": "Commencement Address",
+      "speaker": "Steve Jobs",
+      "youtubeUrl": "https://www.youtube.com/embed/UF8uR6Z6KLc"
+    }
+  ]
+}
