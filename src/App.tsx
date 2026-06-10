@@ -65,7 +65,6 @@ const SOCIAL_LINKS: SocialLink[] = [
   { id: 'twitter', name: 'Twitter', url: 'https://twitter.com/vedranbrozovic', icon: Twitter },
   { id: 'instagram', name: 'Instagram', url: 'https://instagram.com/vedranbrozovic', icon: Instagram },
   { id: 'youtube', name: 'YouTube', url: 'https://www.youtube.com/@vedran.brozovic', icon: Youtube },
-  { id: 'mail', name: 'Email', url: `mailto:${CONTACT_EMAIL}`, icon: Mail },
 ];
 
 const PROJECTS: Project[] = [
