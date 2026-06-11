@@ -27,8 +27,7 @@ import {
   Quote,
   ChevronDown,
   ChevronUp,
-  Play,
-  Shuffle
+  Play
 } from 'lucide-react';
 
 // --- Types ---
@@ -617,8 +616,8 @@ const InspirationSection = () => {
         
         {displayedQuotes && displayedQuotes.length > 0 && (
           <div>
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-[10px] uppercase tracking-widest font-bold opacity-30 flex items-center gap-2">
+            <div className="mb-6">
+              <h3 className="text-[10px] uppercase tracking-widest font-bold opacity-30 flex items-center gap-2 mb-4">
                 <Quote size={12} /> Quotes
               </h3>
               <button 
@@ -626,7 +625,7 @@ const InspirationSection = () => {
                 className="flex items-center gap-2 text-[10px] uppercase tracking-widest font-bold opacity-50 hover:opacity-100 transition-opacity px-3 py-1.5 bg-black/[0.03] dark:bg-white/[0.03] rounded-full hover:bg-black/[0.05] dark:hover:bg-white/[0.05]"
                 aria-label="Randomize Quotes"
               >
-                <Shuffle size={12} /> Randomize
+                Randomize
               </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
