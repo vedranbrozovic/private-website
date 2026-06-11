@@ -27,7 +27,8 @@ import {
   Quote,
   ChevronDown,
   ChevronUp,
-  Play
+  Play,
+  Shuffle
 } from 'lucide-react';
 
 // --- Types ---
@@ -573,13 +574,38 @@ interface InspirationData {
 const InspirationSection = () => {
   const [data, setData] = useState<InspirationData | null>(null);
   const [activePoem, setActivePoem] = useState<number | null>(null);
+  const [displayedQuotes, setDisplayedQuotes] = useState<{ text: string; author: string }[]>([]);
 
   useEffect(() => {
-    fetch('/inspiration.json')
-      .then(res => res.json())
-      .then(setData)
+    fetch('/inspiration.json?t=' + new Date().getTime())
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch inspiration data');
+        return res.json();
+      })
+      .then((resData: InspirationData) => {
+        setData(resData);
+        if (resData.quotes) {
+          const shuffled = [...resData.quotes].sort(() => 0.5 - Math.random());
+          setDisplayedQuotes(shuffled.slice(0, 6));
+        }
+      })
       .catch(console.error);
   }, []);
+
+  const randomizeQuotes = () => {
+    if (!data || !data.quotes) return;
+    
+    let availableQuotes = data.quotes.filter(q => !displayedQuotes.includes(q));
+    let shuffled = [...availableQuotes].sort(() => 0.5 - Math.random());
+    
+    if (shuffled.length < 6) {
+      const needed = 6 - shuffled.length;
+      const currentShuffled = [...displayedQuotes].sort(() => 0.5 - Math.random());
+      shuffled = [...shuffled, ...currentShuffled.slice(0, needed)];
+    }
+    
+    setDisplayedQuotes(shuffled.slice(0, 6));
+  };
 
   if (!data) return null;
 
@@ -589,13 +615,22 @@ const InspirationSection = () => {
       
       <div className="space-y-16">
         
-        {data.quotes && data.quotes.length > 0 && (
+        {displayedQuotes && displayedQuotes.length > 0 && (
           <div>
-            <h3 className="text-[10px] uppercase tracking-widest font-bold opacity-30 flex items-center gap-2 mb-6">
-              <Quote size={12} /> Quotes
-            </h3>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-[10px] uppercase tracking-widest font-bold opacity-30 flex items-center gap-2">
+                <Quote size={12} /> Quotes
+              </h3>
+              <button 
+                onClick={randomizeQuotes}
+                className="flex items-center gap-2 text-[10px] uppercase tracking-widest font-bold opacity-50 hover:opacity-100 transition-opacity px-3 py-1.5 bg-black/[0.03] dark:bg-white/[0.03] rounded-full hover:bg-black/[0.05] dark:hover:bg-white/[0.05]"
+                aria-label="Randomize Quotes"
+              >
+                <Shuffle size={12} /> Randomize
+              </button>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {data.quotes.map((quote, i) => (
+              {displayedQuotes.map((quote, i) => (
                 <div key={i} className="flex flex-col group p-6 rounded-2xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/5 dark:border-white/5 hover:border-black/20 dark:hover:border-white/20 transition-all">
                   <p className="text-lg font-serif italic opacity-80 mb-4 flex-1">"{quote.text}"</p>
                   <span className="text-[10px] uppercase tracking-widest font-bold opacity-40 group-hover:opacity-100 transition-opacity">— {quote.author}</span>
