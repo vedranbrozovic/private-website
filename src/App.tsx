@@ -159,6 +159,269 @@ const SectionHeading = ({ children, icon: Icon }: { children: React.ReactNode, i
 
 // --- Main Components ---
 
+const MotorcycleAnimation = () => {
+  const [key, setKey] = useState(0);
+  const [clicks, setClicks] = useState(0);
+  const [trick, setTrick] = useState<'jump' | 'wheelie' | 'stoppie' | null>(null);
+
+  const handleBikeClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (trick) return;
+
+    setClicks(c => c + 1);
+    const tricks: ('jump' | 'wheelie' | 'stoppie')[] = ['jump', 'wheelie', 'stoppie'];
+    const randomTrick = tricks[Math.floor(Math.random() * tricks.length)];
+    
+    setTrick(randomTrick);
+    setTimeout(() => setTrick(null), randomTrick === 'jump' ? 400 : 800);
+  };
+
+  let animationState = { y: 0, rotate: 0 };
+  let origin = '50% 50%';
+
+  if (trick === 'jump') {
+    animationState = { y: -25, rotate: -8 };
+    origin = '50% 50%';
+  } else if (trick === 'wheelie') {
+    animationState = { y: -10, rotate: -35 }; 
+    origin = '27% 96%'; 
+  } else if (trick === 'stoppie') {
+    animationState = { y: -10, rotate: 30 };
+    origin = '73% 96%'; 
+  }
+
+  return (
+    <>
+      <button 
+        onClick={(e) => { e.stopPropagation(); setKey(k => k + 1); setClicks(0); setTrick(null); }}
+        className="absolute bottom-4 left-4 z-50 flex items-center gap-2 px-4 py-2 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/30 text-[10px] font-bold uppercase tracking-wider"
+        aria-label="Ride Motorcycle"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M5 18H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3.19M15 6h2a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-3.19M23 13v-2M11 6l-4 6h6l-4 6"/>
+        </svg>
+        Send It!
+      </button>
+
+      {/* Track below the box - expanded height to prevent any clipping during jumps */}
+      <div className="absolute -bottom-10 left-0 right-0 h-32 pointer-events-none overflow-hidden">
+        
+        {/* Cinematic Background Speed Lines */}
+        <div className="absolute inset-0 opacity-40 mix-blend-screen">
+           <motion.div className="absolute top-10 w-24 h-[1px] bg-white" initial={{ left: '100%' }} animate={{ left: '-20%' }} transition={{ duration: 0.3, repeat: Infinity, ease: 'linear' }} />
+           <motion.div className="absolute top-16 w-16 h-[2px] bg-white" initial={{ left: '110%' }} animate={{ left: '-10%' }} transition={{ duration: 0.2, repeat: Infinity, ease: 'linear', delay: 0.1 }} />
+           <motion.div className="absolute top-4 w-32 h-[1px] bg-white/50" initial={{ left: '105%' }} animate={{ left: '-30%' }} transition={{ duration: 0.4, repeat: Infinity, ease: 'linear', delay: 0.2 }} />
+        </div>
+
+        {/* Motorcycle wrapper */}
+        <motion.div
+          key={key}
+          className="absolute bottom-6 z-40"
+          initial={{ left: '-20%' }}
+          animate={{ left: '120%' }}
+          transition={{ duration: 7, ease: 'linear' }}
+        >
+          {/* Shadow element (stays on ground mostly) */}
+          <motion.div 
+            className="absolute -bottom-1 left-2 w-16 h-2 bg-black/50 blur-[4px] rounded-[100%]"
+            animate={trick ? { scaleX: 0.5, opacity: 0.2 } : { scaleX: 1, opacity: 0.5 }}
+            transition={{ type: "spring", stiffness: 200, damping: 15 }}
+          />
+
+          <motion.div 
+            animate={animationState}
+            style={{ transformOrigin: origin }}
+            transition={{ type: "spring", stiffness: 200, damping: 15 }}
+            className="cursor-pointer pointer-events-auto relative drop-shadow-2xl"
+            onClick={handleBikeClick}
+          >
+            {/* Extremely detailed SVG - scaled down by ~50% (95x72 vs old 180x135) */}
+            <svg width="95" height="72" viewBox="-10 -40 220 170" className="overflow-visible">
+              <defs>
+                <linearGradient id="tank" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#9ca3af" />
+                  <stop offset="20%" stopColor="#6b7280" />
+                  <stop offset="100%" stopColor="#374151" />
+                </linearGradient>
+                <linearGradient id="chrome" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#ffffff" />
+                  <stop offset="40%" stopColor="#9ca3af" />
+                  <stop offset="60%" stopColor="#f3f4f6" />
+                  <stop offset="100%" stopColor="#6b7280" />
+                </linearGradient>
+                <radialGradient id="yellow-panel" cx="40%" cy="30%" r="70%">
+                  <stop offset="0%" stopColor="#fef08a" />
+                  <stop offset="50%" stopColor="#eab308" />
+                  <stop offset="100%" stopColor="#a16207" />
+                </radialGradient>
+                <radialGradient id="helmet-gloss" cx="40%" cy="20%" r="60%">
+                  <stop offset="0%" stopColor="#ffffff" />
+                  <stop offset="60%" stopColor="#cbd5e1" />
+                  <stop offset="100%" stopColor="#64748b" />
+                </radialGradient>
+                <filter id="glow">
+                  <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                  <feMerge>
+                    <feMergeNode in="coloredBlur"/>
+                    <feMergeNode in="SourceGraphic"/>
+                  </feMerge>
+                </filter>
+                <linearGradient id="headlightBeam" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="rgba(254, 240, 138, 0.4)" />
+                  <stop offset="100%" stopColor="rgba(254, 240, 138, 0)" />
+                </linearGradient>
+              </defs>
+
+              {/* Headlight Beam */}
+              <motion.path 
+                d="M 148 44 L 350 -10 L 350 120 Z" 
+                fill="url(#headlightBeam)" 
+                animate={{ opacity: [0.5, 0.7, 0.5] }}
+                transition={{ repeat: Infinity, duration: 0.1 }}
+                style={{ pointerEvents: 'none' }}
+              />
+
+              <g>
+                <animateTransform attributeName="transform" type="translate" values="0,0; 0,1.5; 0,-1; 0,0" dur="0.12s" repeatCount="indefinite" />
+                
+                {/* Rear Wheel (cx=50, cy=100) */}
+                <g>
+                  {/* Knobby Tire */}
+                  <circle cx="50" cy="100" r="23.5" fill="none" stroke="#1f2937" strokeWidth="7" strokeDasharray="3 2"/>
+                  <circle cx="50" cy="100" r="21" fill="none" stroke="#374151" strokeWidth="1"/> {/* Tire Highlight */}
+                  <circle cx="50" cy="100" r="20" fill="none" stroke="#0f172a" strokeWidth="3"/>
+                  <circle cx="50" cy="100" r="18" fill="none" stroke="url(#chrome)" strokeWidth="1"/>
+                  {/* Disc Brake */}
+                  <circle cx="50" cy="100" r="11" fill="none" stroke="#9ca3af" strokeWidth="3" strokeDasharray="2 1"/>
+                  {/* Sprocket */}
+                  <circle cx="50" cy="100" r="8" fill="#111827" />
+                  <circle cx="50" cy="100" r="4" fill="url(#chrome)" />
+                  <g>
+                    <animateTransform attributeName="transform" type="rotate" from="0 50 100" to="360 50 100" dur="0.12s" repeatCount="indefinite" />
+                    {[0, 20, 40, 60, 80, 100, 120, 140, 160].map(deg => (
+                      <line key={deg} x1="50" y1="80" x2="50" y2="120" stroke="#6b7280" strokeWidth="1" transform={`rotate(${deg} 50 100)`}/>
+                    ))}
+                  </g>
+                </g>
+
+                {/* Front Wheel (cx=150, cy=100) */}
+                <g>
+                  {/* Knobby Tire */}
+                  <circle cx="150" cy="100" r="24.5" fill="none" stroke="#1f2937" strokeWidth="7" strokeDasharray="3 2"/>
+                  <circle cx="150" cy="100" r="22" fill="none" stroke="#374151" strokeWidth="1"/> {/* Tire Highlight */}
+                  <circle cx="150" cy="100" r="21" fill="none" stroke="#0f172a" strokeWidth="3"/>
+                  <circle cx="150" cy="100" r="19" fill="none" stroke="url(#chrome)" strokeWidth="1"/>
+                  {/* Disc Brake */}
+                  <circle cx="150" cy="100" r="13" fill="none" stroke="#9ca3af" strokeWidth="3" strokeDasharray="2 1"/>
+                  <circle cx="150" cy="100" r="4" fill="url(#chrome)" />
+                  <g>
+                    <animateTransform attributeName="transform" type="rotate" from="0 150 100" to="360 150 100" dur="0.12s" repeatCount="indefinite" />
+                    {[0, 20, 40, 60, 80, 100, 120, 140, 160].map(deg => (
+                      <line key={deg} x1="150" y1="79" x2="150" y2="121" stroke="#6b7280" strokeWidth="1" transform={`rotate(${deg} 150 100)`}/>
+                    ))}
+                  </g>
+                </g>
+
+                {/* Forks / Suspension */}
+                <line x1="150" y1="100" x2="135" y2="45" stroke="url(#chrome)" strokeWidth="6" strokeLinecap="round"/>
+                <line x1="146" y1="82" x2="138" y2="52" stroke="#1f2937" strokeWidth="8" strokeDasharray="2 1.5"/> {/* Fork Gaiters */}
+                <line x1="135" y1="45" x2="128" y2="28" stroke="#111" strokeWidth="7" strokeLinecap="round"/>
+                
+                {/* Fender */}
+                <path d="M 130 65 Q 150 60, 165 75" fill="none" stroke="#374151" strokeWidth="4" strokeLinecap="round" />
+
+                {/* Frame / Swingarm / Bash plate */}
+                <line x1="50" y1="100" x2="90" y2="75" stroke="#4b5563" strokeWidth="5" strokeLinecap="round"/>
+                <path d="M 90 75 L 85 45 L 125 45 L 125 75 Z" fill="none" stroke="#111827" strokeWidth="5" strokeLinejoin="round" />
+                <path d="M 85 102 L 115 102 L 125 90 L 85 90 Z" fill="#4b5563" stroke="#374151" strokeWidth="2" strokeLinejoin="round" /> {/* Sump guard */}
+
+                {/* Engine Block */}
+                <path d="M 90 60 L 120 60 L 120 90 L 90 90 Z" fill="#374151" />
+                <path d="M 90 60 L 120 60" stroke="#6b7280" strokeWidth="2" /> {/* Engine rim light */}
+                <path d="M 90 65 L 122 65 M 90 70 L 122 70 M 90 75 L 122 75 M 90 80 L 122 80" stroke="#1f2937" strokeWidth="2.5" strokeLinecap="round" /> {/* Fins */}
+                <circle cx="104" cy="85" r="14" fill="#1f2937" />
+                <circle cx="104" cy="85" r="10" fill="#4b5563" />
+                <circle cx="102" cy="83" r="10" fill="none" stroke="#6b7280" strokeWidth="1" /> {/* Engine highlight */}
+
+                {/* Exhaust System */}
+                <path d="M 115 80 Q 125 95, 115 100 L 90 102 L 45 80" fill="none" stroke="#111827" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M 75 88 L 45 76" fill="none" stroke="url(#chrome)" strokeWidth="9" strokeLinecap="round" />
+                <path d="M 45 76 L 30 70" fill="none" stroke="#111827" strokeWidth="7" strokeLinecap="round" />
+                <path d="M 32 70 L 28 68" fill="none" stroke="#374151" strokeWidth="4" strokeLinecap="round" /> {/* Tip */}
+
+                {/* Seat (Stepped ADV seat) */}
+                <path d="M 50 52 L 102 52 C 102 52, 105 58, 108 62 L 50 62 Z" fill="#0f172a" />
+                <path d="M 70 52 L 102 52 L 98 58 L 70 58 Z" fill="#1e293b" /> {/* Pillion texture */}
+
+                {/* Rear Tail / Rack */}
+                <path d="M 50 54 L 28 54 L 25 58 L 50 58 Z" fill="#374151" />
+                <circle cx="25" cy="56" r="4" fill="#ef4444" filter="url(#glow)"/> 
+
+                {/* Rear Tire Hugger / License Plate */}
+                <path d="M 30 58 C 20 70, 20 80, 22 90 L 27 85 C 26 78, 28 68, 35 60 Z" fill="#111827" />
+
+                {/* Fuel Tank (Graphite Grey, realistic curve) */}
+                <path d="M 95 55 L 100 35 C 115 30, 130 35, 135 48 L 132 58 Z" fill="url(#tank)" />
+                
+                {/* Scram 411 Yellow Accent Plate */}
+                <path d="M 115 42 L 135 48 L 130 62 L 110 54 Z" fill="url(#yellow-panel)" stroke="#ca8a04" strokeWidth="1" />
+                <path d="M 118 47 L 130 50 L 126 53 L 114 50 Z" fill="#111827" /> {/* Graphic */}
+
+                {/* Headlight & Cowl */}
+                <path d="M 132 35 L 148 35 C 150 42, 150 48, 145 55 L 132 50 Z" fill="#374151" />
+                <circle cx="148" cy="44" r="8" fill="#fef08a" filter="url(#glow)"/>
+
+                {/* Handlebars & Mirrors */}
+                <path d="M 132 38 L 122 25 L 112 25" fill="none" stroke="#111" strokeWidth="4" strokeLinecap="round" />
+                <path d="M 112 25 L 110 15" fill="none" stroke="#4b5563" strokeWidth="2" />
+                <ellipse cx="110" cy="14" rx="5" ry="3" fill="#111827" transform="rotate(-20 110 14)" />
+
+                {/* Rider */}
+                {/* Body / Jacket */}
+                <path d="M 68 52 C 62 30, 72 12, 85 12 C 98 10, 108 18, 110 25 L 92 48 Z" fill="#111827" />
+                <path d="M 68 52 C 62 30, 72 12, 85 12 C 98 10, 108 18, 110 25" fill="none" stroke="#374151" strokeWidth="1.5" strokeLinecap="round" /> {/* Rim light */}
+                <path d="M 72 52 L 78 20 L 90 18" fill="none" stroke="#374151" strokeWidth="2" />
+                
+                {/* Arm */}
+                <path d="M 85 16 L 105 32 L 122 30" fill="none" stroke="#1f2937" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M 105 32 L 122 30" fill="none" stroke="#111827" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" /> {/* Forearm darker */}
+                <path d="M 85 16 L 105 32 L 122 30" fill="none" stroke="#374151" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /> {/* Arm Rim light */}
+                
+                {/* Glove */}
+                <circle cx="123" cy="29" r="4.5" fill="#000" />
+                
+                {/* Leg */}
+                <path d="M 75 48 L 92 65 L 80 85" fill="none" stroke="#0f172a" strokeWidth="15" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="92" cy="65" r="5" fill="#1e293b" /> 
+                <path d="M 75 48 L 92 65" fill="none" stroke="#1e293b" strokeWidth="2" strokeDasharray="4 2" /> {/* Seam */}
+                
+                {/* Boots */}
+                <path d="M 73 78 L 88 80 L 85 92 L 68 92 Z" fill="#050505" />
+                <path d="M 70 92 L 85 92" stroke="#333" strokeWidth="3" /> {/* Sole */}
+                
+                {/* ADV Helmet */}
+                <path d="M 85 0 C 85 -20, 108 -20, 110 -2 C 112 10, 95 12, 85 0 Z" fill="url(#helmet-gloss)" />
+                {/* Visor */}
+                <path d="M 96 -6 C 96 -12, 110 -12, 110 -2 C 105 3, 98 0, 96 -6 Z" fill="#0f172a" />
+                <path d="M 98 -9 C 102 -11, 108 -9, 108 -5" fill="none" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round" />
+                {/* Peak */}
+                <path d="M 95 -14 L 118 -14 L 112 -8 Z" fill="#e2e8f0" />
+                {/* Jawpiece detail */}
+                <path d="M 105 2 L 100 6" stroke="#94a3b8" strokeWidth="1.5" />
+                
+                {/* Scarf */}
+                <path d="M 85 15 Q 40 18 20 28 Q 50 25 85 20" fill="#ef4444">
+                  <animate attributeName="d" values="M 85 15 Q 40 18 20 28 Q 50 25 85 20; M 85 15 Q 50 10 15 25 Q 50 30 85 20; M 85 15 Q 40 18 20 28 Q 50 25 85 20" dur="0.15s" repeatCount="indefinite"/>
+                </path>
+              </g>
+            </svg>
+          </motion.div>
+        </motion.div>
+      </div>
+    </>
+  );
+};
+
 const HeroSketchVisual = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [gravityActive, setGravityActive] = useState(false);
@@ -508,6 +771,8 @@ const HeroSketchVisual = () => {
           Grab and throw the icons!
         </motion.div>
       )}
+
+      <MotorcycleAnimation />
     </div>
   );
 };
