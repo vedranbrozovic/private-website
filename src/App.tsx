@@ -4,7 +4,6 @@ import {
   Github, 
   Linkedin, 
   Twitter, 
-  Mail, 
   ArrowRight, 
   Instagram, 
   Youtube,
@@ -562,7 +561,7 @@ const App = () => {
       >
         <header className="mb-6">
           <h1 className="text-3xl sm:text-[34px] font-light tracking-tight text-[#1c2229] mb-1.5 font-sans">
-            Vedran Brozovic
+            Vedran Brozović
           </h1>
           <p className="text-[#555f6f] text-sm sm:text-[15px] font-normal tracking-wide font-sans">
             PM @ Amazon | Board @ ACAP
@@ -574,10 +573,109 @@ const App = () => {
 
         <section className="mb-10 space-y-4 text-[#374151] leading-relaxed text-[15px] sm:text-[16px] font-normal">
           <p>
-            I'm a <span className="font-semibold text-[#1c2229]">Product Manager at Amazon</span> and Board Member at the <span className="font-semibold text-[#1c2229]">Association of Croatian-American Professionals (ACAP)</span>. My background lays in the intersection of data, product and finance.
+            I'm an AI and Data Product Manager with 6+ years of experience scaling enterprise GenAI and analytics products at Amazon, defining the vision, setting multi-year roadmaps and leading high-ambiguity products from 0 to 1. My AI work was the first featured story of Amazon's <em className="italic font-normal">rAIsing the Bar</em> series and was discussed on the{' '}
+            <a 
+              href="https://open.spotify.com/episode/1MThk2sP927U64eeRbBIE0" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="text-[#1c2229] underline decoration-[#1c2229]/30 hover:decoration-[#1c2229] underline-offset-[3px] transition-colors"
+            >
+              <em className="italic font-normal">strAIght talk</em> podcast
+            </a>
+            . My career took me from Croatia via Luxembourg to the United States, and from finance via engineering to product. Earlier, I worked in consulting at Ernst &amp; Young, business analytics at IKEA, and econometric modeling at the Croatian National Bank.
           </p>
+
           <p>
-            As an eclectic generalist, I have plenty of experience tackling projects in which I have no prior experience. I approach every project with a researcher’s curiosity and an entrepreneur’s bias for action.
+            Born and raised in Zagreb, I earned my MSc in Economics and Managerial Informatics from the University of Zagreb, with research on{' '}
+            <a 
+              href="https://repozitorij.efzg.unizg.hr/en/object/efzg:2726" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="text-[#1c2229] underline decoration-[#1c2229]/30 hover:decoration-[#1c2229] underline-offset-[3px] transition-colors"
+            >
+              artificial intelligence
+            </a>
+            ,{' '}
+            <a 
+              href="https://repozitorij.efzg.unizg.hr/en/object/efzg:5862" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="text-[#1c2229] underline decoration-[#1c2229]/30 hover:decoration-[#1c2229] underline-offset-[3px] transition-colors"
+            >
+              advanced analytics
+            </a>{' '}
+            and the{' '}
+            <a 
+              href="https://apps.unizg.hr/rektorova-nagrada/javno/radovi/298/preuzmi" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="text-[#1c2229] underline decoration-[#1c2229]/30 hover:decoration-[#1c2229] underline-offset-[3px] transition-colors"
+            >
+              sharing economy
+            </a>
+            , recognized with two Rector's and two Dean's Awards. Today I mentor early-stage founders through{' '}
+            <a 
+              href="https://nuqleus.io/" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="text-[#1c2229] underline decoration-[#1c2229]/30 hover:decoration-[#1c2229] underline-offset-[3px] transition-colors"
+            >
+              Nuqleus
+            </a>{' '}
+            and the{' '}
+            <a 
+              href="https://www.egcnyc.org/programs/scale-2-0" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="text-[#1c2229] underline decoration-[#1c2229]/30 hover:decoration-[#1c2229] underline-offset-[3px] transition-colors"
+            >
+              Infobip Startup Tribe
+            </a>
+            . Outside the office, I'm a former Croatian junior national basketball champion who later played in Luxembourg's top division.
+          </p>
+
+          <p>
+            I'm also a Director at the{' '}
+            <a 
+              href="https://croampro.com/" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="text-[#1c2229] underline decoration-[#1c2229]/30 hover:decoration-[#1c2229] underline-offset-[3px] transition-colors"
+            >
+              Association of Croatian-American Professionals (ACAP)
+            </a>
+            , where I chair the Technology and Innovation Committee. I previously led the Pacific Northwest chapter and chaired the{' '}
+            <a 
+              href="https://conference.croampro.com/" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="text-[#1c2229] underline decoration-[#1c2229]/30 hover:decoration-[#1c2229] underline-offset-[3px] transition-colors"
+            >
+              10th Annual ACAP Conference
+            </a>{' '}
+            in Seattle. When I'm not working, I explore the Pacific Northwest by motorcycle and ferry.
+          </p>
+
+          <p>
+            Learn more about me in{' '}
+            <a 
+              href="https://www.youtube.com/watch?v=D06qaNG_qWs&t=187s" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="text-[#1c2229] underline decoration-[#1c2229]/30 hover:decoration-[#1c2229] underline-offset-[3px] transition-colors"
+            >
+              English
+            </a>{' '}
+            or{' '}
+            <a 
+              href="https://www.youtube.com/watch?v=0WG-pwNJxKM&t=1264s" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="text-[#1c2229] underline decoration-[#1c2229]/30 hover:decoration-[#1c2229] underline-offset-[3px] transition-colors"
+            >
+              Croatian
+            </a>
+            .
           </p>
         </section>
 
@@ -612,12 +710,6 @@ const App = () => {
               icon={Twitter} 
               label="Twitter (X)" 
               platform="twitter" 
-            />
-            <SocialLink 
-              href="mailto:brozovic.vedran@gmail.com" 
-              icon={Mail} 
-              label="Email" 
-              platform="email" 
             />
           </div>
           
