@@ -57,10 +57,12 @@ const InteractiveBox = () => {
   const [gravityActive, setGravityActive] = useState(false);
   const [gravityDirection, setGravityDirection] = useState<GravityDirection>('down');
   const [gravityStrength, setGravityStrength] = useState<number>(1.0);
+  const [itemScale, setItemScale] = useState<number>(1);
 
   const gravityActiveRef = useRef(gravityActive);
   const gravityDirRef = useRef(gravityDirection);
   const gravityStrengthRef = useRef(gravityStrength);
+  const scaleFactorRef = useRef<number>(1);
 
   const itemsRef = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const engineRef = useRef<Matter.Engine | null>(null);
@@ -157,6 +159,9 @@ const InteractiveBox = () => {
     const width = containerRef.current.clientWidth;
     const height = containerRef.current.clientHeight;
     const scaleFactor = Math.min(1, Math.max(0.65, width / 520));
+    scaleFactorRef.current = scaleFactor;
+    const currentItemScale = Math.min(1, Math.max(0.72, width / 480));
+    setItemScale(currentItemScale);
 
     const createBoundaries = (w: number, h: number) => {
       const thickness = 200;
@@ -176,8 +181,8 @@ const InteractiveBox = () => {
       const body = Bodies.rectangle(
         width / 2 + item.x * scaleFactor,
         height / 2 + item.y * scaleFactor,
-        item.w,
-        item.h,
+        item.w * currentItemScale,
+        item.h * currentItemScale,
         {
           restitution: 0.65,
           friction: 0.1,
@@ -190,10 +195,19 @@ const InteractiveBox = () => {
     });
 
     const mouse = Mouse.create(containerRef.current);
+    // Remove scroll-wheel traps
     // @ts-ignore
     mouse.element.removeEventListener?.("mousewheel", mouse.mousewheel);
     // @ts-ignore
     mouse.element.removeEventListener?.("DOMMouseScroll", mouse.mousewheel);
+
+    // Remove default Matter touch handlers so mobile browsers can scroll freely
+    // @ts-ignore
+    mouse.element.removeEventListener?.("touchstart", mouse.mousedown);
+    // @ts-ignore
+    mouse.element.removeEventListener?.("touchmove", mouse.mousemove);
+    // @ts-ignore
+    mouse.element.removeEventListener?.("touchend", mouse.mouseup);
 
     const mouseConstraint = MouseConstraint.create(engine, {
       mouse: mouse,
@@ -204,10 +218,91 @@ const InteractiveBox = () => {
     });
     Composite.add(engine.world, mouseConstraint);
 
+    // Smart touch interaction: if touching a body, drag it. If touching empty space, let user scroll the page smoothly!
+    let activeTouchId: number | null = null;
+    let isDraggingBody = false;
+
+    const getTouchCoords = (touch: Touch) => {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return { x: 0, y: 0 };
+      return {
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top
+      };
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      const coords = getTouchCoords(touch);
+
+      const allBodies = Object.values(bodiesRef.current);
+      const hits = Matter.Query.point(allBodies, coords);
+
+      if (hits.length > 0) {
+        // Touched an interactive item: engage drag & prevent page scroll
+        isDraggingBody = true;
+        activeTouchId = touch.identifier;
+        mouse.position.x = coords.x;
+        mouse.position.y = coords.y;
+        mouse.button = 0;
+        Matter.Sleeping.set(hits[0], false);
+        if (e.cancelable) {
+          e.preventDefault();
+        }
+      } else {
+        // Touched background: allow native browser page scrolling!
+        isDraggingBody = false;
+        activeTouchId = null;
+        mouse.button = -1;
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isDraggingBody || activeTouchId === null) return;
+
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const touch = e.changedTouches[i];
+        if (touch.identifier === activeTouchId) {
+          const coords = getTouchCoords(touch);
+          mouse.position.x = coords.x;
+          mouse.position.y = coords.y;
+          if (e.cancelable) {
+            e.preventDefault();
+          }
+          break;
+        }
+      }
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (activeTouchId !== null) {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          if (e.changedTouches[i].identifier === activeTouchId) {
+            mouse.button = -1;
+            isDraggingBody = false;
+            activeTouchId = null;
+            break;
+          }
+        }
+      }
+    };
+
+    const containerEl = containerRef.current;
+    containerEl.addEventListener('touchstart', handleTouchStart, { passive: false });
+    containerEl.addEventListener('touchmove', handleTouchMove, { passive: false });
+    containerEl.addEventListener('touchend', handleTouchEnd, { passive: true });
+    containerEl.addEventListener('touchcancel', handleTouchEnd, { passive: true });
+
     const resizeObserver = new ResizeObserver((entries) => {
-      if (!entries[0] || !engineRef.current) return;
+      if (!entries[0] || !engineRef.current || !containerRef.current) return;
       const { width: newW, height: newH } = entries[0].contentRect;
       if (newW === 0 || newH === 0) return;
+
+      const newScaleFactor = Math.min(1, Math.max(0.65, newW / 520));
+      scaleFactorRef.current = newScaleFactor;
+      const newScale = Math.min(1, Math.max(0.72, newW / 480));
+      setItemScale(newScale);
 
       Composite.remove(engineRef.current.world, boundariesRef.current);
       const newBoundaries = createBoundaries(newW, newH);
@@ -224,6 +319,7 @@ const InteractiveBox = () => {
       if (engineRef.current && containerRef.current) {
         const w = containerRef.current.clientWidth;
         const h = containerRef.current.clientHeight;
+        const currentScale = scaleFactorRef.current;
 
         if (!gravityActiveRef.current) {
           const time = Date.now() * 0.001;
@@ -236,8 +332,8 @@ const InteractiveBox = () => {
                 y: Math.cos(time * 0.8 + idx * 1.5) * forceMagnitude
               });
 
-              const targetX = w / 2 + item.x * scaleFactor;
-              const targetY = h / 2 + item.y * scaleFactor;
+              const targetX = w / 2 + item.x * currentScale;
+              const targetY = h / 2 + item.y * currentScale;
               const dx = targetX - body.position.x;
               const dy = targetY - body.position.y;
               Matter.Body.applyForce(body, body.position, {
@@ -264,6 +360,10 @@ const InteractiveBox = () => {
     update();
 
     return () => {
+      containerEl.removeEventListener('touchstart', handleTouchStart);
+      containerEl.removeEventListener('touchmove', handleTouchMove);
+      containerEl.removeEventListener('touchend', handleTouchEnd);
+      containerEl.removeEventListener('touchcancel', handleTouchEnd);
       Runner.stop(runner);
       Engine.clear(engine);
       cancelAnimationFrame(animationId);
@@ -274,10 +374,10 @@ const InteractiveBox = () => {
   const activeDirObj = DIRECTIONS.find(d => d.key === gravityDirection) || DIRECTIONS[0];
 
   return (
-    <div className="relative group my-6 select-none">
+    <div className="relative group my-5 sm:my-6 select-none">
       <div
         ref={containerRef}
-        style={{ touchAction: 'none' }}
+        style={{ touchAction: 'pan-y' }}
         className="relative w-full h-72 sm:h-80 rounded-2xl overflow-hidden border border-[#1f242e]/10 bg-white/75 backdrop-blur-xs shadow-xs flex items-center justify-center cursor-grab active:cursor-grabbing"
       >
         {/* Subtle dot pattern background */}
@@ -290,36 +390,36 @@ const InteractiveBox = () => {
         />
 
         {/* Status header on top: Section title + Real-time Gravity/Float status */}
-        <div className="absolute top-3 inset-x-3.5 sm:inset-x-4 pointer-events-none flex items-center justify-between gap-2 z-10">
-          <div className="flex items-center gap-2">
+        <div className="absolute top-2.5 inset-x-2.5 sm:top-3 sm:inset-x-3.5 pointer-events-none flex items-center justify-between gap-2 z-10">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
             <span 
-              className={`w-2 h-2 rounded-full transition-colors duration-300 ${
+              className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0 transition-colors duration-300 ${
                 gravityActive 
                   ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]' 
                   : 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse'
               }`} 
             />
-            <span className="text-[11px] font-medium tracking-wide text-[#555f6f]">
-              My background & hobbies <span className="text-[#8c94a4] font-normal hidden sm:inline">· Drag & toss</span>
+            <span className="text-[10px] sm:text-[11px] font-medium tracking-wide text-[#555f6f] truncate">
+              Background & hobbies <span className="text-[#8c94a4] font-normal hidden sm:inline">· Drag & toss</span>
             </span>
           </div>
 
           {/* Status badge on top showing whether float or gravity is on */}
-          <div className="pointer-events-auto">
+          <div className="pointer-events-auto shrink-0">
             <div 
-              className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-medium tracking-wide flex items-center gap-1.5 backdrop-blur-md border shadow-2xs transition-all duration-300 ${
+              className={`px-2 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-medium tracking-wide flex items-center gap-1 sm:gap-1.5 backdrop-blur-md border shadow-2xs transition-all duration-300 ${
                 gravityActive
                   ? 'bg-amber-50/95 text-amber-900 border-amber-300/80 shadow-amber-500/10'
                   : 'bg-emerald-50/95 text-emerald-900 border-emerald-300/80 shadow-emerald-500/10'
               }`}
             >
               <span 
-                className={`w-1.5 h-1.5 rounded-full ${
+                className={`w-1.5 h-1.5 rounded-full shrink-0 ${
                   gravityActive ? 'bg-amber-600' : 'bg-emerald-600'
                 }`} 
               />
-              <span className="font-semibold">
-                {gravityActive ? `Gravity On (${activeDirObj.symbol} ${gravityStrength.toFixed(1)}x)` : 'Float Mode On'}
+              <span className="font-semibold whitespace-nowrap">
+                {gravityActive ? `Gravity (${activeDirObj.symbol} ${gravityStrength.toFixed(1)}x)` : 'Float Mode'}
               </span>
             </div>
           </div>
@@ -333,8 +433,8 @@ const InteractiveBox = () => {
               ref={(el) => { itemsRef.current[item.id] = el; }}
               className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
               style={{ 
-                width: item.w, 
-                height: item.h,
+                width: item.w * itemScale, 
+                height: item.h * itemScale,
                 transform: `translate(${item.x}px, ${item.y}px)` 
               }}
             >
@@ -447,18 +547,20 @@ const InteractiveBox = () => {
 
         {/* Minimalist Controls Toolbar at the bottom */}
         <div 
-          className="absolute bottom-2.5 inset-x-2.5 sm:bottom-3 sm:inset-x-3 pointer-events-auto flex flex-wrap items-center justify-between gap-2 bg-white/90 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-[#20242c]/10 shadow-xs"
+          className="absolute bottom-2 inset-x-2 sm:bottom-3 sm:inset-x-3 pointer-events-auto flex items-center justify-between gap-1 sm:gap-2 bg-white/92 backdrop-blur-md px-2 py-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border border-[#20242c]/10 shadow-xs"
           onClick={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
         >
           {/* Left: Mode Switch (Float vs Gravity) + Reset Button */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
             {/* Segmented Float / Gravity Switch */}
             <div className="flex items-center p-0.5 bg-[#f0f2f5] rounded-lg border border-[#20242c]/5">
               <button
                 type="button"
                 onClick={() => handleToggleMode('float')}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                className={`flex items-center gap-1 px-2 py-1 sm:px-2.5 sm:py-1 rounded-md text-[10px] sm:text-[11px] font-medium transition-all ${
                   !gravityActive
                     ? 'bg-white text-[#1c2229] shadow-2xs font-semibold'
                     : 'text-[#64748b] hover:text-[#1c2229]'
@@ -472,7 +574,7 @@ const InteractiveBox = () => {
               <button
                 type="button"
                 onClick={() => handleToggleMode('gravity')}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                className={`flex items-center gap-1 px-2 py-1 sm:px-2.5 sm:py-1 rounded-md text-[10px] sm:text-[11px] font-medium transition-all ${
                   gravityActive
                     ? 'bg-[#20242c] text-[#faf9f6] shadow-2xs font-semibold'
                     : 'text-[#64748b] hover:text-[#1c2229]'
@@ -488,7 +590,7 @@ const InteractiveBox = () => {
             <button
               type="button"
               onClick={resetPositions}
-              className="p-1.5 rounded-lg text-[#64748b] hover:text-[#1c2229] hover:bg-[#f0f2f5] transition-colors border border-transparent hover:border-[#20242c]/10"
+              className="p-1 sm:p-1.5 rounded-lg text-[#64748b] hover:text-[#1c2229] hover:bg-[#f0f2f5] transition-colors border border-transparent hover:border-[#20242c]/10"
               title="Reset positions"
               aria-label="Reset positions"
             >
@@ -497,7 +599,7 @@ const InteractiveBox = () => {
           </div>
 
           {/* Right: Direction switcher and Strength slider */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             {/* Minimalist Direction Switch */}
             <div className="flex items-center gap-0.5 bg-[#f0f2f5] p-0.5 rounded-lg border border-[#20242c]/5">
               {DIRECTIONS.map((dir) => {
@@ -508,7 +610,7 @@ const InteractiveBox = () => {
                     key={dir.key}
                     type="button"
                     onClick={() => handleSelectDirection(dir.key)}
-                    className={`p-1.5 rounded-md transition-all ${
+                    className={`p-1 sm:p-1.5 rounded-md transition-all ${
                       isSelected
                         ? 'bg-[#20242c] text-[#faf9f6] shadow-2xs scale-105'
                         : 'text-[#64748b] hover:text-[#1c2229] hover:bg-white/70'
@@ -516,14 +618,14 @@ const InteractiveBox = () => {
                     title={`Pull gravity ${dir.label} (${dir.symbol})`}
                     aria-label={`Pull gravity ${dir.label}`}
                   >
-                    <Icon size={12} strokeWidth={2.2} />
+                    <Icon size={11} strokeWidth={2.2} />
                   </button>
                 );
               })}
             </div>
 
             {/* Strength slider */}
-            <div className="flex items-center gap-1.5 text-[11px] text-[#555f6f]">
+            <div className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-[11px] text-[#555f6f]">
               <span className="hidden sm:inline text-[10px] uppercase font-medium tracking-wider text-[#8c94a4]">Pull</span>
               <input
                 type="range"
@@ -532,11 +634,11 @@ const InteractiveBox = () => {
                 step="0.1"
                 value={gravityStrength}
                 onChange={(e) => handleStrengthChange(parseFloat(e.target.value))}
-                className="w-14 sm:w-18 h-1 bg-[#d5dae2] rounded-lg appearance-none cursor-pointer accent-[#20242c]"
+                className="w-10 sm:w-16 h-1 bg-[#d5dae2] rounded-lg appearance-none cursor-pointer accent-[#20242c]"
                 title={`Gravity Strength: ${gravityStrength.toFixed(1)}x`}
                 aria-label="Gravity strength"
               />
-              <span className="text-[10px] font-mono text-[#1c2229] w-6 text-right font-medium">
+              <span className="text-[10px] font-mono text-[#1c2229] w-5 sm:w-6 text-right font-medium">
                 {gravityStrength.toFixed(1)}x
               </span>
             </div>
@@ -555,11 +657,11 @@ const App = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#Faf9f6] text-[#20242c] font-sans flex flex-col justify-start px-6 pt-10 sm:pt-14 pb-16 selection:bg-[#20242c] selection:text-[#Faf9f6]">
+    <div className="min-h-screen bg-[#Faf9f6] text-[#20242c] font-sans flex flex-col justify-start px-4 sm:px-6 pt-8 sm:pt-14 pb-14 sm:pb-16 selection:bg-[#20242c] selection:text-[#Faf9f6]">
       <main 
         className={`w-full max-w-xl mx-auto transition-all duration-700 ease-out transform ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}
       >
-        <header className="mb-6">
+        <header className="mb-5 sm:mb-6">
           <h1 className="text-3xl sm:text-[34px] font-light tracking-tight text-[#1c2229] mb-1.5 font-sans">
             Vedran Brozović
           </h1>
@@ -679,8 +781,8 @@ const App = () => {
           </p>
         </section>
 
-        <footer className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 border-t border-[#e2e5eb] pt-7">
-          <div className="flex gap-3 sm:gap-3.5 items-center flex-wrap">
+        <footer className="flex flex-col sm:flex-row sm:items-center justify-between gap-5 sm:gap-6 border-t border-[#e2e5eb] pt-7">
+          <div className="flex gap-2.5 sm:gap-3.5 items-center flex-wrap">
             <SocialLink 
               href="https://www.linkedin.com/in/vedranbrozovic/" 
               icon={Linkedin} 
@@ -738,43 +840,43 @@ interface SocialLinkProps {
 const BRAND_STYLES: Record<PlatformType, {
   hover: string;
   active: string;
-  clicked: string;
+  opened: string;
   tooltipBg: string;
 }> = {
   linkedin: {
     hover: 'hover:bg-[#0A66C2] hover:border-[#0A66C2] hover:text-white hover:shadow-md hover:shadow-[#0A66C2]/30',
     active: 'active:bg-[#084e96] active:border-[#084e96] active:text-white',
-    clicked: 'bg-[#0A66C2] border-[#0A66C2] text-white shadow-md shadow-[#0A66C2]/35 scale-95',
+    opened: 'bg-[#0A66C2] border-[#0A66C2] text-white shadow-sm shadow-[#0A66C2]/35',
     tooltipBg: 'bg-[#0A66C2]',
   },
   github: {
     hover: 'hover:bg-[#181717] hover:border-[#181717] hover:text-white hover:shadow-md hover:shadow-black/30',
     active: 'active:bg-black active:border-black active:text-white',
-    clicked: 'bg-[#181717] border-[#181717] text-white shadow-md shadow-black/35 scale-95',
+    opened: 'bg-[#181717] border-[#181717] text-white shadow-sm shadow-black/35',
     tooltipBg: 'bg-[#181717]',
   },
   instagram: {
     hover: 'hover:bg-gradient-to-tr hover:from-[#f09433] hover:via-[#dc2743] hover:to-[#bc1888] hover:border-[#dc2743] hover:text-white hover:shadow-md hover:shadow-[#dc2743]/35',
     active: 'active:from-[#d87c22] active:via-[#be1b35] active:to-[#9a116f] active:text-white',
-    clicked: 'bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888] border-[#dc2743] text-white shadow-md shadow-[#dc2743]/35 scale-95',
+    opened: 'bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888] border-[#dc2743] text-white shadow-sm shadow-[#dc2743]/35',
     tooltipBg: 'bg-gradient-to-r from-[#f09433] via-[#dc2743] to-[#bc1888]',
   },
   youtube: {
     hover: 'hover:bg-[#FF0000] hover:border-[#FF0000] hover:text-white hover:shadow-md hover:shadow-[#FF0000]/30',
     active: 'active:bg-[#cc0000] active:border-[#cc0000] active:text-white',
-    clicked: 'bg-[#FF0000] border-[#FF0000] text-white shadow-md shadow-[#FF0000]/35 scale-95',
+    opened: 'bg-[#FF0000] border-[#FF0000] text-white shadow-sm shadow-[#FF0000]/35',
     tooltipBg: 'bg-[#FF0000]',
   },
   twitter: {
     hover: 'hover:bg-[#000000] hover:border-[#000000] hover:text-white hover:shadow-md hover:shadow-black/30',
     active: 'active:bg-[#111111] active:border-[#111111] active:text-white',
-    clicked: 'bg-[#000000] border-[#000000] text-white shadow-md shadow-black/35 scale-95',
+    opened: 'bg-[#000000] border-[#000000] text-white shadow-sm shadow-black/35',
     tooltipBg: 'bg-[#000000]',
   },
   email: {
     hover: 'hover:bg-[#EA4335] hover:border-[#EA4335] hover:text-white hover:shadow-md hover:shadow-[#EA4335]/30',
     active: 'active:bg-[#c5221f] active:border-[#c5221f] active:text-white',
-    clicked: 'bg-[#EA4335] border-[#EA4335] text-white shadow-md shadow-[#EA4335]/35 scale-95',
+    opened: 'bg-[#EA4335] border-[#EA4335] text-white shadow-sm shadow-[#EA4335]/35',
     tooltipBg: 'bg-[#EA4335]',
   },
 };
@@ -782,12 +884,26 @@ const BRAND_STYLES: Record<PlatformType, {
 const SocialLink = ({ href, icon: Icon, label, platform }: SocialLinkProps) => {
   const [copied, setCopied] = useState(false);
   const [clicked, setClicked] = useState(false);
+  const [isOpened, setIsOpened] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(`vb_social_opened_${platform}`) === 'true';
+    } catch {
+      return false;
+    }
+  });
+
   const isEmail = href.startsWith('mailto:');
   const style = BRAND_STYLES[platform];
 
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     setClicked(true);
-    setTimeout(() => setClicked(false), 500);
+    setIsOpened(true);
+    try {
+      localStorage.setItem(`vb_social_opened_${platform}`, 'true');
+    } catch {
+      // ignore
+    }
+    setTimeout(() => setClicked(false), 300);
 
     if (isEmail) {
       const email = href.replace('mailto:', '');
@@ -805,14 +921,14 @@ const SocialLink = ({ href, icon: Icon, label, platform }: SocialLinkProps) => {
         rel={isEmail ? undefined : "noopener noreferrer"}
         onClick={handleClick}
         className={`
-          relative flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl
-          bg-white/80 border border-[#e2e5eb] text-[#555f6f]
-          shadow-2xs
-          transition-all duration-200 ease-out
-          hover:-translate-y-1 hover:scale-105
-          ${style.hover}
-          ${style.active}
-          ${clicked ? style.clicked : ''}
+          relative flex items-center justify-center w-10 h-10 sm:w-10 sm:h-10 rounded-xl
+          transition-all duration-200 ease-out touch-manipulation select-none
+          ${
+            isOpened 
+              ? `${style.opened} hover:brightness-105 active:scale-95` 
+              : `bg-white/80 border border-[#e2e5eb] text-[#555f6f] shadow-2xs ${style.hover} ${style.active}`
+          }
+          ${clicked ? 'scale-90' : 'hover:-translate-y-0.5 hover:scale-105'}
           focus:outline-hidden focus:ring-2 focus:ring-[#1c2229]/20
         `}
         aria-label={label}
@@ -820,14 +936,14 @@ const SocialLink = ({ href, icon: Icon, label, platform }: SocialLinkProps) => {
         <Icon 
           size={18} 
           strokeWidth={1.8} 
-          className="transition-transform duration-200 group-hover/social:scale-110" 
+          className={`transition-transform duration-200 group-hover/social:scale-110 ${isOpened ? 'text-white' : ''}`} 
         />
       </a>
 
       {/* Interactive Tooltip with matching brand accent */}
       <div className="absolute -top-8 left-1/2 -translate-x-1/2 pointer-events-none opacity-0 group-hover/social:opacity-100 group-hover/social:-translate-y-1 transition-all duration-200 z-20 flex flex-col items-center">
         <div className={`px-2 py-0.5 rounded-md ${style.tooltipBg} text-white text-[11px] font-medium tracking-wide shadow-md whitespace-nowrap`}>
-          {copied ? 'Copied email!' : label}
+          {copied ? 'Copied email!' : isOpened ? `Opened · ${label}` : label}
         </div>
         <div className="w-1.5 h-1.5 bg-[#1c2229] rotate-45 -mt-0.5 opacity-80" />
       </div>
