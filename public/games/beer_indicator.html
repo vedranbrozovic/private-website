@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vedran's Beer Indicator</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f0f0f0;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+        header {
+            background-color: #ffc107; /* Beer gold */
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            width: 90%;
+            max-width: 800px;
+        }
+        header h1 {
+            margin: 0;
+            color: #4a3b00; /* Darker gold for text */
+            font-size: 2.5em;
+        }
+        header p {
+            margin: 5px 0 0;
+            color: #614f00;
+            font-style: italic;
+        }
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            width: 90%;
+            max-width: 800px;
+        }
+        label {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+            display: block;
+            color: #555;
+        }
+        select, .period-selector button {
+            padding: 12px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 1.1em;
+            background-color: #f9f9f9;
+            cursor: pointer;
+        }
+        select {
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        .period-selector {
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+        .period-selector button {
+            background-color: #e0e0e0;
+            flex-grow: 1;
+        }
+        .period-selector button.active {
+            background-color: #007bff;
+            color: white;
+            font-weight: bold;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #e9ecef;
+            border-radius: 8px;
+            text-align: left;
+        }
+        .results h2 {
+            margin-top: 0;
+            color: #007bff; /* A contrasting blue */
+            font-size: 1.8em;
+            display: flex;
+            align-items: center;
+        }
+        .results h2 .flag {
+            font-size: 2em;
+            margin-right: 10px;
+        }
+        .results p {
+            font-size: 1.1em;
+            line-height: 1.6;
+            margin: 10px 0;
+        }
+        .results strong.beer-count-value {
+            color: #28a745; /* Green for emphasis */
+            font-size: 1.3em;
+        }
+        .salary-display {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #dc3545; /* Red for salary, for visual contrast */
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 5px;
+        }
+        .beer-visualization {
+            margin-top: 20px;
+            width: 100%;
+            background-color: #ddd;
+            border-radius: 5px;
+            height: 40px; /* Beer bar height */
+            position: relative;
+            overflow: hidden;
+        }
+        .beer-fill {
+            background-color: #ffc107; /* Beer color */
+            height: 100%;
+            width: 0%; /* Initial width */
+            border-radius: 5px;
+            transition: width 1s ease-in-out;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #4a3b00;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+        .beer-icon {
+            font-size: 1.5em; /* Adjust size of beer icon */
+            margin-right: 5px;
+        }
+        .data-source-note {
+            font-size: 0.8em;
+            color: #777;
+            margin-top: 25px;
+            text-align: center;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🍻 Vedran's Beer Indicator 🍻</h1>
+        <p>"How far does your NET salary flow? Measure your purchasing power in pints!"</p>
+    </header>
+
+    <div class="container">
+        <label for="country-select">Select a Country:</label>
+        <select id="country-select">
+            <option value="">-- Choose a Country --</option>
+        </select>
+
+        <div class="period-selector">
+            <button data-period="week" id="btn-week">Per Week</button>
+            <button data-period="month" id="btn-month" class="active">Per Month</button>
+            <button data-period="year" id="btn-year">Per Year</button>
+        </div>
+
+        <div id="results-area" class="results hidden">
+            <h2><span class="flag" id="country-flag"></span><span id="country-name-display"></span></h2>
+            <p>With the estimated net <span id="salary-period-text">monthly</span> salary, you could afford approximately:</p>
+            <p><strong class="beer-count-value" id="beer-count"></strong> local beers!</p>
+            <div class="beer-visualization">
+                <div class="beer-fill" id="beer-bar">
+                    <span class="beer-icon">🍺</span><span id="beer-bar-text"></span>
+                </div>
+            </div>
+            <div class="salary-display">
+                Estimated Net <span id="salary-period-text-bold">Monthly</span> Salary: <span id="net-salary-eur"></span>
+            </div>
+            <p><em>(Beer: 0.5L local beer from a supermarket)</em></p>
+        </div>
+        <p class="data-source-note">
+            <strong>Disclaimer:</strong> Data is for illustrative purposes using generalized figures for *net median salaries* (approx. 2023-2024).
+            Net salaries are notoriously difficult to compare globally due to diverse tax and deduction systems.
+            Beer prices are average supermarket prices for local brands. Exchange rates are approximate.
+            Real-world values will vary significantly. Always consult official local sources for precise data.
+        </p>
+    </div>
+
+    <script>
+        // Data: [Country Name, Flag Emoji, Approx. NET Median Monthly Salary (Local Currency), Local Currency Code, Avg Price of 1 Local Beer (0.5L, Local Currency), Approx. Exchange Rate to EUR (1 Local Currency = X EUR)]
+        // IMPORTANT: These are illustrative values. Real net salary data needs careful sourcing and verification.
+        const countriesData = [
+            { name: "Germany", flag: "🇩🇪", netSalaryLocal: 2900, currencyCode: "EUR", beerPriceLocal: 0.80, exchangeRateToEUR: 1.0 },
+            { name: "United States", flag: "🇺🇸", netSalaryLocal: 3800, currencyCode: "USD", beerPriceLocal: 2.00, exchangeRateToEUR: 0.92 },
+            { name: "Japan", flag: "🇯🇵", netSalaryLocal: 280000, currencyCode: "JPY", beerPriceLocal: 250, exchangeRateToEUR: 0.0062 },
+            { name: "Brazil", flag: "🇧🇷", netSalaryLocal: 2200, currencyCode: "BRL", beerPriceLocal: 5.00, exchangeRateToEUR: 0.19 },
+            { name: "India", flag: "🇮🇳", netSalaryLocal: 28000, currencyCode: "INR", beerPriceLocal: 150, exchangeRateToEUR: 0.011 },
+            { name: "Spain", flag: "🇪🇸", netSalaryLocal: 1800, currencyCode: "EUR", beerPriceLocal: 0.90, exchangeRateToEUR: 1.0 },
+            { name: "France", flag: "🇫🇷", netSalaryLocal: 2500, currencyCode: "EUR", beerPriceLocal: 1.20, exchangeRateToEUR: 1.0 },
+            { name: "United Kingdom", flag: "🇬🇧", netSalaryLocal: 2500, currencyCode: "GBP", beerPriceLocal: 1.50, exchangeRateToEUR: 1.17 },
+            { name: "Australia", flag: "🇦🇺", netSalaryLocal: 5500, currencyCode: "AUD", beerPriceLocal: 5.00, exchangeRateToEUR: 0.61 },
+            { name: "Canada", flag: "🇨🇦", netSalaryLocal: 4200, currencyCode: "CAD", beerPriceLocal: 3.00, exchangeRateToEUR: 0.68 },
+            { name: "Netherlands", flag: "🇳🇱", netSalaryLocal: 3000, currencyCode: "EUR", beerPriceLocal: 0.95, exchangeRateToEUR: 1.0 },
+            { name: "Italy", flag: "🇮🇹", netSalaryLocal: 1900, currencyCode: "EUR", beerPriceLocal: 1.10, exchangeRateToEUR: 1.0 },
+            { name: "Sweden", flag: "🇸🇪", netSalaryLocal: 29000, currencyCode: "SEK", beerPriceLocal: 18, exchangeRateToEUR: 0.086 },
+            { name: "Switzerland", flag: "🇨🇭", netSalaryLocal: 5800, currencyCode: "CHF", beerPriceLocal: 2.00, exchangeRateToEUR: 1.03 },
+            { name: "Poland", flag: "🇵🇱", netSalaryLocal: 5500, currencyCode: "PLN", beerPriceLocal: 3.50, exchangeRateToEUR: 0.23 },
+            { name: "Mexico", flag: "🇲🇽", netSalaryLocal: 12000, currencyCode: "MXN", beerPriceLocal: 25, exchangeRateToEUR: 0.054 },
+            { name: "South Africa", flag: "🇿🇦", netSalaryLocal: 18000, currencyCode: "ZAR", beerPriceLocal: 20, exchangeRateToEUR: 0.049 },
+            { name: "Argentina", flag: "🇦🇷", netSalaryLocal: 600000, currencyCode: "ARS", beerPriceLocal: 1000, exchangeRateToEUR: 0.0010 }, // Highly volatile
+            { name: "China", flag: "🇨🇳", netSalaryLocal: 7000, currencyCode: "CNY", beerPriceLocal: 6, exchangeRateToEUR: 0.13 },
+            { name: "Norway", flag: "🇳🇴", netSalaryLocal: 40000, currencyCode: "NOK", beerPriceLocal: 35, exchangeRateToEUR: 0.085 },
+            { name: "Croatia", flag: "🇭🇷", netSalaryLocal: 1200, currencyCode: "EUR", beerPriceLocal: 1.50, exchangeRateToEUR: 1.0 } // Added Croatia
+        ];
+
+        const countrySelect = document.getElementById('country-select');
+        const resultsArea = document.getElementById('results-area');
+        const countryNameDisplay = document.getElementById('country-name-display');
+        const countryFlagDisplay = document.getElementById('country-flag');
+        const beerCountDisplay = document.getElementById('beer-count');
+        const netSalaryEurDisplay = document.getElementById('net-salary-eur');
+        const beerBar = document.getElementById('beer-bar');
+        const beerBarTextElement = document.getElementById('beer-bar-text'); // Corrected ID
+        const salaryPeriodTextElements = document.querySelectorAll('.salary-period-text'); // For general text
+        const salaryPeriodTextBoldElement = document.getElementById('salary-period-text-bold'); // For the bolded salary display label
+
+        const periodButtons = document.querySelectorAll('.period-selector button');
+        let currentPeriod = 'month'; // Default period
+
+        // Populate dropdown
+        countriesData.sort((a, b) => a.name.localeCompare(b.name));
+        countriesData.forEach(country => {
+            const option = document.createElement('option');
+            option.value = country.name;
+            option.textContent = `${country.flag} ${country.name}`;
+            countrySelect.appendChild(option);
+        });
+
+        function updateDisplay() {
+            const selectedCountryName = countrySelect.value;
+            if (!selectedCountryName) {
+                resultsArea.classList.add('hidden');
+                return;
+            }
+
+            const country = countriesData.find(c => c.name === selectedCountryName);
+
+            if (country) {
+                const netMonthlySalaryLocal = country.netSalaryLocal;
+                const beerPriceLocal = country.beerPriceLocal;
+                const exchangeRateToEUR = country.exchangeRateToEUR;
+
+                const netMonthlySalaryEUR = netMonthlySalaryLocal * exchangeRateToEUR;
+                const beerPriceEUR = beerPriceLocal * exchangeRateToEUR;
+
+                let salaryForPeriodEUR = netMonthlySalaryEUR;
+                let periodText = "monthly";
+                let periodForVisualScaling = 'month'; // Basis for consistent visual scaling if needed
+
+                if (currentPeriod === 'week') {
+                    salaryForPeriodEUR = netMonthlySalaryEUR / 4.3333; // Approx weeks in a month
+                    periodText = "weekly";
+                } else if (currentPeriod === 'year') {
+                    salaryForPeriodEUR = netMonthlySalaryEUR * 12;
+                    periodText = "yearly";
+                }
+
+                let numberOfBeers = 0;
+                if (beerPriceEUR > 0) {
+                    numberOfBeers = Math.floor(salaryForPeriodEUR / beerPriceEUR);
+                }
+
+                countryNameDisplay.textContent = country.name;
+                countryFlagDisplay.textContent = country.flag;
+                beerCountDisplay.textContent = numberOfBeers.toLocaleString();
+                netSalaryEurDisplay.textContent = `€${parseInt(salaryForPeriodEUR).toLocaleString()}`;
+
+                salaryPeriodTextElements.forEach(el => el.textContent = periodText);
+                salaryPeriodTextBoldElement.textContent = periodText.charAt(0).toUpperCase() + periodText.slice(1);
+
+
+                // Update beer bar visualization
+                // Max beers for visual scaling. For "yearly", this might often hit 100%.
+                // We'll base the visual on the *monthly* beer count to keep it somewhat consistent,
+                // but the number displayed on the bar will be for the selected period.
+                let beersForVisualScale = Math.floor(netMonthlySalaryEUR / beerPriceEUR);
+                if (currentPeriod === 'week') beersForVisualScale = Math.floor((netMonthlySalaryEUR / 4.3333) / beerPriceEUR);
+                if (currentPeriod === 'year') beersForVisualScale = Math.floor((netMonthlySalaryEUR * 12) / beerPriceEUR);
+
+
+                const maxBeersForVisualCap = (currentPeriod === 'year') ? 15000 : (currentPeriod === 'week' ? 500 : 2000);
+                const beerPercentage = Math.min((numberOfBeers / maxBeersForVisualCap) * 100, 100);
+
+                beerBar.style.width = beerPercentage + '%';
+                if (numberOfBeers > 0) {
+                    beerBarTextElement.textContent = `${numberOfBeers.toLocaleString()} 🍻`;
+                } else {
+                    beerBarTextElement.textContent = `0 🍻`;
+                }
+
+                resultsArea.classList.remove('hidden');
+            } else {
+                resultsArea.classList.add('hidden');
+            }
+        }
+
+        countrySelect.addEventListener('change', updateDisplay);
+
+        periodButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                periodButtons.forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                currentPeriod = this.dataset.period;
+                updateDisplay();
+            });
+        });
+
+        // Initialize with default month selection active
+        document.getElementById('btn-month').classList.add('active');
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wolt Dostavljač Bogataš CRO</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f8ff; /* Light blue, Wolt-ish */
+            color: #333;
+            display: flex;
+            justify-content: center;
+        }
+        .main-wrapper {
+            display: flex;
+            flex-direction: row;
+            gap: 20px;
+            width: 100%;
+            max-width: 1000px; /* Wider for character panel */
+        }
+        .game-container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.15);
+            flex-grow: 1;
+        }
+        .character-panel {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.15);
+            width: 250px; /* Fixed width for character */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+        .character-display {
+            position: relative; /* For absolute positioning of accessories */
+            width: 150px;
+            height: 200px; /* Adjusted for full body */
+            margin-bottom: 20px;
+        }
+        .character-base, .character-sunglasses, .character-chain {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .character-base {
+            top: 0;
+            width: 120px; /* Adjusted size */
+            height: 180px; /* Adjusted size */
+        }
+        .character-sunglasses {
+            top: 35px; /* Position on face */
+            width: 70px;
+            z-index: 2;
+        }
+        .character-chain {
+            top: 95px; /* Position on neck/chest */
+            width: 80px;
+            z-index: 1;
+        }
+        .house-display img {
+            width: 100px;
+            margin-top: 10px;
+            border: 2px solid #009DE0;
+            border-radius: 5px;
+        }
+        h1, h2 {
+            color: #009DE0; /* Wolt Blue */
+            text-align: center;
+        }
+        .status-bar {
+            background-color: #e9ecef;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+            border: 1px solid #009DE0;
+        }
+        .status-bar p { margin: 5px 0; font-size: 1.1em; }
+        .status-bar strong { color: #007BA7; }
+
+        .action-section, .investment-section, .upgrade-section, .personal-items-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        button {
+            background-color: #009DE0; color: white; border: none;
+            padding: 10px 15px; text-align: center; text-decoration: none;
+            display: inline-block; font-size: 16px; margin: 5px 2px;
+            cursor: pointer; border-radius: 4px;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+        }
+        button:hover { background-color: #007BA7; }
+        button:active { transform: scale(0.98); }
+        button:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+
+        .item-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 0; border-bottom: 1px solid #eee;
+        }
+        .item-row:last-child { border-bottom: none; }
+        .item-row p { margin: 0; flex-grow: 1; }
+        .item-row button { flex-shrink: 0; margin-left: 10px; }
+
+        #messageArea {
+            margin-top: 15px; padding: 10px; background-color: #e0f7fa;
+            border-radius: 4px; text-align: center; min-height: 20px;
+            font-style: italic; color: #004d40;
+        }
+        .hidden { display: none !important; }
+
+        .fleet-display { margin-top: 10px; font-size: 0.9em; }
+        .fleet-display p { margin: 3px 0; }
+    </style>
+</head>
+<body>
+    <div class="main-wrapper">
+        <div class="game-container">
+            <h1>Wolt Dostavljač Bogataš CRO</h1>
+
+            <div class="status-bar">
+                <p>Novac (Money): <strong id="moneyDisplay">0</strong> kn</p>
+                <p>Trenutno Vozilo (Vehicle): <strong id="vehicleDisplay">Pješice (On Foot)</strong></p>
+                <p>Zarada (Income): <strong id="incomePerSecondDisplay">0</strong> kn/sec</p>
+            </div>
+
+            <div class="action-section">
+                <h2>Dostava (Delivery Actions)</h2>
+                <button id="deliverOrderButton">Dostavi Narudžbu (1kn)</button>
+            </div>
+
+            <div id="vehicleUpgradeSection" class="upgrade-section hidden">
+                <h2>Nadogradnja Vozila (Vehicle Upgrades)</h2>
+                <div class="item-row">
+                    <p>Kupi Bicikl (Buy Bicycle) - (Povećava zaradu po dostavi na 3kn)<br>Cijena (Cost): 75 kn</p>
+                    <button id="buyBicycleButton" disabled>Kupi (Buy)</button>
+                </div>
+                <div class="item-row">
+                    <p>Kupi Električni Bicikl (Buy E-Bike) - (Povećava zaradu po dostavi na 7kn)<br>Cijena (Cost): 250 kn</p>
+                    <button id="buyEbikeButton" disabled>Kupi (Buy)</button>
+                </div>
+                 <div class="item-row">
+                    <p>Kupi Skuter (Buy Scooter) - (Povećava zaradu po dostavi na 15kn)<br>Cijena (Cost): 700 kn</p>
+                    <button id="buyScooterButton" disabled>Kupi (Buy)</button>
+                </div>
+            </div>
+
+            <div id="hiringSection" class="investment-section hidden">
+                <h2>Zapošljavanje (Hiring)</h2>
+                <div class="item-row">
+                    <p>Zaposli Pješačkog Kurira (Hire Foot Courier) - (Generira 1kn/sec)<br>Cijena (Cost): 100 kn</p>
+                    <button id="hireFootCourierButton" disabled>Zaposli (Hire)</button>
+                </div>
+                <div class="item-row">
+                    <p>Zaposli Kurira na Biciklu (Hire Bicycle Courier) - (Generira 3kn/sec)<br>Cijena (Cost): 280 kn</p>
+                    <button id="hireBicycleCourierButton" disabled>Zaposli (Hire)</button>
+                </div>
+                 <div class="item-row">
+                    <p>Zaposli Kurira na E-Biciklu (Hire E-Bike Courier) - (Generira 7kn/sec)<br>Cijena (Cost): 650 kn</p>
+                    <button id="hireEbikeCourierButton" disabled>Zaposli (Hire)</button>
+                </div>
+            </div>
+            
+            <div id="personalItemsSection" class="personal-items-section hidden">
+                <h2>Osobne Stvari (Personal Items)</h2>
+                <div class="item-row">
+                    <p>Fensi Sunčane Naočale (Fancy Sunglasses)<br>Cijena (Cost): 120 kn</p>
+                    <button id="buySunglassesButton" disabled>Kupi (Buy)</button>
+                </div>
+                <div class="item-row">
+                    <p>Zlatni Lanac "Kajla" (Gold "Kajla" Chain)<br>Cijena (Cost): 800 kn</p>
+                    <button id="buyGoldChainButton" disabled>Kupi (Buy)</button>
+                </div>
+                <div class="item-row">
+                    <p>Kupi Kuću (Buy a House) - Vrhunski status!<br>Cijena (Cost): 50000 kn</p>
+                    <button id="buyHouseButton" disabled>Kupi (Buy)</button>
+                </div>
+            </div>
+
+            <div id="investmentsSection" class="investment-section hidden">
+                <h2>Investicije (Investments)</h2>
+                <div class="item-row">
+                    <p><strong>Partnerstvo s Lokalnim Restoranom</strong><br>(Cijena: 500 kn, Generira: 10 kn/sec)</p>
+                    <button id="buyRestaurantPartnershipButton" disabled>Investiraj</button>
+                </div>
+                <div class="item-row">
+                    <p><strong>Ulaganje u "Dark Kitchen"</strong><br>(Cijena: 1500 kn, Generira: 25 kn/sec)</p>
+                    <button id="buyDarkKitchenButton" disabled>Investiraj</button>
+                </div>
+                <div class="item-row">
+                    <p><strong>Sumnjiva Dionica Dostavne Firme</strong><br>(Cijena: 150 kn, Rizik!)</p>
+                    <button id="buyShadyStockButton" disabled>Investiraj</button>
+                </div>
+                <div class="item-row">
+                    <p><strong>"Sigurna" Kripto Shema za Dostavljače</strong><br>(Cijena: 400 kn, Vjerojatno loša ideja...)</p>
+                    <button id="buyCryptoSchemeButton" disabled>Investiraj</button>
+                </div>
+                <div class="item-row">
+                    <p><strong>Pokreni Vlastitu Malu Flotu</strong><br>(Cijena: 3000 kn, Generira: 50 kn/sec)</p>
+                    <button id="buyFleetButton" disabled>Investiraj</button>
+                </div>
+            </div>
+
+            <div id="messageArea">Dobrodošli! Kliknite "Dostavi Narudžbu" za početak.</div>
+        </div>
+
+        <div class="character-panel">
+            <h2>Tvoj Lik (Your Character)</h2>
+            <div class="character-display">
+                <!-- Base Character SVG -->
+                <svg class="character-base" viewBox="0 0 100 150">
+                    <rect x="25" y="100" width="50" height="50" fill="#4A4A4A"/> <!-- Legs/Pants -->
+                    <rect x="15" y="50" width="70" height="55" fill="#009DE0" rx="10"/> <!-- Body (Wolt blue shirt) -->
+                    <circle cx="50" cy="30" r="28" fill="#FFDB58"/> <!-- Head (Simpsons yellow) -->
+                    <circle cx="40" cy="28" r="6" fill="white"/> <circle cx="40" cy="28" r="3" fill="black"/> <!-- Eye L -->
+                    <circle cx="60" cy="28" r="6" fill="white"/> <circle cx="60" cy="28" r="3" fill="black"/> <!-- Eye R -->
+                    <path d="M40 40 Q50 45 60 40" stroke="black" stroke-width="2" fill="none"/> <!-- Mouth -->
+                     <!-- Arms -->
+                    <rect x="5" y="55" width="15" height="40" fill="#FFDB58" rx="5"/> 
+                    <rect x="80" y="55" width="15" height="40" fill="#FFDB58" rx="5"/>
+                </svg>
+                <!-- Sunglasses SVG (initially hidden) -->
+                <svg id="characterSunglasses" class="character-sunglasses hidden" viewBox="0 0 100 40">
+                    <rect x="5" y="5" width="40" height="30" rx="10" fill="#222" stroke="black" stroke-width="2"/>
+                    <rect x="55" y="5" width="40" height="30" rx="10" fill="#222" stroke="black" stroke-width="2"/>
+                    <line x1="45" y1="20" x2="55" y2="20" stroke="black" stroke-width="4"/>
+                </svg>
+                <!-- Gold Chain SVG (initially hidden) -->
+                <svg id="characterGoldChain" class="character-chain hidden" viewBox="0 0 100 60">
+                    <path d="M10,20 Q50,50 90,20" stroke="#FFD700" stroke-width="8" fill="none" stroke-linecap="round"/>
+                    <circle cx="50" cy="38" r="12" fill="#FFD700" stroke="black" stroke-width="1.5"/>
+                    <text x="50" y="42" font-family="Impact, Arial Black" font-size="12" fill="#A0522D" text-anchor="middle" dominant-baseline="middle">$$</text>
+                </svg>
+            </div>
+            <div id="houseDisplay" class="house-display hidden">
+                <h3>Tvoja Vila! (Your Mansion!)</h3>
+                <!-- Placeholder for house image, could be SVG or img tag -->
+                 <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cGF0aCBkPSJNNTAsNSBMMTAsNDAgTDIwLDQwIEwyMCw5NSBMODAsOTUgTDgwLDQwIEw5MCw0MCBaIiBmaWxsPSIjQUQ4MTc0IiBzdHJva2U9ImJsYWNrIiBzdHJva2Utd2lkdGg9IjIiLz48cmVjdCB4PSI0MCIgeT0iNjAiIHdpZHRoPSIyMCIgaGVpZ2h0PSIzNSIgZmlsbD0iIzhCNUE0RCIgc3Ryb2tlPSJibGFjayIgc3Ryb2tlLXdpZHRoPSIxIi8+PHJlY3QgeD0iMjUiIHk9IjUwIiB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIGZpbGw9IiNFRUZFRUYiIHN0cm9rZT0iYmxhY2siIHN0cm9rZS1widthPSIxIi8+PHJlY3QgeD0iNTUiIHk9IjUwIiB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIGZpbGw9IiNFRUZFRUYiIHN0cm9rZT0iYmxhY2siIHN0cm9rZS1widthPSIxIi8+PC9zdmc+" alt="Kuća">
+            </div>
+
+            <div class="fleet-display">
+                <h3>Tvoja Flota (Your Fleet):</h3>
+                <p>Pješaci (Foot Couriers): <strong id="footCouriersCount">0</strong> 🚶</p>
+                <p>Biciklisti (Bicycle Couriers): <strong id="bicycleCouriersCount">0</strong> 🚲</p>
+                <p>E-Biciklisti (E-Bike Couriers): <strong id="ebikeCouriersCount">0</strong> 🛵</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Game State Variables
+        let money = 0;
+        let currentVehicle = "Pješice (On Foot)";
+        let deliveryPay = 1;
+        let incomePerSecond = 0;
+        
+        let hiredFootCouriers = 0;
+        let hiredBicycleCouriers = 0;
+        let hiredEbikeCouriers = 0;
+
+        // Ownership flags
+        let hasBicycle = false;
+        let hasEbike = false;
+        let hasScooter = false;
+        let hasRestaurantPartnership = false;
+        let hasDarkKitchen = false;
+        let hasFleet = false;
+        let hasSunglasses = false;
+        let hasGoldChain = false;
+        let hasHouse = false;
+
+        // DOM Elements
+        const moneyDisplay = document.getElementById('moneyDisplay');
+        const vehicleDisplay = document.getElementById('vehicleDisplay');
+        const incomePerSecondDisplay = document.getElementById('incomePerSecondDisplay');
+        const messageArea = document.getElementById('messageArea');
+
+        const deliverOrderButton = document.getElementById('deliverOrderButton');
+        
+        const vehicleUpgradeSection = document.getElementById('vehicleUpgradeSection');
+        const buyBicycleButton = document.getElementById('buyBicycleButton');
+        const buyEbikeButton = document.getElementById('buyEbikeButton');
+        const buyScooterButton = document.getElementById('buyScooterButton');
+
+        const hiringSection = document.getElementById('hiringSection');
+        const hireFootCourierButton = document.getElementById('hireFootCourierButton');
+        const hireBicycleCourierButton = document.getElementById('hireBicycleCourierButton');
+        const hireEbikeCourierButton = document.getElementById('hireEbikeCourierButton');
+        
+        const personalItemsSection = document.getElementById('personalItemsSection');
+        const buySunglassesButton = document.getElementById('buySunglassesButton');
+        const buyGoldChainButton = document.getElementById('buyGoldChainButton');
+        const buyHouseButton = document.getElementById('buyHouseButton');
+        const characterSunglasses = document.getElementById('characterSunglasses');
+        const characterGoldChain = document.getElementById('characterGoldChain');
+        const houseDisplay = document.getElementById('houseDisplay');
+
+        const investmentsSection = document.getElementById('investmentsSection');
+        const buyRestaurantPartnershipButton = document.getElementById('buyRestaurantPartnershipButton');
+        const buyDarkKitchenButton = document.getElementById('buyDarkKitchenButton');
+        const buyShadyStockButton = document.getElementById('buyShadyStockButton');
+        const buyCryptoSchemeButton = document.getElementById('buyCryptoSchemeButton');
+        const buyFleetButton = document.getElementById('buyFleetButton');
+
+        const footCouriersCountDisplay = document.getElementById('footCouriersCount');
+        const bicycleCouriersCountDisplay = document.getElementById('bicycleCouriersCount');
+        const ebikeCouriersCountDisplay = document.getElementById('ebikeCouriersCount');
+        
+        const milestones = [
+            { threshold: 100, message: "Već si skupio za gablec! Samo naprijed! (You've already saved for a snack! Keep going!)", achieved: false },
+            { threshold: 300, message: "Fino, fino! Možda uskoro padne i koja bolja kava ili sunčane! (Nice, nice! Maybe a better coffee or sunglasses soon.)", achieved: false },
+            { threshold: 750, message: "S tim biciklom/e-biciklom si brži od vjetra! Sad si prava faca u kvartu! (With that bike/e-bike, you're faster than the wind! You're a real cool cat in the neighborhood now!)", achieved: false, condition: () => hasBicycle || hasEbike },
+            { threshold: 1500, message: "Počinje se stvarati mali tim! Gazda! (A small team is starting to form! Boss!)", achieved: false, condition: () => (hiredFootCouriers + hiredBicycleCouriers + hiredEbikeCouriers) > 2 },
+            { threshold: 5000, message: "Opa! Veliki igrač! Ide to tebi! (Whoa! Big player! You're good at this!)", achieved: false },
+            { threshold: 10000, message: "Ima se, može se! Možda je vrijeme za zlatni lanac? (You've got it, you can do it! Maybe it's time for a gold chain?)", achieved: false },
+            { threshold: 50000, message: "Direktore, svaka čast! Kuća je tvoja! Može jedan autogram? (Director, congrats! The house is yours! Can I get an autograph?)", achieved: false, condition: () => hasHouse },
+            { threshold: 100000, message: "Legendo! Ispisao si povijest Wolt dostave u Hrvatskoj! Ti si Wolt Mogul! (Legend! You've written the history of Wolt delivery in Croatia! You are the Wolt Mogul!)", achieved: false }
+        ];
+
+        // --- CORE FUNCTIONS ---
+        function updateDisplay() {
+            moneyDisplay.textContent = money.toFixed(0);
+            vehicleDisplay.textContent = currentVehicle;
+            incomePerSecondDisplay.textContent = incomePerSecond.toFixed(0);
+            deliverOrderButton.textContent = `Dostavi Narudžbu (${deliveryPay}kn)`;
+
+            footCouriersCountDisplay.textContent = hiredFootCouriers;
+            bicycleCouriersCountDisplay.textContent = hiredBicycleCouriers;
+            ebikeCouriersCountDisplay.textContent = hiredEbikeCouriers;
+
+            // Vehicle Upgrades
+            buyBicycleButton.disabled = money < 75 || hasBicycle;
+            buyEbikeButton.disabled = money < 250 || hasEbike || !hasBicycle;
+            buyScooterButton.disabled = money < 700 || hasScooter || !hasEbike;
+
+            // Hiring
+            hireFootCourierButton.disabled = money < 100;
+            hireBicycleCourierButton.disabled = money < 280;
+            hireEbikeCourierButton.disabled = money < 650;
+
+            // Personal Items
+            buySunglassesButton.disabled = money < 120 || hasSunglasses;
+            buyGoldChainButton.disabled = money < 800 || hasGoldChain;
+            buyHouseButton.disabled = money < 50000 || hasHouse;
+
+            characterSunglasses.classList.toggle('hidden', !hasSunglasses);
+            characterGoldChain.classList.toggle('hidden', !hasGoldChain);
+            houseDisplay.classList.toggle('hidden', !hasHouse);
+            
+            // Investments
+            buyRestaurantPartnershipButton.disabled = money < 500 || hasRestaurantPartnership;
+            buyDarkKitchenButton.disabled = money < 1500 || hasDarkKitchen;
+            buyShadyStockButton.disabled = money < 150;
+            buyCryptoSchemeButton.disabled = money < 400;
+            buyFleetButton.disabled = money < 3000 || hasFleet;
+
+            // Show/Hide sections
+            if (money >= 50 && vehicleUpgradeSection.classList.contains('hidden')) {
+                vehicleUpgradeSection.classList.remove('hidden');
+                showMessage("Možete nadograditi svoje vozilo! (You can upgrade your vehicle!)");
+            }
+            if (money >= 100 && hiringSection.classList.contains('hidden')) {
+                hiringSection.classList.remove('hidden');
+                showMessage("Sada možete zapošljavati kurire! (You can now hire couriers!)");
+            }
+            if (money >= 100 && personalItemsSection.classList.contains('hidden')) { // Show personal items early
+                personalItemsSection.classList.remove('hidden');
+                showMessage("Vrijeme je da se malo počastiš? (Time to treat yourself a bit?)");
+            }
+            if (money >= 300 && investmentsSection.classList.contains('hidden')) {
+                investmentsSection.classList.remove('hidden');
+                showMessage("Dostupne su nove investicijske prilike! (New investment opportunities available!)");
+            }
+        }
+
+        function showMessage(message, isError = false, duration = 4000) {
+            messageArea.textContent = message;
+            messageArea.style.color = isError ? '#c0392b' : '#004d40';
+            setTimeout(() => {
+                if (messageArea.textContent === message) {
+                     messageArea.textContent = "";
+                }
+            }, duration);
+        }
+        
+        function checkMilestones() {
+            for (const milestone of milestones) {
+                if (!milestone.achieved && money >= milestone.threshold) {
+                    if (milestone.condition === undefined || milestone.condition()) {
+                        showMessage(milestone.message, false, 6000); // Longer display for milestones
+                        milestone.achieved = true;
+                    }
+                }
+            }
+        }
+
+        function earnMoney(amount) {
+            money += amount;
+            checkMilestones();
+        }
+
+        function spendMoney(amount) {
+            if (money >= amount) {
+                money -= amount;
+                return true;
+            }
+            showMessage("Nema dovoljno novca! (Not enough money!)", true);
+            return false;
+        }
+
+        // --- EVENT LISTENERS ---
+        deliverOrderButton.addEventListener('click', () => {
+            earnMoney(deliveryPay);
+            showMessage(`Dostavili ste narudžbu i zaradili ${deliveryPay}kn!`);
+            updateDisplay();
+        });
+
+        // Vehicle Upgrades
+        buyBicycleButton.addEventListener('click', () => {
+            if (!hasBicycle && spendMoney(75)) {
+                currentVehicle = "Bicikl (Bicycle)"; deliveryPay = 3; hasBicycle = true;
+                buyBicycleButton.textContent = "Kupljeno";
+                showMessage("Kupili ste bicikl! Dostave su sada brže i isplativije.");
+                updateDisplay();
+            }
+        });
+        buyEbikeButton.addEventListener('click', () => {
+            if (hasBicycle && !hasEbike && spendMoney(250)) {
+                currentVehicle = "El. Bicikl (E-Bike)"; deliveryPay = 7; hasEbike = true;
+                buyEbikeButton.textContent = "Kupljeno";
+                showMessage("Nadogradili ste na električni bicikl! Još veća zarada!");
+                updateDisplay();
+            } else if (!hasBicycle) showMessage("Prvo morate kupiti obični bicikl.", true);
+        });
+        buyScooterButton.addEventListener('click', () => {
+            if (hasEbike && !hasScooter && spendMoney(700)) {
+                currentVehicle = "Skuter (Scooter)"; deliveryPay = 15; hasScooter = true;
+                buyScooterButton.textContent = "Kupljeno";
+                showMessage("Kralj ceste! Skuter donosi ozbiljan novac!");
+                updateDisplay();
+            } else if (!hasEbike) showMessage("Prvo morate kupiti električni bicikl.", true);
+        });
+
+        // Hiring Couriers
+        function hireCourier(cost, incomeBoost, type) {
+            if (spendMoney(cost)) {
+                incomePerSecond += incomeBoost;
+                if (type === 'foot') hiredFootCouriers++;
+                else if (type === 'bicycle') hiredBicycleCouriers++;
+                else if (type === 'ebike') hiredEbikeCouriers++;
+                showMessage(`Zaposlili ste ${type === 'foot' ? 'pješačkog' : type === 'bicycle' ? 'biciklističkog' : 'e-bicikl'} kurira! (+${incomeBoost}kn/sec)`);
+                updateDisplay();
+            }
+        }
+        hireFootCourierButton.addEventListener('click', () => hireCourier(100, 1, 'foot'));
+        hireBicycleCourierButton.addEventListener('click', () => hireCourier(280, 3, 'bicycle'));
+        hireEbikeCourierButton.addEventListener('click', () => hireCourier(650, 7, 'ebike'));
+
+        // Personal Items
+        buySunglassesButton.addEventListener('click', () => {
+            if (!hasSunglasses && spendMoney(120)) {
+                hasSunglasses = true;
+                buySunglassesButton.textContent = "Posjeduješ";
+                showMessage("Izgledaš opasno s tim naočalama! (You look cool with those sunglasses!)");
+                updateDisplay();
+            }
+        });
+        buyGoldChainButton.addEventListener('click', () => {
+            if (!hasGoldChain && spendMoney(800)) {
+                hasGoldChain = true;
+                buyGoldChainButton.textContent = "Posjeduješ";
+                showMessage("Prava kajla, gazda! (Real chain, boss!)");
+                updateDisplay();
+            }
+        });
+        buyHouseButton.addEventListener('click', () => {
+            if (!hasHouse && spendMoney(50000)) {
+                hasHouse = true;
+                buyHouseButton.textContent = "Kupljeno!";
+                showMessage("Čestitamo na novoj kući! Živio! (Congratulations on the new house! Cheers!)");
+                updateDisplay(); // checkMilestones will be called via earnMoney/spendMoney indirectly
+            }
+        });
+
+        // Investments (simplified, assuming one-time purchase logic from before)
+        buyRestaurantPartnershipButton.addEventListener('click', () => {
+            if (!hasRestaurantPartnership && spendMoney(500)) {
+                incomePerSecond += 10; hasRestaurantPartnership = true;
+                buyRestaurantPartnershipButton.textContent = "Investirano";
+                showMessage("Partnerstvo s restoranom osigurano! (+10kn/sec)"); updateDisplay();
+            }
+        });
+        buyDarkKitchenButton.addEventListener('click', () => {
+            if (!hasDarkKitchen && spendMoney(1500)) {
+                incomePerSecond += 25; hasDarkKitchen = true;
+                buyDarkKitchenButton.textContent = "Investirano";
+                showMessage("Investicija u Dark Kitchen se isplatila! (+25kn/sec)"); updateDisplay();
+            }
+        });
+        buyFleetButton.addEventListener('click', () => {
+            if (!hasFleet && spendMoney(3000)) {
+                incomePerSecond += 50; hasFleet = true;
+                buyFleetButton.textContent = "Osnovano";
+                showMessage("Vaša mala flota dostavlja punom parom! (+50kn/sec)"); updateDisplay();
+            }
+        });
+
+        // Risky Investments
+        buyShadyStockButton.addEventListener('click', () => {
+            if (spendMoney(150)) {
+                const outcome = Math.random(); let gained = 0;
+                if (outcome < 0.1) { gained = 600; earnMoney(gained); showMessage(`NEVJEROJATNO! Sumnjiva dionica je EKSPLODIRALA! +${gained}kn`); }
+                else if (outcome < 0.4) { gained = 225; earnMoney(gained); showMessage(`Dionica je prošla dobro. +${gained}kn`); }
+                else if (outcome < 0.7) { gained = 75; earnMoney(gained); showMessage(`Dionica je malo pala... Vraćeno ${gained}kn.`); }
+                else { showMessage("AUČ! Dionica je bila totalni promašaj! Izgubljeno 150kn.", true); }
+                updateDisplay();
+            }
+        });
+        buyCryptoSchemeButton.addEventListener('click', () => {
+            if (spendMoney(400)) {
+                const outcome = Math.random(); let gained = 0;
+                if (outcome < 0.05) { gained = 2000; earnMoney(gained); showMessage(`DO MJESECA! Kripto rizik se isplatio! +${gained}kn`); }
+                else if (outcome < 0.25) { gained = 400; earnMoney(gained); showMessage("UF! Kripto shema je na nuli. Vratili ste 400kn."); }
+                else { showMessage("PREVARA! Kripto shema je bila scam! Izgubljeno 400kn.", true); }
+                updateDisplay();
+            }
+        });
+
+        // --- GAME LOOP for passive income ---
+        setInterval(() => {
+            if (incomePerSecond > 0) {
+                earnMoney(incomePerSecond); // This will also call checkMilestones
+                updateDisplay(); 
+            }
+        }, 1000);
+
+        // --- INITIALIZE GAME ---
+        updateDisplay();
+        showMessage("Dobrodošli u Wolt Dostavljač Bogataš CRO! Kliknite 'Dostavi Narudžbu' za početak.");
+
+    </script>
+</body>
+</html>

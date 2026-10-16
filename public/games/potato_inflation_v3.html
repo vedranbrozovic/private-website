@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Potato Inflation Indicator by Vedran</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f0f0f0;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background-color: #fff;
+            padding: 25px 30px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            width: 90%;
+            max-width: 800px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #5a3e2b; /* Potato skin brown */
+            margin-bottom: 10px;
+        }
+        h1 .potato-emoji {
+            font-size: 1.2em;
+            vertical-align: middle;
+        }
+
+        p.tagline {
+            color: #777;
+            margin-bottom: 25px;
+            font-size: 0.9em;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px; 
+            justify-content: center;
+            align-items: flex-end; 
+            margin-bottom: 30px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .control-group label {
+            font-size: 0.9em;
+            margin-bottom: 5px;
+            color: #555;
+        }
+
+        .control-group input[type="number"] {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1em;
+            width: 120px;
+        }
+
+        #results-container {
+            margin-top: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            width: 100%;
+        }
+
+        .year-card {
+            background-color: #fff8e1; 
+            border: 1px solid #ffe0b2; 
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeInSlideUp 0.5s ease-out forwards;
+            display: flex; /* For aligning bar to bottom */
+            flex-direction: column; /* For aligning bar to bottom */
+        }
+
+        .year-card h3 {
+            color: #8d6e63; 
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+
+        .year-card p {
+            margin: 8px 0;
+            font-size: 0.95em;
+        }
+        .year-card .wage-info {
+            font-style: italic;
+            color: #666;
+        }
+        .year-card .potato-count {
+            font-weight: bold;
+            font-size: 1.5em;
+            color: #4caf50; 
+        }
+        .year-card .potato-viz {
+            font-size: 1.8em; 
+            margin-top: 10px;
+            word-break: break-all; 
+            line-height: 1.2;
+            flex-grow: 1; /* Allows this section to take available space */
+        }
+        
+        .potato-bar-container {
+            width: 100%;
+            background-color: #eee;
+            border-radius: 4px;
+            height: 20px;
+            margin-top: auto; /* Pushes bar to bottom if content above is short */
+            margin-bottom: 8px; /* Space before potato viz if it's below */
+            overflow: hidden;
+        }
+        .potato-bar {
+            height: 100%;
+            background-color: #795548; 
+            width: 0%; 
+            border-radius: 4px;
+            transition: width 0.5s ease-in-out; 
+        }
+        
+        .error-message {
+            color: #d32f2f; 
+            font-weight: bold;
+            margin-top: 15px;
+            min-height: 1.2em; /* Reserve some space */
+        }
+
+        @keyframes fadeInSlideUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        footer {
+            margin-top: 40px;
+            font-size: 0.8em;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1><span class="potato-emoji">🥔</span> Potato Inflation Indicator <span class="potato-emoji">🥔</span></h1>
+        <p class="tagline">by Vedran</p>
+        <p>See how many spuds <strong>one hour of average U.S. pay</strong> could buy. Drag the year sliders to see changes!</p>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="startYear">Start Year:</label>
+                <input type="number" id="startYear">
+            </div>
+            <div class="control-group">
+                <label for="endYear">End Year:</label>
+                <input type="number" id="endYear">
+            </div>
+        </div>
+
+        <div id="results-container">
+            <!-- Results will be injected here by JavaScript -->
+        </div>
+        <p id="errorMessage" class="error-message"></p>
+    </div>
+
+    <footer>
+        Potato prices and average hourly wages are illustrative (U.S. data estimates). Values for years without explicit data are interpolated/extrapolated.
+    </footer>
+
+    <script>
+        // --- Data: Price per single potato in USD (Illustrative) ---
+        const potatoPrices = {
+            1950: 0.05, 1955: 0.06, 1960: 0.07, 1965: 0.08,
+            1970: 0.10, 1975: 0.12, 1980: 0.18, 1985: 0.22,
+            1990: 0.28, 1995: 0.35, 2000: 0.40, 2005: 0.45,
+            2010: 0.50, 2015: 0.58, 2020: 0.65, 2021: 0.68,
+            2022: 0.72, 2023: 0.75, 2024: 0.80
+        };
+
+        // --- Data: Average Hourly Wage in USD (Illustrative, based on U.S. estimates) ---
+        const averageHourlyWages = {
+            1950: 1.50, 1955: 1.80, 1960: 2.09, 1965: 2.46,
+            1970: 3.23, 1975: 4.53, 1980: 6.66, 1985: 8.57,
+            1990: 10.01, 1995: 11.43, 2000: 13.75, 2005: 15.95,
+            2010: 22.37, 2015: 24.99, 2020: 29.81, 2021: 31.00,
+            2022: 32.50, 2023: 33.50, 2024: 34.75 // Estimated
+        };
+
+        // Determine overall data range for UI inputs
+        const allExplicitYears = [
+            ...Object.keys(potatoPrices).map(Number),
+            ...Object.keys(averageHourlyWages).map(Number)
+        ];
+        const UNIQUE_EXPLICIT_YEARS = [...new Set(allExplicitYears)].sort((a, b) => a - b);
+
+        const MIN_INPUT_YEAR = UNIQUE_EXPLICIT_YEARS.length > 0 ? UNIQUE_EXPLICIT_YEARS[0] : 1900;
+        const MAX_INPUT_YEAR = UNIQUE_EXPLICIT_YEARS.length > 0 ? UNIQUE_EXPLICIT_YEARS[UNIQUE_EXPLICIT_YEARS.length - 1] : new Date().getFullYear();
+
+        // --- DOM Elements ---
+        const startYearInput = document.getElementById('startYear');
+        const endYearInput = document.getElementById('endYear');
+        const resultsContainer = document.getElementById('results-container');
+        const errorMessageP = document.getElementById('errorMessage');
+
+        // --- Initialize input year ranges and default values ---
+        startYearInput.min = MIN_INPUT_YEAR;
+        startYearInput.max = MAX_INPUT_YEAR;
+        endYearInput.min = MIN_INPUT_YEAR;
+        endYearInput.max = MAX_INPUT_YEAR;
+        
+        startYearInput.value = Math.max(MIN_INPUT_YEAR, 1980); // Sensible default start
+        endYearInput.value = MAX_INPUT_YEAR; // Default end
+
+
+        // --- Helper: Interpolation/Extrapolation Function ---
+        function getInterpolatedValue(targetYear, dataObject) {
+            const knownYears = Object.keys(dataObject).map(Number).sort((a, b) => a - b);
+
+            if (knownYears.length === 0) return undefined; // No data points
+
+            // 1. Exact match
+            if (dataObject.hasOwnProperty(targetYear)) {
+                return dataObject[targetYear];
+            }
+
+            // 2. Extrapolation: Target year is outside the range of known years
+            if (targetYear < knownYears[0]) {
+                return dataObject[knownYears[0]]; // Use the earliest known value
+            }
+            if (targetYear > knownYears[knownYears.length - 1]) {
+                return dataObject[knownYears[knownYears.length - 1]]; // Use the latest known value
+            }
+
+            // 3. Interpolation: Target year is within the range of known years but not an exact match
+            let prevYear = -Infinity, nextYear = Infinity;
+
+            for (const y of knownYears) {
+                if (y < targetYear && y > prevYear) {
+                    prevYear = y;
+                }
+                if (y > targetYear && y < nextYear) {
+                    nextYear = y;
+                }
+            }
+            
+            if (prevYear === -Infinity || nextYear === Infinity) {
+                // This case might be hit if targetYear is not strictly between two *distinct* known years,
+                // or if knownYears has less than 2 points and targetYear isn't one of them.
+                // The direct match and extrapolation checks should handle most edge cases.
+                // As a robust fallback, find the single closest year.
+                let closestYear = knownYears.reduce((p, c) => 
+                    (Math.abs(c - targetYear) < Math.abs(p - targetYear) ? c : p), knownYears[0]);
+                console.warn(`Interpolation fallback for year ${targetYear}. Closest: ${closestYear}`);
+                return dataObject[closestYear];
+            }
+
+            const prevValue = dataObject[prevYear];
+            const nextValue = dataObject[nextYear];
+            
+            // Linear interpolation formula
+            const interpolated = prevValue + (nextValue - prevValue) * ((targetYear - prevYear) / (nextYear - prevYear));
+            return interpolated;
+        }
+
+        // --- Main Calculation and Display Function ---
+        function calculateAndDisplayPotatoes() {
+            const startYearVal = parseInt(startYearInput.value);
+            const endYearVal = parseInt(endYearInput.value);
+
+            resultsContainer.innerHTML = '';
+            errorMessageP.textContent = ''; 
+
+            // --- Input Validation ---
+            let errors = [];
+            if (isNaN(startYearVal) || isNaN(endYearVal)) {
+                errors.push("Please enter valid numbers for years.");
+            }
+            if (startYearVal > endYearVal) {
+                errors.push("Start year cannot be after end year.");
+            }
+            if (startYearVal < MIN_INPUT_YEAR || endYearVal > MAX_INPUT_YEAR || 
+                startYearVal > MAX_INPUT_YEAR || endYearVal < MIN_INPUT_YEAR ) { // Check bounds
+                 errors.push(`Please select years between ${MIN_INPUT_YEAR} and ${MAX_INPUT_YEAR}.`);
+            }
+
+            if (errors.length > 0) {
+                errorMessageP.textContent = errors.join(' ');
+                return;
+            }
+
+            let maxPotatoesForScaling = 0;
+            const processedResults = [];
+            const yearsToDisplay = [startYearVal];
+            if (startYearVal !== endYearVal) {
+                yearsToDisplay.push(endYearVal);
+            }
+
+            yearsToDisplay.forEach(year => {
+                const pricePerPotato = getInterpolatedValue(year, potatoPrices);
+                const hourlyWage = getInterpolatedValue(year, averageHourlyWages);
+                let numPotatoes = "N/A"; // Default if data is missing or price is zero
+                let result = { year, pricePerPotato, hourlyWage, numPotatoes };
+
+                if (pricePerPotato !== undefined && hourlyWage !== undefined && pricePerPotato > 0) {
+                    numPotatoes = Math.floor(hourlyWage / pricePerPotato);
+                    result.numPotatoes = numPotatoes;
+                    if (numPotatoes > maxPotatoesForScaling) {
+                        maxPotatoesForScaling = numPotatoes;
+                    }
+                } else {
+                    result.numPotatoes = "N/A (Data error)";
+                }
+                processedResults.push(result);
+            });
+            
+            // Ensure maxPotatoesForScaling is at least 1 to avoid division by zero if all potato counts are 0
+            if (maxPotatoesForScaling === 0 && processedResults.some(r => typeof r.numPotatoes === 'number' && r.numPotatoes > 0)) {
+                maxPotatoesForScaling = Math.max(1, ...processedResults.map(r => r.numPotatoes).filter(n => typeof n === 'number' && n > 0));
+            }
+            if (maxPotatoesForScaling <= 0) maxPotatoesForScaling = 1;
+
+
+            processedResults.forEach((result, index) => {
+                const card = document.createElement('div');
+                card.classList.add('year-card');
+                card.style.animationDelay = `${index * 0.05}s`; // Faster stagger
+
+                let potatoDisplay = '';
+                let potatoBarWidth = '0%';
+                let wageText = typeof result.hourlyWage === 'number' ? `$${result.hourlyWage.toFixed(2)}` : "N/A";
+                let priceText = typeof result.pricePerPotato === 'number' ? `$${result.pricePerPotato.toFixed(2)}` : "N/A";
+
+                if (typeof result.numPotatoes === 'number') {
+                    const maxEmojis = 50; 
+                    potatoDisplay = '🥔'.repeat(Math.min(result.numPotatoes, maxEmojis));
+                    if (result.numPotatoes > maxEmojis) {
+                        potatoDisplay += `... (+${result.numPotatoes - maxEmojis})`;
+                    }
+                     // Only show sad face if data was available to calculate zero
+                    if (result.numPotatoes === 0 && priceText !== "N/A" && wageText !== "N/A") {
+                        potatoDisplay = '😢 None';
+                    } else if (result.numPotatoes === 0) { // If data was bad, show N/A
+                        potatoDisplay = 'N/A';
+                    }
+                    potatoBarWidth = `${(result.numPotatoes / maxPotatoesForScaling) * 100}%`;
+                } else {
+                    potatoDisplay = result.numPotatoes; // "N/A (Data error)"
+                }
+
+                card.innerHTML = `
+                    <h3>${result.year}</h3>
+                    <p class="wage-info">Avg. Hourly Wage (est.): ${wageText}</p>
+                    <p>Price per potato (est.): ${priceText}</p>
+                    <p>With one hour's wage, you could buy:</p>
+                    <p><span class="potato-count">${typeof result.numPotatoes === 'number' ? result.numPotatoes.toLocaleString() : 'N/A'}</span> potatoes</p>
+                    <div class="potato-bar-container">
+                        <div class="potato-bar" style="width: 0%;"></div>
+                    </div>
+                    <div class="potato-viz">${potatoDisplay}</div>
+                `;
+                resultsContainer.appendChild(card);
+
+                setTimeout(() => {
+                    const barElement = card.querySelector('.potato-bar');
+                    if(barElement) barElement.style.width = potatoBarWidth;
+                }, 50 + index * 50); 
+            });
+
+            if (processedResults.length === 0 && errors.length === 0) {
+                 errorMessageP.textContent = "Could not process data for the selected years.";
+            }
+        }
+
+        // --- Event Listeners for real-time updates ---
+        startYearInput.addEventListener('input', calculateAndDisplayPotatoes);
+        endYearInput.addEventListener('input', calculateAndDisplayPotatoes);
+        
+        // --- Initial calculation on page load ---
+        calculateAndDisplayPotatoes(); 
+
+    </script>
+</body>
+</html>

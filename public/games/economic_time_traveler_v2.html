@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Economic Time Traveler - Yearly Explorer</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@300;400;700&display=swap');
+
+        :root {
+            --card-bg: rgba(255, 255, 255, 0.08);
+            --card-border: rgba(255, 255, 255, 0.15);
+            --text-color: #f0f0f0;
+            --accent-color: #00ffff; /* Cyan accent */
+            --shadow-color: rgba(0,0,0,0.5);
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 20px;
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); /* Default background */
+            transition: background 1s ease-in-out;
+        }
+
+        .container {
+            background: rgba(0, 0, 0, 0.35);
+            backdrop-filter: blur(12px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 15px 35px var(--shadow-color);
+            width: 100%;
+            max-width: 1100px; /* Increased max-width for more cards */
+            text-align: center;
+            border: 1px solid var(--card-border);
+        }
+
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.8em;
+            margin-bottom: 10px;
+            color: var(--accent-color);
+            text-shadow: 0 0 10px var(--accent-color), 0 0 20px var(--accent-color);
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            margin-bottom: 30px;
+            color: #ddd;
+        }
+
+        .slider-container {
+            margin-bottom: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #year-slider { /* Renamed from decade-slider */
+            width: 90%;
+            max-width: 700px;
+            cursor: pointer;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 15px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            outline: none;
+            transition: opacity .2s;
+        }
+        #year-slider:hover {
+            opacity: 1;
+        }
+        #year-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 28px;
+            height: 28px;
+            background: var(--accent-color);
+            border-radius: 50%;
+            border: 3px solid #fff;
+            box-shadow: 0 0 12px var(--accent-color);
+        }
+        #year-slider::-moz-range-thumb {
+            width: 28px;
+            height: 28px;
+            background: var(--accent-color);
+            border-radius: 50%;
+            border: 3px solid #fff;
+            box-shadow: 0 0 12px var(--accent-color);
+            cursor: pointer;
+        }
+
+        #selected-year { /* Renamed from selected-decade */
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2em;
+            margin-top: 15px;
+            color: #fff;
+            font-weight: bold;
+            text-shadow: 0 0 5px var(--accent-color);
+        }
+
+        .data-grid {
+            display: grid;
+            /* Adjust grid for more cards: aim for 4 cards per row on wider screens */
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); 
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .data-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: left;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.5s ease-out, transform 0.5s ease-out, background-color 0.3s;
+        }
+        .data-card:hover {
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .data-card.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .data-card h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 1.05em; /* Slightly smaller for more cards */
+            color: var(--accent-color);
+            display: flex;
+            align-items: center;
+            height: 40px; /* Ensure consistent title height */
+        }
+        .data-card h3 i {
+            margin-right: 10px;
+            font-size: 1.4em;
+            width: 20px; /* Icon alignment */
+            text-align: center;
+        }
+
+        .data-card p {
+            font-size: 0.95em;
+            line-height: 1.5;
+            margin-bottom: 0;
+            color: #e0e0e0;
+        }
+        .data-card .value {
+            font-weight: bold;
+            font-size: 1.5em; /* Slightly larger value text */
+            color: #fff;
+            display: block; /* Ensure it takes its own line if needed */
+            margin-top: 5px;
+        }
+
+        .data-card.full-width {
+            grid-column: 1 / -1; 
+        }
+        .data-card.full-width h3 {
+            font-size: 1.1em;
+        }
+        .data-card.full-width p {
+            font-size: 1em;
+        }
+
+        footer {
+            margin-top: 40px;
+            font-size: 0.9em;
+            color: #aaa;
+        }
+         footer a {
+            color: var(--accent-color);
+            text-decoration: none;
+        }
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        .value-counter {
+            transition: all 0.5s ease-out;
+        }
+
+        @media (max-width: 900px) { /* Adjust breakpoint for more cards */
+             .data-grid {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            }
+        }
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2em;
+            }
+            .subtitle {
+                font-size: 1em;
+            }
+            #year-slider {
+                width: 95%;
+            }
+        }
+         @media (max-width: 500px) {
+            .data-grid {
+                grid-template-columns: 1fr; /* Stack cards on very small screens */
+            }
+            .data-card h3 { font-size: 1.1em; }
+            .data-card .value { font-size: 1.6em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Economic Time Traveler</h1>
+        <p class="subtitle">Slide through the years and witness economic & cultural shifts!</p>
+
+        <div class="slider-container">
+            <input type="range" id="year-slider" min="0" value="0">
+            <div id="selected-year">1950</div>
+        </div>
+
+        <div class="data-grid">
+            <!-- Numerical Data Cards -->
+            <div class="data-card" id="card-house">
+                <h3><i class="fas fa-home"></i>Avg. House Price</h3>
+                <p><span class="value value-counter" id="house-price">$0</span></p>
+            </div>
+            <div class="data-card" id="card-car">
+                <h3><i class="fas fa-car"></i>Avg. New Car Price</h3>
+                <p><span class="value value-counter" id="car-price">$0</span></p>
+            </div>
+            <div class="data-card" id="card-gas">
+                <h3><i class="fas fa-gas-pump"></i>Gas Price (Gallon)</h3>
+                <p><span class="value value-counter" id="gas-price">$0.00</span></p>
+            </div>
+            <div class="data-card" id="card-milk">
+                <h3><i class="fas fa-glass-whiskey"></i>Milk Price (Gallon)</h3>
+                <p><span class="value value-counter" id="milk-price">$0.00</span></p>
+            </div>
+            <div class="data-card" id="card-income">
+                <h3><i class="fas fa-money-bill-wave"></i>Avg. Annual Income</h3>
+                <p><span class="value value-counter" id="income-price">$0</span></p>
+            </div>
+            <div class="data-card" id="card-djia">
+                <h3><i class="fas fa-chart-line"></i>DJIA (Approx.)</h3>
+                <p><span class="value value-counter" id="djia-value">0</span></p>
+            </div>
+            <div class="data-card" id="card-inflation">
+                <h3><i class="fas fa-percentage"></i>Inflation Rate (Avg.)</h3>
+                <p><span class="value value-counter" id="inflation-rate">0.0%</span></p>
+            </div>
+            <div class="data-card" id="card-unemployment">
+                <h3><i class="fas fa-user-times"></i>Unemployment (Avg.)</h3>
+                <p><span class="value value-counter" id="unemployment-rate">0.0%</span></p>
+            </div>
+            
+            <!-- Textual Data Cards -->
+            <div class="data-card full-width" id="card-event">
+                <h3><i class="fas fa-landmark"></i>Key Event Snapshot (Decade Focus)</h3>
+                <p id="key-event">Info</p>
+            </div>
+            <div class="data-card full-width" id="card-funfact">
+                <h3><i class="fas fa-lightbulb"></i>Cultural Snapshot (Decade Focus)</h3>
+                <p id="fun-fact">Info</p>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>Data is interpolated/approximate for illustrative purposes. Not for financial advice. Design by AI & Human.</p>
+        <p><a href="https://fontawesome.com/license/free" target="_blank">Icons by Font Awesome (Free License)</a></p>
+    </footer>
+
+    <script>
+        // --- DATA SECTION ---
+        // Base decadal data (benchmarks)
+        const decadalBenchmarks = [
+            // NOTE: Inflation & Unemployment are very rough decade averages for interpolation. DJIA is approx. mid-decade.
+            { year: 1950, decade: "1950s", housePrice: 7350, carPrice: 1500, gasPrice: 0.27, milkPrice: 0.83, avgIncome: 3300, djia: 250, inflationRate: 2.2, unemploymentRate: 4.5, keyEvent: "Post-WWII Boom, Korean War, Cold War begins. Rise of Suburbia, Interstate Highway System Act (1956). Polio vaccine developed.", funFact: "TV becomes mainstream (I Love Lucy). Rock 'n' Roll (Elvis). First McDonald's (1955). Drive-in theaters popular.", bgColor: "linear-gradient(135deg, #f6d365 0%, #fda085 100%)"},
+            { year: 1960, decade: "1960s", housePrice: 12700, carPrice: 2600, gasPrice: 0.31, milkPrice: 0.95, avgIncome: 5315, djia: 700, inflationRate: 2.3, unemploymentRate: 4.8, keyEvent: "'Great Society' programs. Civil Rights Movement. Vietnam War escalation. Cuban Missile Crisis. JFK Assassination.", funFact: "The Beatles & British Invasion. Man walks on the Moon (1969). First Super Bowl. Hippie counter-culture.", bgColor: "linear-gradient(135deg, #abecd6 0%, #fbed96 100%)"},
+            { year: 1970, decade: "1970s", housePrice: 23400, carPrice: 3500, gasPrice: 0.53, milkPrice: 1.15, avgIncome: 9870, djia: 800, inflationRate: 7.1, unemploymentRate: 6.2, keyEvent: "Stagflation (high inflation & unemployment). Oil Crisis (1973 & 1979). End of Bretton Woods. Watergate Scandal. Viking 1 on Mars.", funFact: "Disco fever! Bell bottoms. First personal computers (Apple II). Star Wars released. Email invented.", bgColor: "linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)"},
+            { year: 1980, decade: "1980s", housePrice: 68700, carPrice: 7000, gasPrice: 1.25, milkPrice: 1.60, avgIncome: 20200, djia: 1500, inflationRate: 5.6, unemploymentRate: 7.3, keyEvent: "Reaganomics & 'trickle-down'. End of Cold War looms. Savings & Loan crisis. Iran-Contra Affair. Challenger disaster. Chernobyl.", funFact: "CDs, Walkmans & Boomboxes. MTV. Blockbuster movies (E.T., Indiana Jones). Rise of video games (Pac-Man, Nintendo). Fall of Berlin Wall (1989).", bgColor: "linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%)"},
+            { year: 1990, decade: "1990s", housePrice: 113000, carPrice: 15000, gasPrice: 1.15, milkPrice: 2.10, avgIncome: 30000, djia: 5000, inflationRate: 3.0, unemploymentRate: 5.8, keyEvent: "Dot-com bubble begins. NAFTA. Gulf War. End of Apartheid in South Africa. Human Genome Project launched.", funFact: "World Wide Web goes public! Grunge music. Tamagotchis. Cell phones become more common. First text message sent. Friends TV show.", bgColor: "linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%)"},
+            { year: 2000, decade: "2000s", housePrice: 169000, carPrice: 20000, gasPrice: 2.59, milkPrice: 2.75, avgIncome: 41000, djia: 10000, inflationRate: 2.6, unemploymentRate: 5.1, keyEvent: "Dot-com bust. 9/11 attacks & War on Terror. Housing bubble. Great Recession starts (2008). Euro currency launched.", funFact: "Smartphones emerge (iPhone 2007). Social media (MySpace, Facebook). Reality TV. Y2K bug fears. Large Hadron Collider activated.", bgColor: "linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%)"},
+            { year: 2010, decade: "2010s", housePrice: 226000, carPrice: 30000, gasPrice: 3.10, milkPrice: 3.30, avgIncome: 52000, djia: 18000, inflationRate: 1.8, unemploymentRate: 7.4, keyEvent: "Slow recovery from Great Recession. Quantitative Easing. Rise of Gig Economy. Arab Spring. ISIS. Brexit vote.", funFact: "Streaming services dominate (Netflix). Rise of AI and Big Data. Tablets (iPad). Instagram. Marvel Cinematic Universe peaks.", bgColor: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"},
+            { year: 2020, decade: "2020s", housePrice: 380000, carPrice: 45000, gasPrice: 3.80, milkPrice: 3.90, avgIncome: 68000, djia: 33000, inflationRate: 5.0, unemploymentRate: 6.0, keyEvent: "COVID-19 Pandemic & global impact. Supply chain crisis. Surging inflation. War in Ukraine. Rapid AI advancements (ChatGPT).", funFact: "Remote work widespread. TikTok / short-form video. Electric Vehicles surge. James Webb Telescope images. Cryptocurrency volatility.", bgColor: "linear-gradient(135deg, #434343 0%, #000000 100%)"},
+            // Add a '2024' point to ensure interpolation up to current-ish year
+            { year: 2024, decade: "2020s", housePrice: 410000, carPrice: 48000, gasPrice: 3.60, milkPrice: 4.00, avgIncome: 72000, djia: 38000, inflationRate: 3.5, unemploymentRate: 3.8, keyEvent: "Ongoing geopolitical tensions. Focus on AI regulation and development. Continued economic adjustments post-pandemic.", funFact: "AI tools increasingly integrated into daily life. Debates on future of work. Continued growth of creator economy.", bgColor: "linear-gradient(135deg, #383838 0%, #181818 100%)"},
+        ];
+
+        // --- YEARLY DATA GENERATION (Interpolated) ---
+        const yearData = [];
+        const startYear = decadalBenchmarks[0].year;
+        const endYear = decadalBenchmarks[decadalBenchmarks.length - 1].year;
+
+        function interpolate(y, y0, y1, v0, v1) {
+            if (y0 === y1) return v0; // Avoid division by zero if benchmark years are same
+            return v0 + (v1 - v0) * (y - y0) / (y1 - y0);
+        }
+
+        let benchmarkIndex = 0;
+        for (let year = startYear; year <= endYear; year++) {
+            while (benchmarkIndex < decadalBenchmarks.length - 2 && year >= decadalBenchmarks[benchmarkIndex + 1].year) {
+                benchmarkIndex++;
+            }
+            const bm0 = decadalBenchmarks[benchmarkIndex];
+            const bm1 = decadalBenchmarks[benchmarkIndex + 1];
+
+            let currentDecadeData = bm0; // Default to current benchmark decade info
+            for(let i=0; i < decadalBenchmarks.length; i++){
+                if(year >= decadalBenchmarks[i].year && (i === decadalBenchmarks.length -1 || year < decadalBenchmarks[i+1].year)){
+                    currentDecadeData = decadalBenchmarks[i];
+                    break;
+                }
+            }
+            
+            yearData.push({
+                year: year,
+                decade: currentDecadeData.decade, // Use the decade the year falls into
+                housePrice: Math.round(interpolate(year, bm0.year, bm1.year, bm0.housePrice, bm1.housePrice)),
+                carPrice: Math.round(interpolate(year, bm0.year, bm1.year, bm0.carPrice, bm1.carPrice)),
+                gasPrice: parseFloat(interpolate(year, bm0.year, bm1.year, bm0.gasPrice, bm1.gasPrice).toFixed(2)),
+                milkPrice: parseFloat(interpolate(year, bm0.year, bm1.year, bm0.milkPrice, bm1.milkPrice).toFixed(2)),
+                avgIncome: Math.round(interpolate(year, bm0.year, bm1.year, bm0.avgIncome, bm1.avgIncome)),
+                djia: Math.round(interpolate(year, bm0.year, bm1.year, bm0.djia, bm1.djia)),
+                inflationRate: parseFloat(interpolate(year, bm0.year, bm1.year, bm0.inflationRate, bm1.inflationRate).toFixed(1)),
+                unemploymentRate: parseFloat(interpolate(year, bm0.year, bm1.year, bm0.unemploymentRate, bm1.unemploymentRate).toFixed(1)),
+                keyEvent: currentDecadeData.keyEvent,
+                funFact: currentDecadeData.funFact,
+                bgColor: currentDecadeData.bgColor, // Background changes with decade
+                 // Icons remain largely same per decade for simplicity, can be customized more
+                iconSet: [
+                    'fas fa-home', 'fas fa-car', 'fas fa-gas-pump', 'fas fa-glass-whiskey', 
+                    'fas fa-money-bill-wave', 'fas fa-chart-line', 'fas fa-percentage', 'fas fa-user-times',
+                    'fas fa-landmark', 'fas fa-lightbulb'
+                ]
+            });
+        }
+
+        // --- DOM ELEMENTS ---
+        const slider = document.getElementById('year-slider');
+        const selectedYearEl = document.getElementById('selected-year');
+        
+        const housePriceEl = document.getElementById('house-price');
+        const carPriceEl = document.getElementById('car-price');
+        const gasPriceEl = document.getElementById('gas-price');
+        const milkPriceEl = document.getElementById('milk-price');
+        const incomePriceEl = document.getElementById('income-price');
+        const djiaEl = document.getElementById('djia-value');
+        const inflationEl = document.getElementById('inflation-rate');
+        const unemploymentEl = document.getElementById('unemployment-rate');
+        const keyEventEl = document.getElementById('key-event');
+        const funFactEl = document.getElementById('fun-fact');
+
+        const iconElements = [
+            document.querySelector('#card-house h3 i'), document.querySelector('#card-car h3 i'),
+            document.querySelector('#card-gas h3 i'), document.querySelector('#card-milk h3 i'),
+            document.querySelector('#card-income h3 i'), document.querySelector('#card-djia h3 i'),
+            document.querySelector('#card-inflation h3 i'), document.querySelector('#card-unemployment h3 i'),
+            document.querySelector('#card-event h3 i'), document.querySelector('#card-funfact h3 i')
+        ];
+        
+        const allCards = document.querySelectorAll('.data-card');
+
+        slider.max = yearData.length - 1;
+
+        // --- FORMATTERS ---
+        function formatCurrency(value) { return '$' + value.toLocaleString(); }
+        function formatPrice(value) { return '$' + value.toFixed(2); }
+        function formatDJIA(value) { return value.toLocaleString(); }
+        function formatPercentage(value) { return value.toFixed(1) + '%'; }
+
+        // --- ANIMATION & UPDATE LOGIC ---
+        let currentValues = { // Store current animated values
+            housePrice: 0, carPrice: 0, gasPrice: 0, milkPrice: 0,
+            avgIncome: 0, djia: 0, inflationRate: 0, unemploymentRate: 0
+        };
+
+        function animateValue(element, start, end, duration, formatter, isPrice = false) {
+            let startTimestamp = null;
+            const actualEnd = end; // Store the true end value
+            // For prices with decimals, multiply by 100 for smoother integer animation
+            if (isPrice) {
+                start = Math.round(start * 100);
+                end = Math.round(end * 100);
+            }
+
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                let currentValue = Math.floor(progress * (end - start) + start);
+                
+                if (isPrice) {
+                    element.textContent = formatter(currentValue / 100);
+                } else {
+                    element.textContent = formatter(currentValue);
+                }
+
+                if (progress < 1) {
+                    window.requestAnimationFrame(step);
+                } else {
+                    // Ensure final value is exact
+                    element.textContent = formatter(actualEnd); 
+                }
+            };
+            window.requestAnimationFrame(step);
+        }
+        
+        function updateDisplay(index) {
+            const data = yearData[index];
+
+            allCards.forEach(card => card.classList.remove('visible'));
+            
+            document.body.style.background = data.bgColor;
+            selectedYearEl.textContent = data.year;
+
+            // Update icons (if they change per year/decade - currently static based on card type)
+            // For this version, icons are tied to card purpose, not changing with data.
+            // If iconSet in data was meant to change icons on cards:
+            // data.iconSet.forEach((iconClass, i) => { 
+            //     if(iconElements[i]) iconElements[i].className = iconClass;
+            // });
+
+            // Animate numerical values
+            animateValue(housePriceEl, currentValues.housePrice, data.housePrice, 500, formatCurrency);
+            animateValue(carPriceEl, currentValues.carPrice, data.carPrice, 500, formatCurrency);
+            animateValue(gasPriceEl, currentValues.gasPrice, data.gasPrice, 500, formatPrice, true);
+            animateValue(milkPriceEl, currentValues.milkPrice, data.milkPrice, 500, formatPrice, true);
+            animateValue(incomePriceEl, currentValues.avgIncome, data.avgIncome, 500, formatCurrency);
+            animateValue(djiaEl, currentValues.djia, data.djia, 500, formatDJIA);
+            animateValue(inflationEl, currentValues.inflationRate, data.inflationRate, 500, formatPercentage);
+            animateValue(unemploymentEl, currentValues.unemploymentRate, data.unemploymentRate, 500, formatPercentage);
+
+            // Update current values for next animation cycle
+            currentValues = { ...data }; // Spreads all numerical properties
+
+            keyEventEl.textContent = data.keyEvent;
+            funFactEl.textContent = data.funFact;
+
+            setTimeout(() => {
+                allCards.forEach((card, i) => {
+                    setTimeout(() => card.classList.add('visible'), i * 70); // Stagger reveal
+                });
+            }, 100);
+        }
+
+        slider.addEventListener('input', (event) => {
+            updateDisplay(parseInt(event.target.value));
+        });
+
+        // Initial load
+        updateDisplay(0);
+        slider.value = 0;
+
+    </script>
+</body>
+</html>

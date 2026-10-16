@@ -666,6 +666,15 @@ const App = () => {
     }
   };
 
+  const handleVibecodingClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+      e.preventDefault();
+      window.history.pushState({}, '', '/vibecoding');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#Faf9f6] text-[#20242c] font-sans flex flex-col justify-start px-4 sm:px-6 pt-8 sm:pt-14 pb-14 sm:pb-16 selection:bg-[#20242c] selection:text-[#Faf9f6]">
       <main 
@@ -821,6 +830,14 @@ const App = () => {
               className="text-[#1c2229] underline decoration-[#1c2229]/30 hover:decoration-[#1c2229] underline-offset-[3px] transition-colors"
             >
               creating music with AI
+            </a>{' '}
+            and{' '}
+            <a 
+              href="/vibecoding" 
+              onClick={handleVibecodingClick}
+              className="text-[#1c2229] underline decoration-[#1c2229]/30 hover:decoration-[#1c2229] underline-offset-[3px] transition-colors"
+            >
+              vibe coding apps
             </a>
             .
           </p>
