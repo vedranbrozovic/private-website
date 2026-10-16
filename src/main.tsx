@@ -1,13 +1,35 @@
-import {StrictMode} from 'react';
-import {createRoot} from 'react-dom/client';
+import { StrictMode, useState, useEffect } from 'react';
+import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import OldApp from './old/App.tsx';
+import Reading from './Reading.tsx';
 import './index.css';
 
-const isOld = window.location.pathname.startsWith('/old');
+function Root() {
+  const [currentPath, setCurrentPath] = useState(window.location.pathname);
+
+  useEffect(() => {
+    const handleLocationChange = () => {
+      setCurrentPath(window.location.pathname);
+    };
+
+    window.addEventListener('popstate', handleLocationChange);
+    return () => window.removeEventListener('popstate', handleLocationChange);
+  }, []);
+
+  if (currentPath.startsWith('/old')) {
+    return <OldApp />;
+  }
+
+  if (currentPath.startsWith('/reading')) {
+    return <Reading />;
+  }
+
+  return <App />;
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {isOld ? <OldApp /> : <App />}
+    <Root />
   </StrictMode>,
 );
