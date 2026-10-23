@@ -4,6 +4,14 @@ import App from './App.tsx';
 import OldApp from './old/App.tsx';
 import Reading from './Reading.tsx';
 import VibeCoding from './VibeCoding.tsx';
+import {
+  EducationPage,
+  WorkPage,
+  NonprofitPage,
+  BallIsLifePage,
+  BlogPage,
+  FilmPage
+} from './TopicPages.tsx';
 import './index.css';
 
 function Root() {
@@ -30,6 +38,30 @@ function Root() {
     return <VibeCoding />;
   }
 
+  if (currentPath.startsWith('/education')) {
+    return <EducationPage />;
+  }
+
+  if (currentPath.startsWith('/work')) {
+    return <WorkPage />;
+  }
+
+  if (currentPath.startsWith('/nonprofit')) {
+    return <NonprofitPage />;
+  }
+
+  if (currentPath.startsWith('/ballislife')) {
+    return <BallIsLifePage />;
+  }
+
+  if (currentPath.startsWith('/blog')) {
+    return <BlogPage />;
+  }
+
+  if (currentPath.startsWith('/film')) {
+    return <FilmPage />;
+  }
+
   return <App />;
 }
 
@@ -38,3 +70,4 @@ createRoot(document.getElementById('root')!).render(
     <Root />
   </StrictMode>,
 );
+

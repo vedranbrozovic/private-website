@@ -23,18 +23,114 @@ interface InteractiveItem {
   h: number;
   x: number;
   y: number;
+  route: string;
+  label: string;
+  confettiColors: string[];
 }
 
 const ITEMS: InteractiveItem[] = [
-  { id: 'efzg', type: 'efzg', w: 64, h: 48, x: -140, y: -45 },
-  { id: 'ikea', type: 'ikea', w: 86, h: 36, x: -50, y: -45 },
-  { id: 'ey', type: 'ey', w: 58, h: 42, x: 45, y: -45 },
-  { id: 'amazon', type: 'amazon', w: 108, h: 38, x: 135, y: -45 },
-  { id: 'acap', type: 'acap', w: 124, h: 44, x: -125, y: 35 },
-  { id: 'basketball', type: 'basketball', w: 50, h: 50, x: -20, y: 35 },
-  { id: 'reading', type: 'reading', w: 54, h: 54, x: 55, y: 35 },
-  { id: 'photography', type: 'photography', w: 50, h: 50, x: 135, y: 35 },
+  {
+    id: 'efzg',
+    type: 'efzg',
+    w: 64,
+    h: 48,
+    x: -140,
+    y: -45,
+    route: '/education',
+    label: 'Education',
+    confettiColors: ['#460F40', '#7e22ce', '#a855f7', '#d8b4fe', '#20242c']
+  },
+  {
+    id: 'ikea',
+    type: 'ikea',
+    w: 86,
+    h: 36,
+    x: -50,
+    y: -45,
+    route: '/work',
+    label: 'Work',
+    confettiColors: ['#0051BA', '#FFCC00', '#3b82f6', '#fde047', '#20242c']
+  },
+  {
+    id: 'ey',
+    type: 'ey',
+    w: 58,
+    h: 42,
+    x: 45,
+    y: -45,
+    route: '/work',
+    label: 'Work',
+    confettiColors: ['#1c1c1c', '#FFE600', '#52525b', '#fef08a', '#20242c']
+  },
+  {
+    id: 'amazon',
+    type: 'amazon',
+    w: 108,
+    h: 38,
+    x: 135,
+    y: -45,
+    route: '/work',
+    label: 'Work',
+    confettiColors: ['#FF9900', '#1c1c1c', '#fbbf24', '#4b5563', '#20242c']
+  },
+  {
+    id: 'acap',
+    type: 'acap',
+    w: 124,
+    h: 44,
+    x: -125,
+    y: 35,
+    route: '/nonprofit',
+    label: 'Nonprofit',
+    confettiColors: ['#E31D3B', '#1d4ed8', '#f87171', '#93c5fd', '#20242c']
+  },
+  {
+    id: 'basketball',
+    type: 'basketball',
+    w: 50,
+    h: 50,
+    x: -20,
+    y: 35,
+    route: '/ballislife',
+    label: 'Ball Is Life',
+    confettiColors: ['#f97316', '#ea580c', '#fb923c', '#431407', '#fdba74']
+  },
+  {
+    id: 'reading',
+    type: 'reading',
+    w: 54,
+    h: 54,
+    x: 55,
+    y: 35,
+    route: '/blog',
+    label: 'Blog',
+    confettiColors: ['#64748b', '#fcd34d', '#f87171', '#94a3b8', '#1f2937']
+  },
+  {
+    id: 'photography',
+    type: 'photography',
+    w: 50,
+    h: 50,
+    x: 135,
+    y: 35,
+    route: '/film',
+    label: 'Film',
+    confettiColors: ['#4b5563', '#fcd34d', '#1f2937', '#9ca3af', '#cbd5e1']
+  },
 ];
+
+interface ConfettiParticle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  size: number;
+  color: string;
+  rotation: number;
+  vRot: number;
+  alpha: number;
+  shape: 'rect' | 'circle';
+}
 
 type GravityDirection = 'down' | 'up' | 'left' | 'right';
 
@@ -53,12 +149,17 @@ const DIRECTIONS: DirectionConfig[] = [
   { key: 'right', label: 'Right', icon: ArrowRight, vector: { x: 1, y: 0 }, symbol: '→' },
 ];
 
+const HOLD_SHAKE_DELAY_MS = 130;
+const HOLD_EXPLODE_MS = 1100;
+
 const InteractiveBox = () => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [gravityActive, setGravityActive] = useState(false);
   const [gravityDirection, setGravityDirection] = useState<GravityDirection>('down');
   const [gravityStrength, setGravityStrength] = useState<number>(1.0);
   const [itemScale, setItemScale] = useState<number>(1);
+  const [holdingRouteLabel, setHoldingRouteLabel] = useState<string | null>(null);
 
   const gravityActiveRef = useRef(gravityActive);
   const gravityDirRef = useRef(gravityDirection);
@@ -69,6 +170,15 @@ const InteractiveBox = () => {
   const engineRef = useRef<Matter.Engine | null>(null);
   const bodiesRef = useRef<{ [key: string]: Matter.Body }>({});
   const boundariesRef = useRef<Matter.Body[]>([]);
+
+  const heldStateRef = useRef<{
+    id: string | null;
+    startTime: number;
+    exploded: boolean;
+  }>({ id: null, startTime: 0, exploded: false });
+  const explodedIdsRef = useRef<Set<string>>(new Set());
+  const confettiRef = useRef<ConfettiParticle[]>([]);
+  const navTimeoutRef = useRef<number | null>(null);
 
   // Function to apply gravity mode immediately
   const applyGravity = (active: boolean, dir: GravityDirection, strength: number) => {
@@ -128,9 +238,14 @@ const InteractiveBox = () => {
     const w = containerRef.current.clientWidth;
     const h = containerRef.current.clientHeight;
     const scaleFactor = Math.min(1, Math.max(0.65, w / 520));
+    explodedIdsRef.current.clear();
 
     ITEMS.forEach(item => {
       const body = bodiesRef.current[item.id];
+      const el = itemsRef.current[item.id];
+      if (el) {
+        el.style.opacity = '1';
+      }
       if (body) {
         Matter.Sleeping.set(body, false);
         Matter.Body.setPosition(body, {
@@ -164,6 +279,12 @@ const InteractiveBox = () => {
     const currentItemScale = Math.min(1, Math.max(0.72, width / 480));
     setItemScale(currentItemScale);
 
+    if (canvasRef.current) {
+      const dpr = window.devicePixelRatio || 1;
+      canvasRef.current.width = width * dpr;
+      canvasRef.current.height = height * dpr;
+    }
+
     const createBoundaries = (w: number, h: number) => {
       const thickness = 200;
       return [
@@ -178,6 +299,8 @@ const InteractiveBox = () => {
     boundariesRef.current = boundaries;
     Composite.add(engine.world, boundaries);
 
+    const bodyIdToItemId = new Map<number, string>();
+
     ITEMS.forEach(item => {
       const body = Bodies.rectangle(
         width / 2 + item.x * scaleFactor,
@@ -188,12 +311,54 @@ const InteractiveBox = () => {
           restitution: 0.65,
           friction: 0.1,
           frictionAir: 0.035,
-          density: 0.001
+          density: 0.001,
+          label: item.id
         }
       );
       bodiesRef.current[item.id] = body;
+      bodyIdToItemId.set(body.id, item.id);
       Composite.add(engine.world, body);
     });
+
+    const spawnConfetti = (x: number, y: number, colors: string[]) => {
+      const count = 48;
+      for (let i = 0; i < count; i++) {
+        const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.5;
+        const speed = 2.2 + Math.random() * 6.5;
+        confettiRef.current.push({
+          x,
+          y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 1.5,
+          size: 4 + Math.random() * 4.5,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          rotation: Math.random() * Math.PI * 2,
+          vRot: (Math.random() - 0.5) * 0.28,
+          alpha: 1,
+          shape: Math.random() > 0.35 ? 'rect' : 'circle'
+        });
+      }
+    };
+
+    const startHoldingItem = (itemId: string) => {
+      if (explodedIdsRef.current.has(itemId)) return;
+      const itemObj = ITEMS.find(it => it.id === itemId);
+      heldStateRef.current = {
+        id: itemId,
+        startTime: performance.now(),
+        exploded: false
+      };
+      if (itemObj) {
+        setHoldingRouteLabel(itemObj.route);
+      }
+    };
+
+    const stopHoldingItem = () => {
+      if (!heldStateRef.current.exploded) {
+        heldStateRef.current = { id: null, startTime: 0, exploded: false };
+        setHoldingRouteLabel(null);
+      }
+    };
 
     const mouse = Mouse.create(containerRef.current);
     // Remove scroll-wheel traps
@@ -219,7 +384,34 @@ const InteractiveBox = () => {
     });
     Composite.add(engine.world, mouseConstraint);
 
-    // Smart touch interaction: if touching a body, drag it. If touching empty space, let user scroll the page smoothly!
+    // Desktop mouse hold detection
+    const getMouseCoords = (e: MouseEvent) => {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return { x: 0, y: 0 };
+      return {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
+    };
+
+    const handleMouseDown = (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      const coords = getMouseCoords(e);
+      const allBodies = Object.values(bodiesRef.current);
+      const hits = Matter.Query.point(allBodies, coords);
+      if (hits.length > 0) {
+        const itemId = bodyIdToItemId.get(hits[0].id);
+        if (itemId) {
+          startHoldingItem(itemId);
+        }
+      }
+    };
+
+    const handleMouseUp = () => {
+      stopHoldingItem();
+    };
+
+    // Smart touch interaction: if touching a body, drag/hold it. If touching empty space, let user scroll the page smoothly!
     let activeTouchId: number | null = null;
     let isDraggingBody = false;
 
@@ -241,13 +433,17 @@ const InteractiveBox = () => {
       const hits = Matter.Query.point(allBodies, coords);
 
       if (hits.length > 0) {
-        // Touched an interactive item: engage drag & prevent page scroll
+        // Touched an interactive item: engage drag & hold & prevent page scroll
         isDraggingBody = true;
         activeTouchId = touch.identifier;
         mouse.position.x = coords.x;
         mouse.position.y = coords.y;
         mouse.button = 0;
         Matter.Sleeping.set(hits[0], false);
+        const itemId = bodyIdToItemId.get(hits[0].id);
+        if (itemId) {
+          startHoldingItem(itemId);
+        }
         if (e.cancelable) {
           e.preventDefault();
         }
@@ -256,6 +452,7 @@ const InteractiveBox = () => {
         isDraggingBody = false;
         activeTouchId = null;
         mouse.button = -1;
+        stopHoldingItem();
       }
     };
 
@@ -283,6 +480,7 @@ const InteractiveBox = () => {
             mouse.button = -1;
             isDraggingBody = false;
             activeTouchId = null;
+            stopHoldingItem();
             break;
           }
         }
@@ -290,6 +488,8 @@ const InteractiveBox = () => {
     };
 
     const containerEl = containerRef.current;
+    containerEl.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mouseup', handleMouseUp);
     containerEl.addEventListener('touchstart', handleTouchStart, { passive: false });
     containerEl.addEventListener('touchmove', handleTouchMove, { passive: false });
     containerEl.addEventListener('touchend', handleTouchEnd, { passive: true });
@@ -304,6 +504,12 @@ const InteractiveBox = () => {
       scaleFactorRef.current = newScaleFactor;
       const newScale = Math.min(1, Math.max(0.72, newW / 480));
       setItemScale(newScale);
+
+      if (canvasRef.current) {
+        const dpr = window.devicePixelRatio || 1;
+        canvasRef.current.width = newW * dpr;
+        canvasRef.current.height = newH * dpr;
+      }
 
       Composite.remove(engineRef.current.world, boundariesRef.current);
       const newBoundaries = createBoundaries(newW, newH);
@@ -321,6 +527,7 @@ const InteractiveBox = () => {
         const w = containerRef.current.clientWidth;
         const h = containerRef.current.clientHeight;
         const currentScale = scaleFactorRef.current;
+        const now = performance.now();
 
         if (!gravityActiveRef.current) {
           const time = Date.now() * 0.001;
@@ -345,15 +552,112 @@ const InteractiveBox = () => {
           });
         }
 
+        const held = heldStateRef.current;
+
         ITEMS.forEach(item => {
           const body = bodiesRef.current[item.id];
           const element = itemsRef.current[item.id];
           if (body && element) {
-            const x = body.position.x - w / 2;
-            const y = body.position.y - h / 2;
-            element.style.transform = `translate(${x}px, ${y}px) rotate(${body.angle}rad)`;
+            if (explodedIdsRef.current.has(item.id)) {
+              element.style.opacity = '0';
+              element.style.transform = `translate(${body.position.x - w / 2}px, ${body.position.y - h / 2}px) scale(0)`;
+              return;
+            }
+
+            let shakeX = 0;
+            let shakeY = 0;
+            let shakeRot = 0;
+            let scale = 1;
+
+            if (held.id === item.id && !held.exploded) {
+              const elapsed = now - held.startTime;
+              if (elapsed > HOLD_SHAKE_DELAY_MS) {
+                const progress = Math.min(
+                  1,
+                  (elapsed - HOLD_SHAKE_DELAY_MS) / (HOLD_EXPLODE_MS - HOLD_SHAKE_DELAY_MS)
+                );
+                // Progressive minimalist vibration: ramps smoothly in intensity and frequency
+                const intensity = Math.pow(progress, 1.5);
+                const freq = 0.045 + progress * 0.075;
+                const maxOffset = 6.5 * intensity;
+                shakeX = Math.sin(now * freq) * maxOffset + (Math.random() - 0.5) * 2.5 * intensity;
+                shakeY = Math.cos(now * freq * 1.15) * maxOffset + (Math.random() - 0.5) * 2.5 * intensity;
+                shakeRot = Math.sin(now * freq * 0.9) * (0.14 * intensity);
+                scale = 1 + intensity * 0.14;
+
+                // Gently damp physics drift while building charge
+                Matter.Body.setVelocity(body, {
+                  x: body.velocity.x * 0.85,
+                  y: body.velocity.y * 0.85
+                });
+
+                if (progress >= 1) {
+                  held.exploded = true;
+                  explodedIdsRef.current.add(item.id);
+                  mouse.button = -1;
+                  spawnConfetti(body.position.x, body.position.y, item.confettiColors);
+                  element.style.opacity = '0';
+                  element.style.transform = `translate(${body.position.x - w / 2}px, ${body.position.y - h / 2}px) scale(0)`;
+
+                  navTimeoutRef.current = window.setTimeout(() => {
+                    window.history.pushState({}, '', item.route);
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }, 460);
+                  return;
+                }
+              }
+            }
+
+            const x = body.position.x - w / 2 + shakeX;
+            const y = body.position.y - h / 2 + shakeY;
+            element.style.opacity = '1';
+            element.style.transform = `translate(${x}px, ${y}px) rotate(${body.angle + shakeRot}rad) scale(${scale})`;
           }
         });
+
+        // Update & render confetti particles if any
+        if (canvasRef.current) {
+          const ctx = canvasRef.current.getContext('2d');
+          if (ctx) {
+            const dpr = window.devicePixelRatio || 1;
+            ctx.save();
+            ctx.scale(dpr, dpr);
+            ctx.clearRect(0, 0, w, h);
+
+            if (confettiRef.current.length > 0) {
+              for (let i = confettiRef.current.length - 1; i >= 0; i--) {
+                const p = confettiRef.current[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.18; // subtle gravity on confetti
+                p.vx *= 0.97;
+                p.rotation += p.vRot;
+                p.alpha -= 0.022;
+
+                if (p.alpha <= 0) {
+                  confettiRef.current.splice(i, 1);
+                  continue;
+                }
+
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, p.alpha);
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rotation);
+                ctx.fillStyle = p.color;
+                if (p.shape === 'rect') {
+                  ctx.fillRect(-p.size / 2, -p.size / 3, p.size, p.size * 0.66);
+                } else {
+                  ctx.beginPath();
+                  ctx.arc(0, 0, p.size * 0.42, 0, Math.PI * 2);
+                  ctx.fill();
+                }
+                ctx.restore();
+              }
+            }
+            ctx.restore();
+          }
+        }
       }
       animationId = requestAnimationFrame(update);
     };
@@ -361,6 +665,11 @@ const InteractiveBox = () => {
     update();
 
     return () => {
+      if (navTimeoutRef.current) {
+        clearTimeout(navTimeoutRef.current);
+      }
+      containerEl.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('mouseup', handleMouseUp);
       containerEl.removeEventListener('touchstart', handleTouchStart);
       containerEl.removeEventListener('touchmove', handleTouchMove);
       containerEl.removeEventListener('touchend', handleTouchEnd);
@@ -390,6 +699,12 @@ const InteractiveBox = () => {
           }}
         />
 
+        {/* Confetti overlay canvas */}
+        <canvas
+          ref={canvasRef}
+          className="absolute inset-0 w-full h-full pointer-events-none z-20"
+        />
+
         {/* Status header on top: Section title + Real-time Gravity/Float status */}
         <div className="absolute top-2.5 inset-x-2.5 sm:top-3 sm:inset-x-3.5 pointer-events-none flex items-center justify-between gap-2 z-10">
           <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
@@ -401,7 +716,15 @@ const InteractiveBox = () => {
               }`} 
             />
             <span className="text-[10px] sm:text-[11px] font-medium tracking-wide text-[#555f6f] truncate">
-              Background & hobbies <span className="text-[#8c94a4] font-normal hidden sm:inline">· Drag & toss</span>
+              {holdingRouteLabel ? (
+                <span className="text-[#1c2229] font-semibold">
+                  Keep holding for {holdingRouteLabel}…
+                </span>
+              ) : (
+                <>
+                  Background &amp; hobbies <span className="text-[#8c94a4] font-normal hidden sm:inline">· Toss or hold icon</span>
+                </>
+              )}
             </span>
           </div>
 
@@ -432,7 +755,7 @@ const InteractiveBox = () => {
             <div
               key={item.id}
               ref={(el) => { itemsRef.current[item.id] = el; }}
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 transition-opacity duration-150"
               style={{ 
                 width: item.w * itemScale, 
                 height: item.h * itemScale,
