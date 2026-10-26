@@ -12,7 +12,9 @@ import {
   RotateCcw,
   ArrowDown,
   ArrowUp,
-  ArrowLeft
+  ArrowLeft,
+  ChevronDown,
+  Mail
 } from 'lucide-react';
 import { SocialLink } from './SocialLink';
 
@@ -975,10 +977,22 @@ const InteractiveBox = () => {
 
 const App = () => {
   const [mounted, setMounted] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
+  const contactRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleToggleContact = () => {
+    const next = !contactOpen;
+    setContactOpen(next);
+    if (next) {
+      setTimeout(() => {
+        contactRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 120);
+    }
+  };
 
   const handleReadingClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
@@ -1188,47 +1202,83 @@ const App = () => {
           </p>
         </section>
 
-        <footer className="flex flex-col sm:flex-row sm:items-center justify-between gap-5 sm:gap-6 border-t border-[#e2e5eb] pt-7">
-          <div className="flex gap-2.5 sm:gap-3.5 items-center flex-wrap">
-            <SocialLink 
-              href="https://www.linkedin.com/in/vedranbrozovic/" 
-              icon={Linkedin} 
-              label="LinkedIn" 
-              platform="linkedin" 
-            />
-            <SocialLink 
-              href="https://github.com/vedranbrozovic" 
-              icon={Github} 
-              label="GitHub" 
-              platform="github" 
-            />
-            <SocialLink 
-              href="https://instagram.com/vedranbrozovic" 
-              icon={Instagram} 
-              label="Instagram" 
-              platform="instagram" 
-            />
-            <SocialLink 
-              href="https://www.youtube.com/@vedran.brozovic" 
-              icon={Youtube} 
-              label="YouTube" 
-              platform="youtube" 
-            />
-            <SocialLink 
-              href="https://twitter.com/vedranbrozovic" 
-              icon={Twitter} 
-              label="Twitter (X)" 
-              platform="twitter" 
-            />
+        <footer className="flex flex-col border-t border-[#e2e5eb] pt-7">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5 sm:gap-6">
+            <div className="flex gap-2.5 sm:gap-3.5 items-center flex-wrap">
+              <SocialLink 
+                href="https://www.linkedin.com/in/vedranbrozovic/" 
+                icon={Linkedin} 
+                label="LinkedIn" 
+                platform="linkedin" 
+              />
+              <SocialLink 
+                href="https://github.com/vedranbrozovic" 
+                icon={Github} 
+                label="GitHub" 
+                platform="github" 
+              />
+              <SocialLink 
+                href="https://instagram.com/vedranbrozovic" 
+                icon={Instagram} 
+                label="Instagram" 
+                platform="instagram" 
+              />
+              <SocialLink 
+                href="https://www.youtube.com/@vedran.brozovic" 
+                icon={Youtube} 
+                label="YouTube" 
+                platform="youtube" 
+              />
+              <SocialLink 
+                href="https://twitter.com/vedranbrozovic" 
+                icon={Twitter} 
+                label="Twitter (X)" 
+                platform="twitter" 
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={handleToggleContact}
+              aria-expanded={contactOpen}
+              className="self-start sm:self-auto inline-flex items-center gap-1.5 text-xs sm:text-[13px] font-medium text-[#555f6f] hover:text-[#1c2229] transition-colors py-1 cursor-pointer group"
+            >
+              <Mail size={13} className="text-[#717b8c] group-hover:text-[#1c2229] transition-colors" />
+              <span>Contact me</span>
+              <ChevronDown
+                size={13}
+                className={`text-[#717b8c] group-hover:text-[#1c2229] transition-transform duration-300 ${
+                  contactOpen ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
           </div>
-          
-          <a 
-            href="/old" 
-            className="flex items-center gap-1.5 text-xs text-[#717b8c] hover:text-[#1c2229] transition-colors group py-1"
-          >
-            <span>View previous version</span>
-            <ArrowRight size={12} className="transform group-hover:translate-x-0.5 transition-transform" />
-          </a>
+
+          {contactOpen && (
+            <div
+              ref={contactRef}
+              className="mt-6 pt-4 border-t border-[#e2e5eb]/60 bg-[#Faf9f6] overflow-hidden transition-all duration-500"
+            >
+              <div className="w-full -mx-2 sm:mx-0 bg-[#Faf9f6]">
+                <iframe
+                  src="https://docs.google.com/forms/d/e/1FAIpQLScSpGLAies3Myye6C9iM2oL6Ssa6A9DzmrDlClnuF3a93MC3w/viewform?embedded=true"
+                  width="640"
+                  height="1008"
+                  frameBorder={0}
+                  marginHeight={0}
+                  marginWidth={0}
+                  title="Contact Vedran Brozović"
+                  className="w-full max-w-full block border-0"
+                  style={{
+                    filter: 'grayscale(1) contrast(1.08) brightness(1.04)',
+                    mixBlendMode: 'multiply'
+                  }}
+                >
+                  Loading…
+                </iframe>
+              </div>
+            </div>
+          )}
         </footer>
       </main>
     </div>
