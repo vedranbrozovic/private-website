@@ -19,6 +19,8 @@ export const PROXY_URL: string =
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  text?: string;
+  isError?: boolean;
 }
 
 type LangFilter = 'all' | 'en' | 'hr';
@@ -306,13 +308,49 @@ export const AskVedranWidget: React.FC = () => {
 
     const nextHistory: ChatMessage[] = [
       ...messages,
-      { role: 'user', content: trimmed },
+      { role: 'user', content: trimmed, text: trimmed },
     ];
 
     setMessages(nextHistory);
     setInput('');
     setIsExpanded(true);
     setIsLoading(true);
+
+    // Prepare sanitized history for the proxy / Gemini API:
+    // 1. Filter out error bubbles and empty messages
+    // 2. Strip leading assistant messages (e.g., INITIAL_GREETING) so first turn is always 'user'
+    // 3. Merge consecutive messages of the same role so turns strictly alternate
+    // 4. Include both `content` and `text` so proxies reading either property get the full string
+    const validTurns = nextHistory.filter(
+      (m) => !m.isError && (m.content || m.text || '').trim().length > 0
+    );
+    const firstUserIdx = validTurns.findIndex((m) => m.role === 'user');
+    const slicedTurns = firstUserIdx >= 0 ? validTurns.slice(firstUserIdx) : validTurns;
+
+    const apiMessages: Array<{ role: 'user' | 'assistant'; content: string; text: string }> = [];
+    for (const m of slicedTurns) {
+      const msgText = (m.content || m.text || '').trim();
+      if (!msgText) continue;
+      const prev = apiMessages[apiMessages.length - 1];
+      if (prev && prev.role === m.role) {
+        prev.content = `${prev.content}\n\n${msgText}`;
+        prev.text = prev.content;
+      } else {
+        apiMessages.push({
+          role: m.role,
+          content: msgText,
+          text: msgText,
+        });
+      }
+    }
+
+    // Ensure the payload never ends with an assistant turn
+    while (apiMessages.length > 0 && apiMessages[apiMessages.length - 1].role === 'assistant') {
+      apiMessages.pop();
+    }
+    if (apiMessages.length === 0) {
+      apiMessages.push({ role: 'user', content: trimmed, text: trimmed });
+    }
 
     try {
       let lastErr: unknown = null;
@@ -330,7 +368,7 @@ export const AskVedranWidget: React.FC = () => {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              messages: nextHistory,
+              messages: apiMessages,
             }),
             signal: controller.signal,
           });
@@ -395,7 +433,7 @@ export const AskVedranWidget: React.FC = () => {
       if (replyText) {
         setMessages((prev) => [
           ...prev,
-          { role: 'assistant', content: replyText },
+          { role: 'assistant', content: replyText, text: replyText },
         ]);
       } else if (lastErr) {
         throw lastErr;
@@ -404,7 +442,7 @@ export const AskVedranWidget: React.FC = () => {
       const friendlyMsg = formatFriendlyError(err);
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: `*${friendlyMsg}*` },
+        { role: 'assistant', content: `*${friendlyMsg}*`, text: `*${friendlyMsg}*`, isError: true },
       ]);
     } finally {
       setIsLoading(false);
