@@ -7,6 +7,7 @@ export interface SocialLinkProps {
   icon: React.ElementType;
   label: string;
   platform: PlatformType;
+  compact?: boolean;
 }
 
 export const BRAND_STYLES: Record<PlatformType, {
@@ -53,7 +54,7 @@ export const BRAND_STYLES: Record<PlatformType, {
   },
 };
 
-export const SocialLink = ({ href, icon: Icon, label, platform }: SocialLinkProps) => {
+export const SocialLink = ({ href, icon: Icon, label, platform, compact = false }: SocialLinkProps) => {
   const [copied, setCopied] = useState(false);
   const [clicked, setClicked] = useState(false);
   const [isOpened, setIsOpened] = useState<boolean>(() => {
@@ -64,6 +65,20 @@ export const SocialLink = ({ href, icon: Icon, label, platform }: SocialLinkProp
     }
   });
 
+  React.useEffect(() => {
+    const syncOpened = () => {
+      try {
+        if (localStorage.getItem(`vb_social_opened_${platform}`) === 'true') {
+          setIsOpened(true);
+        }
+      } catch {
+        // ignore
+      }
+    };
+    window.addEventListener('vb-social-opened', syncOpened);
+    return () => window.removeEventListener('vb-social-opened', syncOpened);
+  }, [platform]);
+
   const isEmail = href.startsWith('mailto:');
   const style = BRAND_STYLES[platform];
 
@@ -72,6 +87,7 @@ export const SocialLink = ({ href, icon: Icon, label, platform }: SocialLinkProp
     setIsOpened(true);
     try {
       localStorage.setItem(`vb_social_opened_${platform}`, 'true');
+      window.dispatchEvent(new Event('vb-social-opened'));
     } catch {
       // ignore
     }
@@ -93,7 +109,7 @@ export const SocialLink = ({ href, icon: Icon, label, platform }: SocialLinkProp
         rel={isEmail ? undefined : "noopener noreferrer"}
         onClick={handleClick}
         className={`
-          relative flex items-center justify-center w-10 h-10 sm:w-10 sm:h-10 rounded-xl
+          relative flex items-center justify-center ${compact ? 'w-8 h-8 rounded-lg' : 'w-10 h-10 sm:w-10 sm:h-10 rounded-xl'}
           transition-all duration-200 ease-out touch-manipulation select-none
           ${
             isOpened 
@@ -106,7 +122,7 @@ export const SocialLink = ({ href, icon: Icon, label, platform }: SocialLinkProp
         aria-label={label}
       >
         <Icon 
-          size={18} 
+          size={compact ? 15 : 18} 
           strokeWidth={1.8} 
           className={`transition-transform duration-200 group-hover/social:scale-110 ${isOpened ? 'text-white' : ''}`} 
         />

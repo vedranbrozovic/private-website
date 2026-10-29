@@ -1041,6 +1041,7 @@ const InteractiveBox = () => {
 const App = () => {
   const [mounted, setMounted] = useState(false);
   const [activeDrawer, setActiveDrawer] = useState<'contact' | 'meeting' | null>(null);
+  const [drawerPlacement, setDrawerPlacement] = useState<'top' | 'bottom'>('bottom');
   const drawerRef = useRef<HTMLDivElement>(null);
   const calendlyContainerRef = useRef<HTMLDivElement>(null);
 
@@ -1080,16 +1081,70 @@ const App = () => {
     } else {
       initCalendly();
     }
-  }, [activeDrawer]);
+  }, [activeDrawer, drawerPlacement]);
 
-  const handleToggleDrawer = (panel: 'contact' | 'meeting') => {
-    const next = activeDrawer === panel ? null : panel;
+  const handleToggleDrawer = (panel: 'contact' | 'meeting', placement: 'top' | 'bottom') => {
+    const isSameOpen = activeDrawer === panel && drawerPlacement === placement;
+    const next = isSameOpen ? null : panel;
+    setDrawerPlacement(placement);
     setActiveDrawer(next);
     if (next) {
       setTimeout(() => {
         drawerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }, 120);
     }
+  };
+
+  const renderDrawerContent = () => {
+    if (!activeDrawer) return null;
+
+    if (activeDrawer === 'meeting') {
+      return (
+        <div
+          ref={drawerRef}
+          className="mt-5 pt-4 border-t border-[#e2e5eb]/60 bg-[#Faf9f6] overflow-hidden transition-all duration-500"
+        >
+          <div className="w-full -mx-2 sm:mx-0 bg-[#Faf9f6]">
+            <div
+              ref={calendlyContainerRef}
+              className="calendly-inline-widget w-full"
+              data-url="https://calendly.com/vedran-brozovic/meet?hide_event_type_details=1&hide_gdpr_banner=1&background_color=faf9f6&text_color=1c2229&primary_color=0069ff"
+              style={{
+                minWidth: '320px',
+                height: '700px',
+                mixBlendMode: 'multiply'
+              }}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        ref={drawerRef}
+        className="mt-5 pt-4 border-t border-[#e2e5eb]/60 bg-[#Faf9f6] overflow-hidden transition-all duration-500"
+      >
+        <div className="w-full -mx-2 sm:mx-0 bg-[#Faf9f6]">
+          <iframe
+            src="https://docs.google.com/forms/d/e/1FAIpQLScSpGLAies3Myye6C9iM2oL6Ssa6A9DzmrDlClnuF3a93MC3w/viewform?embedded=true"
+            width="640"
+            height="1008"
+            frameBorder={0}
+            marginHeight={0}
+            marginWidth={0}
+            title="Contact Vedran Brozović"
+            className="w-full max-w-full block border-0"
+            style={{
+              filter: 'grayscale(1) contrast(1.08) brightness(1.04)',
+              mixBlendMode: 'multiply'
+            }}
+          >
+            Loading…
+          </iframe>
+        </div>
+      </div>
+    );
   };
 
   const handleReadingClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -1116,12 +1171,118 @@ const App = () => {
         className={`w-full max-w-xl mx-auto transition-all duration-700 ease-out transform ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}
       >
         <header className="mb-5 sm:mb-6">
-          <h1 className="text-3xl sm:text-[34px] font-light tracking-tight text-[#1c2229] mb-1.5 font-sans">
-            Vedran Brozović
-          </h1>
-          <p className="text-[#555f6f] text-sm sm:text-[15px] font-normal tracking-wide font-sans">
-            PM @ Amazon | Board @ ACAP
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3.5 sm:gap-4">
+            <div>
+              <h1 className="text-3xl sm:text-[34px] font-light tracking-tight text-[#1c2229] mb-1.5 font-sans">
+                Vedran Brozović
+              </h1>
+              <p className="text-[#555f6f] text-sm sm:text-[15px] font-normal tracking-wide font-sans">
+                PM @ Amazon | Board @ ACAP
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:items-end gap-2 sm:pt-0.5">
+              <div className="flex gap-1.5 sm:gap-2 items-center flex-wrap">
+                <SocialLink 
+                  href="https://www.linkedin.com/in/vedranbrozovic/" 
+                  icon={Linkedin} 
+                  label="LinkedIn" 
+                  platform="linkedin"
+                  compact
+                />
+                <SocialLink 
+                  href="https://github.com/vedranbrozovic" 
+                  icon={Github} 
+                  label="GitHub" 
+                  platform="github"
+                  compact
+                />
+                <SocialLink 
+                  href="https://instagram.com/vedranbrozovic" 
+                  icon={Instagram} 
+                  label="Instagram" 
+                  platform="instagram"
+                  compact
+                />
+                <SocialLink 
+                  href="https://www.youtube.com/@vedran.brozovic" 
+                  icon={Youtube} 
+                  label="YouTube" 
+                  platform="youtube"
+                  compact
+                />
+                <SocialLink 
+                  href="https://twitter.com/vedranbrozovic" 
+                  icon={Twitter} 
+                  label="Twitter (X)" 
+                  platform="twitter"
+                  compact
+                />
+              </div>
+
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => handleToggleDrawer('meeting', 'top')}
+                  aria-expanded={activeDrawer === 'meeting' && drawerPlacement === 'top'}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-all cursor-pointer group ${
+                    activeDrawer === 'meeting' && drawerPlacement === 'top'
+                      ? 'bg-[#1c2229] text-[#Faf9f6] border-[#1c2229] shadow-xs'
+                      : 'bg-white/90 text-[#1c2229] border-[#1c2229]/15 hover:border-[#1c2229]/35 hover:bg-white shadow-2xs'
+                  }`}
+                >
+                  <Calendar
+                    size={12}
+                    className={`transition-colors ${
+                      activeDrawer === 'meeting' && drawerPlacement === 'top'
+                        ? 'text-[#Faf9f6]'
+                        : 'text-[#555f6f] group-hover:text-[#1c2229]'
+                    }`}
+                  />
+                  <span>Book a meeting</span>
+                  <ChevronDown
+                    size={12}
+                    className={`transition-transform duration-300 ${
+                      activeDrawer === 'meeting' && drawerPlacement === 'top'
+                        ? 'rotate-180 text-[#Faf9f6]'
+                        : 'text-[#555f6f] group-hover:text-[#1c2229]'
+                    }`}
+                  />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleToggleDrawer('contact', 'top')}
+                  aria-expanded={activeDrawer === 'contact' && drawerPlacement === 'top'}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-all cursor-pointer group ${
+                    activeDrawer === 'contact' && drawerPlacement === 'top'
+                      ? 'bg-[#1c2229] text-[#Faf9f6] border-[#1c2229] shadow-xs'
+                      : 'bg-white/90 text-[#1c2229] border-[#1c2229]/15 hover:border-[#1c2229]/35 hover:bg-white shadow-2xs'
+                  }`}
+                >
+                  <Mail
+                    size={12}
+                    className={`transition-colors ${
+                      activeDrawer === 'contact' && drawerPlacement === 'top'
+                        ? 'text-[#Faf9f6]'
+                        : 'text-[#555f6f] group-hover:text-[#1c2229]'
+                    }`}
+                  />
+                  <span>Contact me</span>
+                  <ChevronDown
+                    size={12}
+                    className={`transition-transform duration-300 ${
+                      activeDrawer === 'contact' && drawerPlacement === 'top'
+                        ? 'rotate-180 text-[#Faf9f6]'
+                        : 'text-[#555f6f] group-hover:text-[#1c2229]'
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {drawerPlacement === 'top' && renderDrawerContent()}
         </header>
 
         {/* Background & Hobbies Interactive Box */}
@@ -1338,10 +1499,10 @@ const App = () => {
             <div className="flex items-center gap-2.5 flex-wrap">
               <button
                 type="button"
-                onClick={() => handleToggleDrawer('meeting')}
-                aria-expanded={activeDrawer === 'meeting'}
+                onClick={() => handleToggleDrawer('meeting', 'bottom')}
+                aria-expanded={activeDrawer === 'meeting' && drawerPlacement === 'bottom'}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-[13px] font-medium border transition-all cursor-pointer group ${
-                  activeDrawer === 'meeting'
+                  activeDrawer === 'meeting' && drawerPlacement === 'bottom'
                     ? 'bg-[#1c2229] text-[#Faf9f6] border-[#1c2229] shadow-xs'
                     : 'bg-white/90 text-[#1c2229] border-[#1c2229]/15 hover:border-[#1c2229]/35 hover:bg-white shadow-2xs'
                 }`}
@@ -1349,7 +1510,7 @@ const App = () => {
                 <Calendar
                   size={13}
                   className={`transition-colors ${
-                    activeDrawer === 'meeting'
+                    activeDrawer === 'meeting' && drawerPlacement === 'bottom'
                       ? 'text-[#Faf9f6]'
                       : 'text-[#555f6f] group-hover:text-[#1c2229]'
                   }`}
@@ -1358,7 +1519,7 @@ const App = () => {
                 <ChevronDown
                   size={13}
                   className={`transition-transform duration-300 ${
-                    activeDrawer === 'meeting'
+                    activeDrawer === 'meeting' && drawerPlacement === 'bottom'
                       ? 'rotate-180 text-[#Faf9f6]'
                       : 'text-[#555f6f] group-hover:text-[#1c2229]'
                   }`}
@@ -1367,10 +1528,10 @@ const App = () => {
 
               <button
                 type="button"
-                onClick={() => handleToggleDrawer('contact')}
-                aria-expanded={activeDrawer === 'contact'}
+                onClick={() => handleToggleDrawer('contact', 'bottom')}
+                aria-expanded={activeDrawer === 'contact' && drawerPlacement === 'bottom'}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-[13px] font-medium border transition-all cursor-pointer group ${
-                  activeDrawer === 'contact'
+                  activeDrawer === 'contact' && drawerPlacement === 'bottom'
                     ? 'bg-[#1c2229] text-[#Faf9f6] border-[#1c2229] shadow-xs'
                     : 'bg-white/90 text-[#1c2229] border-[#1c2229]/15 hover:border-[#1c2229]/35 hover:bg-white shadow-2xs'
                 }`}
@@ -1378,7 +1539,7 @@ const App = () => {
                 <Mail
                   size={13}
                   className={`transition-colors ${
-                    activeDrawer === 'contact'
+                    activeDrawer === 'contact' && drawerPlacement === 'bottom'
                       ? 'text-[#Faf9f6]'
                       : 'text-[#555f6f] group-hover:text-[#1c2229]'
                   }`}
@@ -1387,7 +1548,7 @@ const App = () => {
                 <ChevronDown
                   size={13}
                   className={`transition-transform duration-300 ${
-                    activeDrawer === 'contact'
+                    activeDrawer === 'contact' && drawerPlacement === 'bottom'
                       ? 'rotate-180 text-[#Faf9f6]'
                       : 'text-[#555f6f] group-hover:text-[#1c2229]'
                   }`}
@@ -1396,51 +1557,7 @@ const App = () => {
             </div>
           </div>
 
-          {activeDrawer === 'meeting' && (
-            <div
-              ref={drawerRef}
-              className="mt-6 pt-4 border-t border-[#e2e5eb]/60 bg-[#Faf9f6] overflow-hidden transition-all duration-500"
-            >
-              <div className="w-full -mx-2 sm:mx-0 bg-[#Faf9f6]">
-                <div
-                  ref={calendlyContainerRef}
-                  className="calendly-inline-widget w-full"
-                  data-url="https://calendly.com/vedran-brozovic/meet?hide_event_type_details=1&hide_gdpr_banner=1&background_color=faf9f6&text_color=1c2229&primary_color=0069ff"
-                  style={{
-                    minWidth: '320px',
-                    height: '700px',
-                    mixBlendMode: 'multiply'
-                  }}
-                />
-              </div>
-            </div>
-          )}
-
-          {activeDrawer === 'contact' && (
-            <div
-              ref={drawerRef}
-              className="mt-6 pt-4 border-t border-[#e2e5eb]/60 bg-[#Faf9f6] overflow-hidden transition-all duration-500"
-            >
-              <div className="w-full -mx-2 sm:mx-0 bg-[#Faf9f6]">
-                <iframe
-                  src="https://docs.google.com/forms/d/e/1FAIpQLScSpGLAies3Myye6C9iM2oL6Ssa6A9DzmrDlClnuF3a93MC3w/viewform?embedded=true"
-                  width="640"
-                  height="1008"
-                  frameBorder={0}
-                  marginHeight={0}
-                  marginWidth={0}
-                  title="Contact Vedran Brozović"
-                  className="w-full max-w-full block border-0"
-                  style={{
-                    filter: 'grayscale(1) contrast(1.08) brightness(1.04)',
-                    mixBlendMode: 'multiply'
-                  }}
-                >
-                  Loading…
-                </iframe>
-              </div>
-            </div>
-          )}
+          {drawerPlacement === 'bottom' && renderDrawerContent()}
         </footer>
       </main>
     </div>
