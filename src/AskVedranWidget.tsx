@@ -10,12 +10,11 @@ import {
 
 /**
  * Configurable proxy endpoint for "Ask Vedran's AI".
- * Set VITE_PROXY_URL in your environment (e.g., Cloudflare Worker / Cloud Run proxy URL)
- * or leave unset to use the built-in server proxy route at "/api/chat".
+ * Uses VITE_PROXY_URL if set, defaulting to https://website.brozovic-vedran.workers.dev/
  */
 export const PROXY_URL: string =
   (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_PROXY_URL ||
-  '/api/chat';
+  'https://website.brozovic-vedran.workers.dev/';
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
