@@ -356,13 +356,20 @@ export const AskVedranWidget: React.FC = () => {
       let lastErr: unknown = null;
       let replyText = '';
 
-      // Up to 2 attempts on the client in case an external proxy returns 503/502/timeout
-      for (let attempt = 0; attempt < 2; attempt++) {
+      const endpointsToTry = [
+        PROXY_URL,
+        PROXY_URL, // Second attempt on primary proxy
+        ...(PROXY_URL !== '/api/chat' ? ['/api/chat'] : []),
+      ];
+
+      for (let attempt = 0; attempt < endpointsToTry.length; attempt++) {
+        const endpoint = endpointsToTry[attempt];
+        const timeoutMs = attempt === 0 ? 14000 : 18000;
         const controller = new AbortController();
-        const timeoutId = window.setTimeout(() => controller.abort(), 25000);
+        const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
 
         try {
-          const response = await fetch(PROXY_URL, {
+          const response = await fetch(endpoint, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -396,15 +403,18 @@ export const AskVedranWidget: React.FC = () => {
                 ? JSON.stringify(data.error)
                 : `Proxy responded with status ${response.status}`;
 
-            // Retry once if 502 / 503 / 504
             if (
-              attempt === 0 &&
-              (response.status === 502 ||
+              attempt < endpointsToTry.length - 1 &&
+              (response.status === 405 ||
+                response.status === 429 ||
+                response.status === 502 ||
                 response.status === 503 ||
                 response.status === 504 ||
-                /503|UNAVAILABLE|high demand/i.test(errDetail))
+                /503|UNAVAILABLE|high demand|timeout|timed out/i.test(errDetail))
             ) {
-              await new Promise((r) => setTimeout(r, 900));
+              if (response.status !== 405) {
+                await new Promise((r) => setTimeout(r, 600));
+              }
               continue;
             }
 
@@ -412,19 +422,28 @@ export const AskVedranWidget: React.FC = () => {
           }
 
           replyText = (data.reply ?? data.message ?? '').toString().trim();
-          break;
+          if (replyText) {
+            break;
+          }
         } catch (attemptErr) {
-          lastErr = attemptErr;
+          // Only overwrite lastErr if this wasn't a 405/404 on the local fallback endpoint
+          const errMsg =
+            attemptErr instanceof Error ? attemptErr.message : String(attemptErr);
+          if (!(endpoint === '/api/chat' && /405|404|not valid JSON|Server error/i.test(errMsg))) {
+            lastErr = attemptErr;
+          }
           if (
-            attempt === 0 &&
-            /503|UNAVAILABLE|high demand|not valid JSON/i.test(
-              attemptErr instanceof Error ? attemptErr.message : String(attemptErr)
+            attempt < endpointsToTry.length - 1 &&
+            /503|UNAVAILABLE|high demand|not valid JSON|abort|timeout|timed out|Failed to fetch/i.test(
+              errMsg
             )
           ) {
-            await new Promise((r) => setTimeout(r, 900));
+            await new Promise((r) => setTimeout(r, 600));
             continue;
           }
-          throw attemptErr;
+          if (attempt === endpointsToTry.length - 1) {
+            throw lastErr ?? attemptErr;
+          }
         } finally {
           window.clearTimeout(timeoutId);
         }
