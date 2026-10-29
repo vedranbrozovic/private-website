@@ -257,6 +257,50 @@ export const AskVedranWidget: React.FC = () => {
     }
   }, [messages, isLoading]);
 
+  const formatFriendlyError = (rawError: unknown): string => {
+    const raw =
+      rawError instanceof Error ? rawError.message : String(rawError ?? '');
+
+    if (!raw || /not valid JSON|Unexpected token|JSON\.parse/i.test(raw)) {
+      return langFilter === 'hr'
+        ? 'AI asistent je trenutno preopterećen ili nedostupan. Pokušaj ponovno za par sekundi.'
+        : 'The AI service returned an invalid response (likely a temporary timeout). Please try again in a few seconds.';
+    }
+
+    const jsonStart = raw.indexOf('{');
+    if (jsonStart !== -1) {
+      try {
+        const parsed = JSON.parse(raw.slice(jsonStart));
+        const code = Number(parsed?.error?.code);
+        const status = parsed?.error?.status;
+        if (code === 503 || status === 'UNAVAILABLE') {
+          return langFilter === 'hr'
+            ? 'AI model trenutno bilježi povećan promet (503). Pokušaj ponovno za nekoliko sekundi.'
+            : 'The AI model is currently experiencing high demand (503). Please try again in a few seconds.';
+        }
+        if (typeof parsed?.error?.message === 'string') {
+          return parsed.error.message;
+        }
+      } catch {
+        // Fall through if not valid JSON
+      }
+    }
+
+    if (/503|UNAVAILABLE|high demand/i.test(raw)) {
+      return langFilter === 'hr'
+        ? 'AI model trenutno bilježi povećan promet. Pokušaj ponovno za nekoliko sekundi.'
+        : 'The AI model is currently experiencing high demand. Please try again in a few seconds.';
+    }
+
+    if (/abort|timeout|timed out/i.test(raw)) {
+      return langFilter === 'hr'
+        ? 'Upit je trajao predugo. Pokušaj ponovno.'
+        : 'The request timed out. Please try again.';
+    }
+
+    return raw;
+  };
+
   const sendMessage = async (textToSend: string) => {
     const trimmed = textToSend.trim();
     if (!trimmed || isLoading) return;
@@ -272,41 +316,96 @@ export const AskVedranWidget: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch(PROXY_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messages: nextHistory,
-        }),
-      });
+      let lastErr: unknown = null;
+      let replyText = '';
 
-      const data: { reply?: string; message?: string; error?: string } =
-        await response.json();
+      // Up to 2 attempts on the client in case an external proxy returns 503/502/timeout
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => controller.abort(), 25000);
 
-      if (!response.ok) {
-        throw new Error(
-          data.error || `Proxy responded with status ${response.status}`
-        );
+        try {
+          const response = await fetch(PROXY_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              messages: nextHistory,
+            }),
+            signal: controller.signal,
+          });
+
+          const rawText = await response.text();
+          let data: { reply?: string; message?: string; error?: unknown } = {};
+
+          if (rawText.trim()) {
+            try {
+              data = JSON.parse(rawText);
+            } catch {
+              throw new Error(
+                response.ok
+                  ? 'not valid JSON'
+                  : `Server error (${response.status})`
+              );
+            }
+          }
+
+          if (!response.ok) {
+            const errDetail =
+              typeof data.error === 'string'
+                ? data.error
+                : data.error
+                ? JSON.stringify(data.error)
+                : `Proxy responded with status ${response.status}`;
+
+            // Retry once if 502 / 503 / 504
+            if (
+              attempt === 0 &&
+              (response.status === 502 ||
+                response.status === 503 ||
+                response.status === 504 ||
+                /503|UNAVAILABLE|high demand/i.test(errDetail))
+            ) {
+              await new Promise((r) => setTimeout(r, 900));
+              continue;
+            }
+
+            throw new Error(errDetail);
+          }
+
+          replyText = (data.reply ?? data.message ?? '').toString().trim();
+          break;
+        } catch (attemptErr) {
+          lastErr = attemptErr;
+          if (
+            attempt === 0 &&
+            /503|UNAVAILABLE|high demand|not valid JSON/i.test(
+              attemptErr instanceof Error ? attemptErr.message : String(attemptErr)
+            )
+          ) {
+            await new Promise((r) => setTimeout(r, 900));
+            continue;
+          }
+          throw attemptErr;
+        } finally {
+          window.clearTimeout(timeoutId);
+        }
       }
-
-      const replyText = (data.reply ?? data.message ?? '').toString().trim();
 
       if (replyText) {
         setMessages((prev) => [
           ...prev,
           { role: 'assistant', content: replyText },
         ]);
+      } else if (lastErr) {
+        throw lastErr;
       }
     } catch (err) {
-      const errMessage =
-        err instanceof Error
-          ? err.message
-          : 'Unable to reach the AI assistant right now. Please try again in a moment.';
+      const friendlyMsg = formatFriendlyError(err);
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: `*${errMessage}*` },
+        { role: 'assistant', content: `*${friendlyMsg}*` },
       ]);
     } finally {
       setIsLoading(false);

@@ -2,7 +2,7 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 
 dotenv.config();
 
@@ -38,7 +38,7 @@ Key facts about Vedran Brozović:
   - Mentors early-stage deep-tech and startup founders through [Nuqleus](https://nuqleus.io/) (FER Zagreb academic entrepreneurship incubator) and the [Infobip Startup Tribe](https://www.egcnyc.org/programs/scale-2-0).
 - **Basketball & Life Outside Work (Što Vedran radi izvan posla)**:
   - Former **Croatian junior national basketball champion** who later played in **Luxembourg's top basketball division** ([basketball clips](https://www.youtube.com/shorts/9izlIisXmcA)).
-  - Loves [reading](/reading) (his personal credo poems are *"The Guy in the Glass"* by Dale Wimbrow and *"If—"* by Rudyard Kipling), riding his motorcycle, [exercising](https://www.youtube.com/shorts/epX53oBfZ5s), [riding ferries](https://www.youtube.com/shorts/CgKeP-biekc) around Puget Sound in the Pacific Northwest, [traveling](https://www.instagram.com/stories/highlights/18126152053478952/), [creating music with AI](https://www.youtube.com/watch?v=zsYeshucbHE), Analog/Film photography ([/film](/film)), and building [vibe coding apps](/vibecoding).
+  - Loves [reading](/reading) (his personal credo poems are *"The Guy in the Glass"* by Dale Wimbrow and *"If—"* by Rudyard Kipling), riding his motorcycle, [exercising](https://www.youtube.com/shorts/epX53oBfZ5s), [riding ferries](https://www.youtube.com/shorts/CgKeP-biekc) around Puget Sound in the Pacific Northwest, [traveling](https://www.instagram.com/stories/highlights/18126152053478952/), [creating music with AI](https://www.youtube.com/watch?v=zsYeshucbHE), photography ([/film](/film)), and building [vibe coding apps](/vibecoding).
   - Media interviews: [English interview](https://www.youtube.com/watch?v=D06qaNG_qWs&t=187s) and [Croatian interview](https://www.youtube.com/watch?v=0WG-pwNJxKM&t=1264s).
 - **If asked "Halaš li još šicu Broz?" (Zagreb slang for "Do you still play basketball, Broz?")**:
   - Answer in Croatian with authentic Zagreb warmth ("Normalno da se hala! 🏀"): highlight that *Ball is life*, he is a former Croatian junior national basketball champion, played in Luxembourg's top basketball division, and still regularly hoops in Seattle ([video clip](https://www.youtube.com/shorts/9izlIisXmcA), [/ballislife](/ballislife)).
@@ -49,6 +49,107 @@ interface ChatMessage {
   role: 'user' | 'assistant' | 'model' | 'system';
   content?: string;
   text?: string;
+}
+
+const MODEL_CANDIDATES: Array<{
+  model: string;
+  thinkingLevel?: ThinkingLevel;
+  timeoutMs: number;
+}> = [
+  { model: 'gemini-3.1-flash-lite', thinkingLevel: ThinkingLevel.MINIMAL, timeoutMs: 10000 },
+  { model: 'gemini-3.1-flash-lite', thinkingLevel: ThinkingLevel.LOW, timeoutMs: 12000 },
+  { model: 'gemini-3.8-flash', thinkingLevel: ThinkingLevel.LOW, timeoutMs: 10000 },
+];
+
+function extractCleanErrorMessage(err: unknown): { status: number; message: string } {
+  const raw = err instanceof Error ? err.message : String(err ?? '');
+
+  // Attempt to parse embedded JSON error objects from SDK / upstream API
+  const jsonStart = raw.indexOf('{');
+  if (jsonStart !== -1) {
+    try {
+      const parsed = JSON.parse(raw.slice(jsonStart));
+      const code = Number(parsed?.error?.code) || 500;
+      const apiMsg = parsed?.error?.message;
+      if (code === 503 || parsed?.error?.status === 'UNAVAILABLE') {
+        return {
+          status: 503,
+          message:
+            'The AI model is experiencing temporary high demand. Please try sending your message again in a few seconds.',
+        };
+      }
+      if (code === 429 || parsed?.error?.status === 'RESOURCE_EXHAUSTED') {
+        return {
+          status: 429,
+          message:
+            'Rate limit reached. Please wait a few seconds and try again.',
+        };
+      }
+      if (typeof apiMsg === 'string' && apiMsg.trim()) {
+        return { status: code >= 400 && code < 600 ? code : 500, message: apiMsg.trim() };
+      }
+    } catch {
+      // Ignore JSON parse failure and fall through
+    }
+  }
+
+  if (/503|UNAVAILABLE|high demand|overloaded/i.test(raw)) {
+    return {
+      status: 503,
+      message:
+        'The AI model is experiencing temporary high demand. Please try sending your message again in a few seconds.',
+    };
+  }
+
+  if (/abort|timeout|timed out/i.test(raw)) {
+    return {
+      status: 504,
+      message: 'The AI request timed out. Please try asking again.',
+    };
+  }
+
+  return {
+    status: 500,
+    message: 'Unable to generate a response right now. Please try again in a moment.',
+  };
+}
+
+async function generateWithFallback(
+  ai: GoogleGenAI,
+  contents: Array<{ role: string; parts: Array<{ text: string }> }>
+): Promise<string> {
+  let lastError: unknown = null;
+
+  for (let i = 0; i < MODEL_CANDIDATES.length; i++) {
+    const candidate = MODEL_CANDIDATES[i];
+    try {
+      const response = await ai.models.generateContent({
+        model: candidate.model,
+        contents,
+        config: {
+          systemInstruction: VEDRAN_SYSTEM_PROMPT,
+          temperature: 0.7,
+          ...(candidate.thinkingLevel
+            ? { thinkingConfig: { thinkingLevel: candidate.thinkingLevel } }
+            : {}),
+          abortSignal: AbortSignal.timeout(candidate.timeoutMs),
+        },
+      });
+
+      const text = response.text?.trim();
+      if (text) {
+        return text;
+      }
+    } catch (err) {
+      lastError = err;
+      // Brief pause before trying the next candidate
+      if (i < MODEL_CANDIDATES.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+    }
+  }
+
+  throw lastError ?? new Error('All model candidates failed.');
 }
 
 async function startServer() {
@@ -97,21 +198,12 @@ async function startServer() {
         parts: [{ text: m.text }],
       }));
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents,
-        config: {
-          systemInstruction: VEDRAN_SYSTEM_PROMPT,
-          temperature: 0.7,
-        },
-      });
-
-      const reply = response.text?.trim() || '';
+      const reply = await generateWithFallback(ai, contents);
       return res.json({ reply });
     } catch (err) {
       console.error('Error in /api/chat:', err);
-      const message = err instanceof Error ? err.message : 'Failed to generate reply.';
-      return res.status(500).json({ error: message });
+      const { status, message } = extractCleanErrorMessage(err);
+      return res.status(status).json({ error: message });
     }
   });
 
