@@ -63,35 +63,11 @@ const STARTER_PROMPTS: StarterPrompt[] = [
   },
 ];
 
-function getLocalFallbackReply(userPrompt: string): string {
-  const q = userPrompt.toLowerCase();
-
-  if (q.includes('šicu') || q.includes('sicu') || q.includes('halaš') || q.includes('halas') || q.includes('košark') || q.includes('kosark')) {
-    return `Normalno da se hala! 🏀 *Ball is life* nikad ne izlazi iz sistema.\n\n- **Od zagrebačkih haklova do titula**: Bivši je **juniorski prvak Hrvatske**, a kasnije je igrao i u **prvoj luksemburškoj ligi**.\n- **Seattle hakl**: I danas u Seattleu redovito [hala šicu](https://www.youtube.com/shorts/9izlIisXmcA) — šut je još uvijek mekan, a košarkaški IQ s terena samo je prebacio u vođenje AI proizvoda ([/ballislife](/ballislife)).`;
-  }
-
-  if (q.includes('duhovit') || q.includes('zgodan')) {
-    return `To je vjerojatno najvažnije pitanje u cijelom sustavu! 😄\n\nZnanstveni konsenzus kaže da je u pitanju pažljivo izbalansirana kombinacija:\n- **Zagrebačkog šarma** i odrastanja na košarkaškim terenima,\n- **Svježeg pacifičkog zraka** na trajektima oko Seattlea i vožnji motorom,\n- **Dobrih gena** i redovitog treninga,\n- …i činjenice da je Vedran sam napisao *system prompt* za ovaj AI pa mi je strogo zabranjeno tvrditi drugačije! 😉`;
-  }
-
-  if (q.includes('izvan posla') || q.includes('slobodno') || q.includes('hobi')) {
-    return `Izvan ureda, Vedran vodi prilično aktivan život na sjeverozapadu Pacifika (Seattle):\n\n- **Košarka**: Bivši je juniorski prvak Hrvatske te je igrao u prvoj luksemburškoj ligi — i danas redovito [igra košarku](https://www.youtube.com/shorts/9izlIisXmcA).\n- **Motor i trajekti**: Istražuje Puget Sound na motoru i [trajektima](https://www.youtube.com/shorts/CgKeP-biekc).\n- **Čitanje**: Voli [čitanje](/reading) (njegov osobni kredo su pjesme *The Guy in the Glass* i *If—*).\n- **Trening i putovanja**: Redovito [trenira](https://www.youtube.com/shorts/epX53oBfZ5s) i [putuje](https://www.instagram.com/stories/highlights/18126152053478952/).\n- **Kreativni AI projekti**: U zadnje vrijeme zabavlja se [stvaranjem glazbe pomoću AI-ja](https://www.youtube.com/watch?v=zsYeshucbHE) i izradom [vibe coding aplikacija](/vibecoding).`;
-  }
-
-  if (q.includes('genai') || q.includes('amazon') || q.includes('products')) {
-    return `At **Amazon**, Vedran has spent **6+ years** scaling enterprise GenAI and data analytics products from **0 to 1**:\n\n- **0-to-1 Enterprise GenAI**: Defined the product vision, multi-year roadmaps, and execution for high-ambiguity generative AI products that automate analytical workflows and decision-making at scale.\n- ***rAIsing the Bar* Spotlight**: His AI work was the **first featured story** in Amazon's *rAIsing the Bar* series.\n- **Podcast Feature**: Discussed scaling GenAI products on the [*strAIght talk* podcast](https://open.spotify.com/episode/1MThk2sP927U64eeRbBIE0).\n- **Enterprise Analytics**: Led large-scale BI and data platforms across Luxembourg and Seattle.`;
-  }
-
-  if (q.includes('transition') || q.includes('finance') || q.includes('bi')) {
-    return `Vedran's career evolved across **Croatia → Luxembourg → USA** and **Finance → Engineering → Product**:\n\n1. **Finance & Econometrics (Zagreb)**: Started with econometric modeling at the **Croatian National Bank** and consulting at **Ernst & Young**, earning an MSc in Economics & Managerial Informatics at the University of Zagreb (with two Rector's and two Dean's Awards for research on [AI](https://repozitorij.efzg.unizg.hr/en/object/efzg:2726) and [advanced analytics](https://repozitorij.efzg.unizg.hr/en/object/efzg:5862)).\n2. **Business Analytics & Data Engineering (Luxembourg)**: Built automated analytics pipelines at **IKEA** and **Amazon**.\n3. **AI & Data Product Management (Seattle)**: Combined quantitative rigor and technical architecture fluency with customer-backwards product strategy to lead 0-to-1 GenAI products at Amazon.`;
-  }
-
-  if (q.includes('acap') || q.includes('mentor') || q.includes('startup')) {
-    return `Vedran is deeply involved in the Croatian-American tech community and startup ecosystem:\n\n- **Board Director @ [ACAP](https://croampro.com/)**: Serves on the Board of Directors of the Association of Croatian-American Professionals and chairs the **Technology and Innovation Committee**.\n- **Conference & Chapter Leadership**: Previously led the Pacific Northwest chapter and chaired the [10th Annual ACAP Conference](https://conference.croampro.com/) in Seattle.\n- **Startup Mentoring**: Mentors early-stage founders through **[Nuqleus](https://nuqleus.io/)** and the **[Infobip Startup Tribe](https://www.egcnyc.org/programs/scale-2-0)**.`;
-  }
-
-  return `Vedran Brozović is an **AI and Data Product Manager at Amazon** in Seattle with 6+ years of experience scaling enterprise GenAI and analytics products, a **Director at [ACAP](https://croampro.com/)**, and a startup mentor at **Nuqleus** and **Infobip Startup Tribe**.\n\nTry asking about his **GenAI products at Amazon**, his **transition from Finance & BI to AI PM**, his **ACAP leadership**, or **što radi izvan posla**!`;
-}
+const INITIAL_GREETING: ChatMessage = {
+  role: 'assistant',
+  content:
+    "Hey! 👋 I'm Vedran's AI. Ask me anything about Vedran — in English or Hrvatski.",
+};
 
 /**
  * Lightweight, safe Markdown renderer for assistant messages.
@@ -262,7 +238,7 @@ const MarkdownContent: React.FC<{ content: string; isDark: boolean }> = ({
 };
 
 export const AskVedranWidget: React.FC = () => {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_GREETING]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -306,24 +282,31 @@ export const AskVedranWidget: React.FC = () => {
         }),
       });
 
+      const data: { reply?: string; message?: string; error?: string } =
+        await response.json();
+
       if (!response.ok) {
-        throw new Error(`Proxy responded with status ${response.status}`);
+        throw new Error(
+          data.error || `Proxy responded with status ${response.status}`
+        );
       }
 
-      const data: { reply?: string; message?: string } = await response.json();
-      const replyText =
-        (data.reply ?? data.message ?? '').toString().trim() ||
-        getLocalFallbackReply(trimmed);
+      const replyText = (data.reply ?? data.message ?? '').toString().trim();
 
+      if (replyText) {
+        setMessages((prev) => [
+          ...prev,
+          { role: 'assistant', content: replyText },
+        ]);
+      }
+    } catch (err) {
+      const errMessage =
+        err instanceof Error
+          ? err.message
+          : 'Unable to reach the AI assistant right now. Please try again in a moment.';
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: replyText },
-      ]);
-    } catch {
-      // Graceful fallback if custom proxy is unreachable
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: getLocalFallbackReply(trimmed) },
+        { role: 'assistant', content: `*${errMessage}*` },
       ]);
     } finally {
       setIsLoading(false);
@@ -336,7 +319,7 @@ export const AskVedranWidget: React.FC = () => {
   };
 
   const handleReset = () => {
-    setMessages([]);
+    setMessages([INITIAL_GREETING]);
     setInput('');
   };
 
@@ -456,8 +439,8 @@ export const AskVedranWidget: React.FC = () => {
               {isDark ? <Sun size={12} /> : <Moon size={12} />}
             </button>
 
-            {/* Clear conversation button (when messages exist) */}
-            {messages.length > 0 && (
+            {/* Clear conversation button (when user messages exist beyond greeting) */}
+            {messages.length > 1 && (
               <button
                 type="button"
                 onClick={handleReset}
