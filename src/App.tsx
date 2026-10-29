@@ -1060,7 +1060,7 @@ const App = () => {
       if (win.Calendly && win.Calendly.initInlineWidget && calendlyContainerRef.current) {
         calendlyContainerRef.current.innerHTML = '';
         win.Calendly.initInlineWidget({
-          url: 'https://calendly.com/vedran-brozovic/meet?hide_event_type_details=1&hide_gdpr_banner=1',
+          url: 'https://calendly.com/vedran-brozovic/meet?hide_event_type_details=1&hide_gdpr_banner=1&background_color=faf9f6&text_color=1c2229&primary_color=0069ff',
           parentElement: calendlyContainerRef.current
         });
       }
@@ -1301,7 +1301,7 @@ const App = () => {
         </section>
 
         <footer className="flex flex-col border-t border-[#e2e5eb] pt-7">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6">
+          <div className="flex flex-col gap-4">
             <div className="flex gap-2.5 sm:gap-3.5 items-center flex-wrap">
               <SocialLink 
                 href="https://www.linkedin.com/in/vedranbrozovic/" 
@@ -1335,7 +1335,7 @@ const App = () => {
               />
             </div>
 
-            <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+            <div className="flex items-center gap-2.5 flex-wrap">
               <button
                 type="button"
                 onClick={() => handleToggleDrawer('meeting')}
@@ -1405,11 +1405,10 @@ const App = () => {
                 <div
                   ref={calendlyContainerRef}
                   className="calendly-inline-widget w-full"
-                  data-url="https://calendly.com/vedran-brozovic/meet?hide_event_type_details=1&hide_gdpr_banner=1"
+                  data-url="https://calendly.com/vedran-brozovic/meet?hide_event_type_details=1&hide_gdpr_banner=1&background_color=faf9f6&text_color=1c2229&primary_color=0069ff"
                   style={{
                     minWidth: '320px',
                     height: '700px',
-                    filter: 'grayscale(1) contrast(1.04) brightness(1.02)',
                     mixBlendMode: 'multiply'
                   }}
                 />
