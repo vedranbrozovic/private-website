@@ -2,5 +2,7 @@
   "name": "Vedran Brozovic personal website",
   "description": "A stylish, high-tech minimalistic bio website with smooth animations and elegant typography.",
   "requestFramePermissions": [],
-  "majorCapabilities": []
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

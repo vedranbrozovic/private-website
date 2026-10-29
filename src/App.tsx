@@ -18,6 +18,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { SocialLink } from './SocialLink';
+import { AskVedranWidget } from './AskVedranWidget';
 
 interface InteractiveItem {
   id: string;
@@ -1284,6 +1285,9 @@ const App = () => {
 
           {drawerPlacement === 'top' && renderDrawerContent()}
         </header>
+
+        {/* Ask Vedran's AI Floating Chat Widget */}
+        <AskVedranWidget />
 
         {/* Background & Hobbies Interactive Box */}
         <InteractiveBox />
