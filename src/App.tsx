@@ -14,7 +14,8 @@ import {
   ArrowUp,
   ArrowLeft,
   ChevronDown,
-  Mail
+  Mail,
+  Calendar
 } from 'lucide-react';
 import { SocialLink } from './SocialLink';
 
@@ -151,8 +152,8 @@ const DIRECTIONS: DirectionConfig[] = [
   { key: 'right', label: 'Right', icon: ArrowRight, vector: { x: 1, y: 0 }, symbol: '→' },
 ];
 
-const HOLD_SHAKE_DELAY_MS = 130;
-const HOLD_EXPLODE_MS = 1100;
+const HOLD_SHAKE_DELAY_MS = 70;
+const HOLD_EXPLODE_MS = 650;
 
 const InteractiveBox = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -386,6 +387,34 @@ const InteractiveBox = () => {
     });
     Composite.add(engine.world, mouseConstraint);
 
+    const findBodyNearCoords = (coords: { x: number; y: number }, radius: number): Matter.Body | null => {
+      const allBodies = (Object.values(bodiesRef.current) as Matter.Body[]).filter(
+        (b: Matter.Body) => !explodedIdsRef.current.has(bodyIdToItemId.get(b.id) || '')
+      );
+      const directHits = Matter.Query.point(allBodies, coords);
+      if (directHits.length > 0) {
+        return directHits[0];
+      }
+      if (radius <= 0) return null;
+      const regionHits = Matter.Query.region(allBodies, {
+        min: { x: coords.x - radius, y: coords.y - radius },
+        max: { x: coords.x + radius, y: coords.y + radius }
+      });
+      if (regionHits.length === 0) return null;
+      let closest: Matter.Body | null = null;
+      let minDist = Infinity;
+      for (const b of regionHits) {
+        const dx = b.position.x - coords.x;
+        const dy = b.position.y - coords.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < minDist) {
+          minDist = dist;
+          closest = b;
+        }
+      }
+      return closest;
+    };
+
     // Desktop mouse hold detection
     const getMouseCoords = (e: MouseEvent) => {
       const rect = containerRef.current?.getBoundingClientRect();
@@ -399,10 +428,9 @@ const InteractiveBox = () => {
     const handleMouseDown = (e: MouseEvent) => {
       if (e.button !== 0) return;
       const coords = getMouseCoords(e);
-      const allBodies = Object.values(bodiesRef.current);
-      const hits = Matter.Query.point(allBodies, coords);
-      if (hits.length > 0) {
-        const itemId = bodyIdToItemId.get(hits[0].id);
+      const hitBody = findBodyNearCoords(coords, 10);
+      if (hitBody) {
+        const itemId = bodyIdToItemId.get(hitBody.id);
         if (itemId) {
           startHoldingItem(itemId);
         }
@@ -413,9 +441,12 @@ const InteractiveBox = () => {
       stopHoldingItem();
     };
 
-    // Smart touch interaction: if touching a body, drag/hold it. If touching empty space, let user scroll the page smoothly!
+    // Smart touch interaction: forgiving hit radius on mobile, supports both quick tap and hold to open, or swipe to toss!
     let activeTouchId: number | null = null;
     let isDraggingBody = false;
+    let touchStartCoords = { x: 0, y: 0 };
+    let touchMaxMoveDist = 0;
+    let touchedItemId: string | null = null;
 
     const getTouchCoords = (touch: Touch) => {
       const rect = containerRef.current?.getBoundingClientRect();
@@ -431,18 +462,20 @@ const InteractiveBox = () => {
       const touch = e.touches[0];
       const coords = getTouchCoords(touch);
 
-      const allBodies = Object.values(bodiesRef.current);
-      const hits = Matter.Query.point(allBodies, coords);
+      const hitBody = findBodyNearCoords(coords, 26);
 
-      if (hits.length > 0) {
+      if (hitBody) {
         // Touched an interactive item: engage drag & hold & prevent page scroll
         isDraggingBody = true;
         activeTouchId = touch.identifier;
-        mouse.position.x = coords.x;
-        mouse.position.y = coords.y;
+        touchStartCoords = { x: coords.x, y: coords.y };
+        touchMaxMoveDist = 0;
+        mouse.position.x = hitBody.position.x;
+        mouse.position.y = hitBody.position.y;
         mouse.button = 0;
-        Matter.Sleeping.set(hits[0], false);
-        const itemId = bodyIdToItemId.get(hits[0].id);
+        Matter.Sleeping.set(hitBody, false);
+        const itemId = bodyIdToItemId.get(hitBody.id) || null;
+        touchedItemId = itemId;
         if (itemId) {
           startHoldingItem(itemId);
         }
@@ -453,6 +486,7 @@ const InteractiveBox = () => {
         // Touched background: allow native browser page scrolling!
         isDraggingBody = false;
         activeTouchId = null;
+        touchedItemId = null;
         mouse.button = -1;
         stopHoldingItem();
       }
@@ -465,6 +499,14 @@ const InteractiveBox = () => {
         const touch = e.changedTouches[i];
         if (touch.identifier === activeTouchId) {
           const coords = getTouchCoords(touch);
+          const dist = Math.hypot(coords.x - touchStartCoords.x, coords.y - touchStartCoords.y);
+          if (dist > touchMaxMoveDist) {
+            touchMaxMoveDist = dist;
+          }
+          // If the user swipes/tosses significantly (> 34px), cancel the hold-to-open so they can play with physics freely
+          if (touchMaxMoveDist > 34 && !heldStateRef.current.exploded) {
+            stopHoldingItem();
+          }
           mouse.position.x = coords.x;
           mouse.position.y = coords.y;
           if (e.cancelable) {
@@ -482,7 +524,25 @@ const InteractiveBox = () => {
             mouse.button = -1;
             isDraggingBody = false;
             activeTouchId = null;
-            stopHoldingItem();
+
+            // On mobile, if the user tapped an icon cleanly without swiping (< 16px movement) and hasn't exploded yet,
+            // accelerate the shake into an immediate burst so tapping on mobile feels effortless!
+            if (
+              touchedItemId &&
+              !explodedIdsRef.current.has(touchedItemId) &&
+              !heldStateRef.current.exploded &&
+              touchMaxMoveDist < 16
+            ) {
+              const targetId = touchedItemId;
+              heldStateRef.current = {
+                id: targetId,
+                startTime: performance.now() - (HOLD_EXPLODE_MS - 180),
+                exploded: false
+              };
+            } else {
+              stopHoldingItem();
+            }
+            touchedItemId = null;
             break;
           }
         }
@@ -689,7 +749,8 @@ const InteractiveBox = () => {
     <div className="relative group my-5 sm:my-6 select-none">
       <div
         ref={containerRef}
-        style={{ touchAction: 'pan-y' }}
+        onContextMenu={(e) => e.preventDefault()}
+        style={{ touchAction: 'pan-y', WebkitTouchCallout: 'none', WebkitUserSelect: 'none' }}
         className="relative w-full h-72 sm:h-80 rounded-2xl overflow-hidden border border-[#1f242e]/10 bg-white/75 backdrop-blur-xs shadow-xs flex items-center justify-center cursor-grab active:cursor-grabbing"
       >
         {/* Subtle dot pattern background */}
@@ -720,11 +781,13 @@ const InteractiveBox = () => {
             <span className="text-[10px] sm:text-[11px] font-medium tracking-wide text-[#555f6f] truncate">
               {holdingRouteLabel ? (
                 <span className="text-[#1c2229] font-semibold">
-                  Keep holding for {holdingRouteLabel}…
+                  Opening {holdingRouteLabel}…
                 </span>
               ) : (
                 <>
-                  Background &amp; hobbies <span className="text-[#8c94a4] font-normal hidden sm:inline">· Toss or hold icon</span>
+                  Background &amp; hobbies{' '}
+                  <span className="text-[#8c94a4] font-normal sm:hidden">· Tap or hold icon</span>
+                  <span className="text-[#8c94a4] font-normal hidden sm:inline">· Toss or hold icon</span>
                 </>
               )}
             </span>
@@ -977,19 +1040,54 @@ const InteractiveBox = () => {
 
 const App = () => {
   const [mounted, setMounted] = useState(false);
-  const [contactOpen, setContactOpen] = useState(false);
-  const contactRef = useRef<HTMLDivElement>(null);
+  const [activeDrawer, setActiveDrawer] = useState<'contact' | 'meeting' | null>(null);
+  const drawerRef = useRef<HTMLDivElement>(null);
+  const calendlyContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const handleToggleContact = () => {
-    const next = !contactOpen;
-    setContactOpen(next);
+  useEffect(() => {
+    if (activeDrawer !== 'meeting') return;
+
+    const initCalendly = () => {
+      const win = window as unknown as {
+        Calendly?: {
+          initInlineWidget?: (options: { url: string; parentElement: HTMLElement }) => void;
+        };
+      };
+      if (win.Calendly && win.Calendly.initInlineWidget && calendlyContainerRef.current) {
+        calendlyContainerRef.current.innerHTML = '';
+        win.Calendly.initInlineWidget({
+          url: 'https://calendly.com/vedran-brozovic/meet?hide_event_type_details=1&hide_gdpr_banner=1',
+          parentElement: calendlyContainerRef.current
+        });
+      }
+    };
+
+    const existingScript = document.querySelector(
+      'script[src="https://assets.calendly.com/assets/external/widget.js"]'
+    ) as HTMLScriptElement | null;
+
+    if (!existingScript) {
+      const script = document.createElement('script');
+      script.src = 'https://assets.calendly.com/assets/external/widget.js';
+      script.type = 'text/javascript';
+      script.async = true;
+      script.onload = initCalendly;
+      document.body.appendChild(script);
+    } else {
+      initCalendly();
+    }
+  }, [activeDrawer]);
+
+  const handleToggleDrawer = (panel: 'contact' | 'meeting') => {
+    const next = activeDrawer === panel ? null : panel;
+    setActiveDrawer(next);
     if (next) {
       setTimeout(() => {
-        contactRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        drawerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }, 120);
     }
   };
@@ -1203,7 +1301,7 @@ const App = () => {
         </section>
 
         <footer className="flex flex-col border-t border-[#e2e5eb] pt-7">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5 sm:gap-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6">
             <div className="flex gap-2.5 sm:gap-3.5 items-center flex-wrap">
               <SocialLink 
                 href="https://www.linkedin.com/in/vedranbrozovic/" 
@@ -1237,26 +1335,91 @@ const App = () => {
               />
             </div>
 
-            <button
-              type="button"
-              onClick={handleToggleContact}
-              aria-expanded={contactOpen}
-              className="self-start sm:self-auto inline-flex items-center gap-1.5 text-xs sm:text-[13px] font-medium text-[#555f6f] hover:text-[#1c2229] transition-colors py-1 cursor-pointer group"
-            >
-              <Mail size={13} className="text-[#717b8c] group-hover:text-[#1c2229] transition-colors" />
-              <span>Contact me</span>
-              <ChevronDown
-                size={13}
-                className={`text-[#717b8c] group-hover:text-[#1c2229] transition-transform duration-300 ${
-                  contactOpen ? 'rotate-180' : ''
+            <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+              <button
+                type="button"
+                onClick={() => handleToggleDrawer('meeting')}
+                aria-expanded={activeDrawer === 'meeting'}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-[13px] font-medium border transition-all cursor-pointer group ${
+                  activeDrawer === 'meeting'
+                    ? 'bg-[#1c2229] text-[#Faf9f6] border-[#1c2229] shadow-xs'
+                    : 'bg-white/90 text-[#1c2229] border-[#1c2229]/15 hover:border-[#1c2229]/35 hover:bg-white shadow-2xs'
                 }`}
-              />
-            </button>
+              >
+                <Calendar
+                  size={13}
+                  className={`transition-colors ${
+                    activeDrawer === 'meeting'
+                      ? 'text-[#Faf9f6]'
+                      : 'text-[#555f6f] group-hover:text-[#1c2229]'
+                  }`}
+                />
+                <span>Book a meeting</span>
+                <ChevronDown
+                  size={13}
+                  className={`transition-transform duration-300 ${
+                    activeDrawer === 'meeting'
+                      ? 'rotate-180 text-[#Faf9f6]'
+                      : 'text-[#555f6f] group-hover:text-[#1c2229]'
+                  }`}
+                />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleToggleDrawer('contact')}
+                aria-expanded={activeDrawer === 'contact'}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-[13px] font-medium border transition-all cursor-pointer group ${
+                  activeDrawer === 'contact'
+                    ? 'bg-[#1c2229] text-[#Faf9f6] border-[#1c2229] shadow-xs'
+                    : 'bg-white/90 text-[#1c2229] border-[#1c2229]/15 hover:border-[#1c2229]/35 hover:bg-white shadow-2xs'
+                }`}
+              >
+                <Mail
+                  size={13}
+                  className={`transition-colors ${
+                    activeDrawer === 'contact'
+                      ? 'text-[#Faf9f6]'
+                      : 'text-[#555f6f] group-hover:text-[#1c2229]'
+                  }`}
+                />
+                <span>Contact me</span>
+                <ChevronDown
+                  size={13}
+                  className={`transition-transform duration-300 ${
+                    activeDrawer === 'contact'
+                      ? 'rotate-180 text-[#Faf9f6]'
+                      : 'text-[#555f6f] group-hover:text-[#1c2229]'
+                  }`}
+                />
+              </button>
+            </div>
           </div>
 
-          {contactOpen && (
+          {activeDrawer === 'meeting' && (
             <div
-              ref={contactRef}
+              ref={drawerRef}
+              className="mt-6 pt-4 border-t border-[#e2e5eb]/60 bg-[#Faf9f6] overflow-hidden transition-all duration-500"
+            >
+              <div className="w-full -mx-2 sm:mx-0 bg-[#Faf9f6]">
+                <div
+                  ref={calendlyContainerRef}
+                  className="calendly-inline-widget w-full"
+                  data-url="https://calendly.com/vedran-brozovic/meet?hide_event_type_details=1&hide_gdpr_banner=1"
+                  style={{
+                    minWidth: '320px',
+                    height: '700px',
+                    filter: 'grayscale(1) contrast(1.04) brightness(1.02)',
+                    mixBlendMode: 'multiply'
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {activeDrawer === 'contact' && (
+            <div
+              ref={drawerRef}
               className="mt-6 pt-4 border-t border-[#e2e5eb]/60 bg-[#Faf9f6] overflow-hidden transition-all duration-500"
             >
               <div className="w-full -mx-2 sm:mx-0 bg-[#Faf9f6]">
