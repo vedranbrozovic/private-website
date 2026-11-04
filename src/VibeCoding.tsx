@@ -84,11 +84,40 @@ const APPS: VibeApp[] = [
 ];
 
 const VibeCoding: React.FC = () => {
-  const [selectedAppId, setSelectedAppId] = useState<string>('crotopia');
+  const getInitialAppId = () => {
+    const params = new URLSearchParams(window.location.search);
+    const appParam = params.get('app');
+    if (appParam && APPS.some(a => a.id === appParam)) {
+      return appParam;
+    }
+    const pathParts = window.location.pathname.split('/').filter(Boolean);
+    if (pathParts[0] === 'vibecoding' && pathParts[1]) {
+      const matched = APPS.find(a => a.id === pathParts[1]);
+      if (matched) return matched.id;
+    }
+    return 'crotopia';
+  };
+
+  const [selectedAppId, setSelectedAppId] = useState<string>(getInitialAppId);
   const [iframeKey, setIframeKey] = useState<number>(0);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const playerRef = useRef<HTMLDivElement>(null);
 
   const activeApp = APPS.find(app => app.id === selectedAppId) || APPS[0];
+
+  const getShareableUrl = (app: VibeApp) => {
+    return `${window.location.origin}${app.localUrl}`;
+  };
+
+  const handleCopyLink = (app: VibeApp, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const url = getShareableUrl(app);
+    navigator.clipboard.writeText(url);
+    setCopiedId(app.id);
+    setTimeout(() => {
+      setCopiedId(prev => (prev === app.id ? null : prev));
+    }, 2000);
+  };
 
   const navigateHome = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
@@ -102,6 +131,8 @@ const VibeCoding: React.FC = () => {
   const handleSelectApp = (appId: string) => {
     setSelectedAppId(appId);
     setIframeKey(k => k + 1);
+    const nextUrl = appId === 'crotopia' ? '/vibecoding' : `/vibecoding?app=${appId}`;
+    window.history.replaceState({}, '', nextUrl);
     if (playerRef.current) {
       playerRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
@@ -176,6 +207,15 @@ const VibeCoding: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-1.5 sm:gap-2">
+              <button
+                type="button"
+                onClick={(e) => handleCopyLink(activeApp, e)}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium text-[#1c2229]/70 hover:text-[#1c2229] hover:bg-black/5 transition-colors cursor-pointer"
+                title="Copy direct link to this game"
+              >
+                <span>{copiedId === activeApp.id ? 'Copied!' : 'Copy Link'}</span>
+              </button>
+
               <button
                 type="button"
                 onClick={handleRestart}

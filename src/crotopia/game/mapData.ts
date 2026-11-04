@@ -1,6 +1,11 @@
 import { BiomeId, LandmarkData, TileData, TileType } from './types';
 export { getTileKey } from './logic';
 
+export const GRID_WIDTH = 42;
+export const GRID_HEIGHT = 40;
+export const SPAWN_X = 20;
+export const SPAWN_Z = 8;
+
 export const BIOMES: Record<BiomeId, {
   name: string;
   subtitle: string;
@@ -31,7 +36,7 @@ export const BIOMES: Record<BiomeId, {
       hill: '#b89437',
       mountain: '#8a6b2d',
     },
-    description: 'Vast fertile plains bounded by the Drava and Danube, home to centuries-old oak forests, Lipizzaner stables, and unbreakable resilience.',
+    description: 'Vast fertile plains bounded by the Drava, Sava, and Danube, home to centuries-old oak forests, Lipizzaner stables, and unbreakable resilience.',
   },
   zagorje: {
     name: 'Central Croatia & Zagorje Hills',
@@ -79,12 +84,12 @@ export const BIOMES: Record<BiomeId, {
       hill: '#dfd7c2',
       mountain: '#ece6d8',
     },
-    description: 'Kilometers of sun-kissed Adriatic coastline lined with Roman amphitheatres, dry-stone olive orchards, and musical sea organs.',
+    description: 'Kilometers of sun-kissed Adriatic coastline and islands lined with Roman amphitheatres, dry-stone olive orchards, and musical sea organs.',
   },
 };
 
 export const LANDMARKS: Record<string, LandmarkData> = {
-  // Biome 1: Slavonia
+  // Biome 1: Slavonia (Scaled to 42x40 grid)
   vukovar_water_tower: {
     id: 'vukovar_water_tower',
     name: 'Vukovar Water Tower',
@@ -94,11 +99,11 @@ export const LANDMARKS: Record<string, LandmarkData> = {
     loreNote: 'Built in 1968 and struck by over 600 artillery shells during the 1991 Battle of Vukovar, the Vukovar Water Tower refused to fall—standing today as Croatia\'s ultimate symbol of resilience and unity.',
     gameBuff: {
       title: 'Unbreakable Morale Aura',
-      description: '+50% defense to all friendly units within a 3-tile radius and prevents adjacent settlements from being captured on the first siege turn.',
-      stat: '+50% Def Aura (3-Tile Radius)',
+      description: '+50% defense to all friendly units within a 6-tile radius and prevents adjacent settlements from being captured on the first siege turn.',
+      stat: '+50% Def Aura (6-Tile Radius)',
     },
-    gridX: 18,
-    gridZ: 4,
+    gridX: 36,
+    gridZ: 8,
     icon: '🏰',
     actionLabel: 'Inspire Defenses',
     modelKey: 'water_tower',
@@ -115,8 +120,8 @@ export const LANDMARKS: Record<string, LandmarkData> = {
       description: 'Unlocks early-game Metallurgy & Masonry tech branches and grants +2 Culture per turn to nearby territories.',
       stat: 'Tech Unlock: Bronze & Masonry',
     },
-    gridX: 19,
-    gridZ: 6,
+    gridX: 38,
+    gridZ: 12,
     icon: '🕊️',
     actionLabel: 'Commune with Ancients',
     modelKey: 'vucedol_dove',
@@ -133,8 +138,8 @@ export const LANDMARKS: Record<string, LandmarkData> = {
       description: 'Harvesting Slavonian oak yields high-value timber for naval fleets; establishing a nature sanctuary yields +3 passive Stars (currency) every turn.',
       stat: '+3 Stars/turn & Naval Lumber',
     },
-    gridX: 17,
-    gridZ: 2,
+    gridX: 34,
+    gridZ: 4,
     icon: '🌳',
     actionLabel: 'Harvest Slavonian Timber',
     modelKey: 'kopacki_rit',
@@ -148,11 +153,11 @@ export const LANDMARKS: Record<string, LandmarkData> = {
     loreNote: 'Bred in Slavonia since 1506, the snow-white Lipizzaner horses of Đakovo are renowned for their royal lineage, intelligence, and noble agility.',
     gameBuff: {
       title: 'Lipizzaner Royal Cavalry',
-      description: 'Upgrades your explorer and warriors into swift, snow-white Lipizzaner Riders with a 3-tile movement range and mountain-path agility.',
-      stat: '+1 Movement Range (3 Tiles)',
+      description: 'Upgrades your explorer into a swift, snow-white Lipizzaner Rider with boosted movement speed and extended vision across the map.',
+      stat: '+50% Speed & Mounted Steed',
     },
-    gridX: 15,
-    gridZ: 5,
+    gridX: 30,
+    gridZ: 10,
     icon: '🐎',
     actionLabel: 'Mount Lipizzaner Steed',
     modelKey: 'djakovo_stables',
@@ -171,8 +176,8 @@ export const LANDMARKS: Record<string, LandmarkData> = {
       description: 'Serves as the capital civic anchor, boosting province stability by +100% and generating +5 Stars each cycle.',
       stat: '+5 Stars & Capital Authority',
     },
-    gridX: 10,
-    gridZ: 4,
+    gridX: 20,
+    gridZ: 8,
     icon: '⛪',
     actionLabel: 'Ring Capitol Bell',
     modelKey: 'st_marks',
@@ -186,11 +191,11 @@ export const LANDMARKS: Record<string, LandmarkData> = {
     loreNote: 'Perched above a serene forest lake in rolling Zagorje, Trakošćan Castle originated as a 13th-century observation fortress before evolving into a fairy-tale aristocratic estate.',
     gameBuff: {
       title: 'Zagorje Sentry Defenses',
-      description: 'Can only be built on a hill tile surrounded by water or forest. Fires defensive ballista projectiles at passing raiders and provides 3-tile vision.',
-      stat: 'Ranged Defense & +3 Vision',
+      description: 'Built on a hill tile surrounded by forest and lake waters. Fires defensive ballista projectiles at passing raiders and provides +5 vision.',
+      stat: 'Ranged Defense & +5 Vision',
     },
-    gridX: 9,
-    gridZ: 1,
+    gridX: 18,
+    gridZ: 3,
     icon: '🏰',
     actionLabel: 'Survey the Zagorje Hills',
     modelKey: 'trakoscan_castle',
@@ -207,8 +212,8 @@ export const LANDMARKS: Record<string, LandmarkData> = {
       description: 'Increases city population growth rate by +25% and reduces the gold cost of forging alliances and peace treaties by 40%.',
       stat: '+25% Growth & -40% Treaty Cost',
     },
-    gridX: 11,
-    gridZ: 6,
+    gridX: 22,
+    gridZ: 11,
     icon: '❤️',
     actionLabel: 'Craft Honey-Dough Heart',
     modelKey: 'licitar_workshop',
@@ -227,8 +232,8 @@ export const LANDMARKS: Record<string, LandmarkData> = {
       description: 'Units resting on or adjacent to Plitvice terraces heal to full HP in a single turn and gain water-walking grace.',
       stat: 'Full HP Regeneration Aura',
     },
-    gridX: 9,
-    gridZ: 8,
+    gridX: 18,
+    gridZ: 16,
     icon: '💧',
     actionLabel: 'Drink from Travertine Waters',
     modelKey: 'plitvice_terraces',
@@ -242,11 +247,11 @@ export const LANDMARKS: Record<string, LandmarkData> = {
     loreNote: 'Born in the mountainous Lika village of Smiljan during a fierce lightning storm, Nikola Tesla pioneered alternating current and wireless energy—forever electrifying the modern world.',
     gameBuff: {
       title: 'Wireless Resonance Matrix',
-      description: 'Reveals all Fog of War within a 5-tile radius with crackling cyan energy and overcharges adjacent settlements to double production.',
-      stat: '5-Tile Fog Reveal & 2x Production',
+      description: 'Reveals all Fog of War within a 9-tile radius with crackling cyan energy and overcharges adjacent settlements to double production.',
+      stat: '9-Tile Fog Reveal & 2x Production',
     },
-    gridX: 7,
-    gridZ: 10,
+    gridX: 14,
+    gridZ: 20,
     icon: '⚡',
     actionLabel: 'Activate Wireless Arc',
     modelKey: 'tesla_coil',
@@ -261,10 +266,10 @@ export const LANDMARKS: Record<string, LandmarkData> = {
     gameBuff: {
       title: 'Limestone Summit Overwatch',
       description: 'Grants broad line-of-sight across the Adriatic archipelago and unlocks high-altitude alpine herbalism medicines.',
-      stat: '+4 Elevated Sight & Alpine Flora',
+      stat: '+6 Elevated Sight & Alpine Flora',
     },
-    gridX: 6,
-    gridZ: 9,
+    gridX: 12,
+    gridZ: 18,
     icon: '🌼',
     actionLabel: 'Search for Degenija Bloom',
     modelKey: 'velebit_peaks',
@@ -283,8 +288,8 @@ export const LANDMARKS: Record<string, LandmarkData> = {
       description: 'Allows training of elite Dalmatian Legion units and generates massive tourism prestige (+10 Stars per landmark visited).',
       stat: 'Train Elite Legions & +10 Stars',
     },
-    gridX: 3,
-    gridZ: 6,
+    gridX: 6,
+    gridZ: 12,
     icon: '🏛️',
     actionLabel: 'Hold Imperial Games',
     modelKey: 'pula_arena',
@@ -301,8 +306,8 @@ export const LANDMARKS: Record<string, LandmarkData> = {
       description: 'When visited or when ocean waves touch it, emits warm harmonic chords that boost happiness (+100%) and coastal commerce score.',
       stat: 'Harmonic Chord & +100% Joy',
     },
-    gridX: 7,
-    gridZ: 12,
+    gridX: 14,
+    gridZ: 24,
     icon: '🌊',
     actionLabel: 'Listen to the Sea Organ',
     modelKey: 'sea_organ',
@@ -319,8 +324,8 @@ export const LANDMARKS: Record<string, LandmarkData> = {
       description: 'Transforms barren karst into high-yield olive orchards and lavender terraces, doubling food output on stony coastal land.',
       stat: '+100% Coastal Agriculture',
     },
-    gridX: 9,
-    gridZ: 14,
+    gridX: 19,
+    gridZ: 28,
     icon: '🫒',
     actionLabel: 'Tame Karst with Dry-Stone',
     modelKey: 'suhozid_kazun',
@@ -337,115 +342,238 @@ export const LANDMARKS: Record<string, LandmarkData> = {
       description: 'Blocks naval bombardment completely and grants +100% coastal trade income to the Republic of Ragusa.',
       stat: 'Blocks Bombardment & +100% Trade',
     },
-    gridX: 14,
-    gridZ: 18,
+    gridX: 28,
+    gridZ: 36,
     icon: '🛡️',
     actionLabel: 'Patrol Minčeta Ramparts',
     modelKey: 'dubrovnik_walls',
   },
 };
 
-export const GRID_WIDTH = 21;
-export const GRID_HEIGHT = 20;
-
 /**
- * Procedural generation of Croatia's iconic crescent/horseshoe map.
+ * Procedural generation of Croatia's iconic crescent/horseshoe map at 4x area scale (42 x 40 = 1,680 tiles).
  * Land coordinates mirror real Croatian geography:
- * - Slavonia in Northeast
- * - Zagorje / Zagreb in North-Center
- * - Istria peninsula in West
- * - Lika / Velebit spine through Central-South
- * - Dalmatian coast & islands stretching to the South-East
+ * - Slavonia in Northeast (X 25-40, Z 3-14)
+ * - Zagorje / Zagreb in North-Center (X 14-25, Z 2-13)
+ * - Istria peninsula in West (X 4-10, Z 9-17)
+ * - Lika / Velebit spine through Central-South (X 11-21, Z 12-23)
+ * - Dalmatian coast & rich Adriatic archipelago stretching to the South-East (X 12-33, Z 22-38)
  */
 export function generateCroatiaMap(): TileData[] {
   const tiles: TileData[] = [];
 
-  // Shape test function: returns true if coordinate is inside Croatia's borders or islands
+  // Deterministic pseudo-noise helper for organic elevation & foliage variation
+  function hashNoise(x: number, z: number): number {
+    const n = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453;
+    return n - Math.floor(n);
+  }
+
   function isCroatiaLand(x: number, z: number): { isLand: boolean; biome: BiomeId; type: TileType; height: number } {
-    // 1. Slavonia arm (East: X 13-20, Z 2-7)
-    if (x >= 13 && x <= 20 && z >= 2 && z <= 6) {
-      if (x === 17 && z === 2) return { isLand: true, biome: 'slavonia', type: 'wetland', height: 0.2 }; // Kopački Rit
-      if (x >= 18) return { isLand: true, biome: 'slavonia', type: 'plain', height: 0.3 };
-      return { isLand: true, biome: 'slavonia', type: (x + z) % 3 === 0 ? 'forest' : 'plain', height: 0.35 };
+    const n = hashNoise(x, z);
+
+    // Exact landmark overrides first so landmarks always sit on tailored terrain
+    if (x === 34 && z === 4) return { isLand: true, biome: 'slavonia', type: 'wetland', height: 0.22 }; // Kopački Rit
+    if (x === 18 && z === 3) return { isLand: true, biome: 'zagorje', type: 'hill', height: 0.78 }; // Trakošćan
+    if (x === 20 && z === 8) return { isLand: true, biome: 'zagorje', type: 'city', height: 0.52 }; // Zagreb
+    if (x === 6 && z === 12) return { isLand: true, biome: 'dalmatia', type: 'plain', height: 0.45 }; // Pula
+    if (x === 18 && z === 16) return { isLand: true, biome: 'lika', type: 'wetland', height: 0.62 }; // Plitvice
+    if (x === 12 && z === 18) return { isLand: true, biome: 'lika', type: 'mountain', height: 1.18 }; // Velebit
+    if (x === 14 && z === 20) return { isLand: true, biome: 'lika', type: 'hill', height: 0.76 }; // Smiljan
+    if (x === 14 && z === 24) return { isLand: true, biome: 'dalmatia', type: 'coast', height: 0.32 }; // Zadar
+    if (x === 19 && z === 28) return { isLand: true, biome: 'dalmatia', type: 'plain', height: 0.38 }; // Suhozid
+    if (x === 28 && z === 36) return { isLand: true, biome: 'dalmatia', type: 'city', height: 0.44 }; // Dubrovnik
+
+    // 1. Slavonia & Baranja arm (East: X 25-40, Z 3-13)
+    if (x >= 25 && x <= 40 && z >= 3 && z <= 13) {
+      // Taper corners for organic Pannonian basin shape
+      if (x >= 38 && (z <= 4 || z >= 13)) {
+        // Danube river border
+      } else if (z === 3 && x >= 32 && x <= 36) {
+        return { isLand: true, biome: 'slavonia', type: 'wetland', height: 0.2 };
+      } else {
+        // Papuk & Krndija hills in central-west Slavonia
+        if (x >= 26 && x <= 30 && z >= 6 && z <= 8) {
+          return { isLand: true, biome: 'slavonia', type: 'hill', height: 0.62 + n * 0.12 };
+        }
+        // Danube & Drava floodplains
+        if (x >= 33 && x <= 36 && z >= 3 && z <= 6) {
+          return { isLand: true, biome: 'slavonia', type: 'wetland', height: 0.22 + n * 0.05 };
+        }
+        const isForest = (x + z) % 3 === 0 || (n > 0.68 && x < 36);
+        return {
+          isLand: true,
+          biome: 'slavonia',
+          type: isForest ? 'forest' : 'plain',
+          height: 0.3 + n * 0.1,
+        };
+      }
     }
 
-    // 2. Central Croatia / Zagorje (X 7-12, Z 1-6)
-    if (x >= 7 && x <= 12 && z >= 1 && z <= 6) {
-      if (x === 9 && z === 1) return { isLand: true, biome: 'zagorje', type: 'hill', height: 0.7 }; // Trakošćan
-      if (x === 10 && z === 4) return { isLand: true, biome: 'zagorje', type: 'city', height: 0.5 }; // Zagreb
-      const isHill = (x * 3 + z * 5) % 4 === 0 || z <= 2;
-      return { isLand: true, biome: 'zagorje', type: isHill ? 'hill' : 'forest', height: isHill ? 0.65 : 0.45 };
+    // 2. Central Croatia, Međimurje & Zagorje Hills (X 14-25, Z 2-13)
+    if (x >= 14 && x <= 25 && z >= 2 && z <= 13) {
+      if (z === 2 && (x < 16 || x > 22)) {
+        // Northern border taper
+      } else {
+        const isHill = (x * 3 + z * 5) % 4 === 0 || z <= 5;
+        const isMountain = x >= 18 && x <= 21 && z === 6; // Medvednica / Sljeme above Zagreb
+        if (isMountain) {
+          return { isLand: true, biome: 'zagorje', type: 'mountain', height: 0.92 + n * 0.1 };
+        }
+        return {
+          isLand: true,
+          biome: 'zagorje',
+          type: isHill ? 'hill' : n > 0.45 ? 'forest' : 'plain',
+          height: isHill ? 0.6 + n * 0.12 : 0.42 + n * 0.08,
+        };
+      }
     }
 
-    // 3. Istria Peninsula (X 2-5, Z 5-8)
-    if (x >= 2 && x <= 4 && z >= 5 && z <= 8) {
-      if (x === 4 && z === 5) return { isLand: true, biome: 'dalmatia', type: 'coast', height: 0.4 };
-      if (x === 3 && z === 6) return { isLand: true, biome: 'dalmatia', type: 'plain', height: 0.45 }; // Pula
-      return { isLand: true, biome: 'dalmatia', type: 'coast', height: 0.35 };
+    // 3. Istria Heart-Shaped Peninsula (X 4-10, Z 9-17)
+    if (x >= 4 && x <= 10 && z >= 9 && z <= 17) {
+      // Heart peninsula taper at south tip (Kamenjak: X 6-8, Z 16-17)
+      const inIstria =
+        (z <= 14 && x >= 4 && x <= 9) ||
+        (z === 15 && x >= 5 && x <= 8) ||
+        (z >= 16 && x >= 6 && x <= 7);
+      if (inIstria) {
+        const isUcka = x === 9 && z >= 11 && z <= 13; // Učka mountain
+        if (isUcka) return { isLand: true, biome: 'dalmatia', type: 'mountain', height: 0.85 };
+        const isInterior = x >= 6 && x <= 8 && z >= 10 && z <= 13; // Motovun hills
+        return {
+          isLand: true,
+          biome: 'dalmatia',
+          type: isInterior ? (n > 0.5 ? 'hill' : 'forest') : 'coast',
+          height: isInterior ? 0.52 + n * 0.1 : 0.34 + n * 0.08,
+        };
+      }
     }
 
-    // Kvarner Bay / Gorski Kotar connector (X 5-7, Z 5-7)
-    if (x >= 5 && x <= 6 && z >= 5 && z <= 7) {
-      return { isLand: true, biome: 'lika', type: 'mountain', height: 0.8 };
+    // Kvarner Bay & Gorski Kotar highland connector (X 9-14, Z 9-14)
+    if (x >= 9 && x <= 14 && z >= 9 && z <= 14) {
+      if (!(x <= 10 && z >= 13)) {
+        return {
+          isLand: true,
+          biome: 'lika',
+          type: (x + z) % 2 === 0 ? 'mountain' : 'forest',
+          height: 0.78 + n * 0.18,
+        };
+      }
     }
 
-    // 4. Lika & Dinaric Alps spine (X 6-10, Z 7-11)
-    if (x >= 6 && x <= 10 && z >= 7 && z <= 11) {
-      if (x === 9 && z === 8) return { isLand: true, biome: 'lika', type: 'wetland', height: 0.6 }; // Plitvice
-      if (x === 6 && z === 8 || (x === 6 && z === 9)) return { isLand: true, biome: 'lika', type: 'mountain', height: 1.1 }; // Velebit peaks
-      if (x === 7 && z === 10) return { isLand: true, biome: 'lika', type: 'hill', height: 0.75 }; // Smiljan
-      const isMtn = (x + z) % 2 === 0;
-      return { isLand: true, biome: 'lika', type: isMtn ? 'mountain' : 'forest', height: isMtn ? 0.95 : 0.65 };
+    // 4. Lika & Dinaric Alps Spine (X 11-21, Z 13-23)
+    if (x >= 11 && x <= 21 && z >= 13 && z <= 23) {
+      // Plitvice & Korana river basin
+      if (x >= 17 && x <= 19 && z >= 15 && z <= 17) {
+        return { isLand: true, biome: 'lika', type: 'wetland', height: 0.58 + n * 0.06 };
+      }
+      // Velebit coastal ridge
+      if (x >= 11 && x <= 13 && z >= 15 && z <= 21) {
+        return { isLand: true, biome: 'lika', type: 'mountain', height: 1.05 + n * 0.18 };
+      }
+      const isMtn = (x + z) % 2 === 0 || n > 0.65;
+      return {
+        isLand: true,
+        biome: 'lika',
+        type: isMtn ? 'mountain' : n > 0.3 ? 'forest' : 'hill',
+        height: isMtn ? 0.9 + n * 0.15 : 0.65 + n * 0.1,
+      };
     }
 
-    // 5. Northern Dalmatia (Zadar region: X 6-9, Z 11-13)
-    if (x >= 6 && x <= 9 && z >= 11 && z <= 13) {
-      if (x === 7 && z === 12) return { isLand: true, biome: 'dalmatia', type: 'coast', height: 0.3 }; // Zadar
-      return { isLand: true, biome: 'dalmatia', type: x === 6 ? 'coast' : 'hill', height: 0.45 };
+    // 5. Northern Dalmatia & Zadar Ravni Kotari (X 12-19, Z 22-27)
+    if (x >= 12 && x <= 19 && z >= 22 && z <= 27) {
+      const isCoast = x <= 14 || z >= 26;
+      return {
+        isLand: true,
+        biome: 'dalmatia',
+        type: isCoast ? 'coast' : n > 0.5 ? 'hill' : 'plain',
+        height: isCoast ? 0.32 + n * 0.06 : 0.46 + n * 0.1,
+      };
     }
 
-    // 6. Central Dalmatia & Split (X 9-12, Z 13-15)
-    if (x >= 9 && x <= 12 && z >= 13 && z <= 15) {
-      if (x === 9 && z === 14) return { isLand: true, biome: 'dalmatia', type: 'plain', height: 0.35 }; // Suhozid
-      return { isLand: true, biome: 'dalmatia', type: (x + z) % 2 === 0 ? 'coast' : 'hill', height: 0.4 };
+    // 6. Central Dalmatia, Šibenik & Split / Biokovo (X 17-25, Z 26-32)
+    if (x >= 17 && x <= 25 && z >= 26 && z <= 32) {
+      const isBiokovo = x >= 23 && z >= 28;
+      if (isBiokovo) {
+        return { isLand: true, biome: 'dalmatia', type: 'mountain', height: 0.92 + n * 0.12 };
+      }
+      return {
+        isLand: true,
+        biome: 'dalmatia',
+        type: x <= 19 ? 'coast' : (x + z) % 2 === 0 ? 'hill' : 'plain',
+        height: 0.36 + n * 0.12,
+      };
     }
 
-    // 7. Southern Dalmatia & Dubrovnik (X 12-16, Z 16-19)
-    if (x >= 12 && x <= 16 && z >= 16 && z <= 19) {
-      if (x === 14 && z === 18) return { isLand: true, biome: 'dalmatia', type: 'city', height: 0.4 }; // Dubrovnik
-      if (x >= 15 && z >= 18) return { isLand: true, biome: 'dalmatia', type: 'mountain', height: 0.85 };
-      return { isLand: true, biome: 'dalmatia', type: 'coast', height: 0.35 };
+    // 7. Southern Dalmatia, Pelješac & Dubrovnik (X 23-33, Z 31-38)
+    if (x >= 23 && x <= 33 && z >= 31 && z <= 38) {
+      // Taper along the southern coast
+      const inSouthDalmatia =
+        (z <= 34 && x >= 23 && x <= 29) ||
+        (z >= 35 && x >= 25 && x <= 32);
+      if (inSouthDalmatia) {
+        if (x >= 29 && z >= 35) {
+          return { isLand: true, biome: 'dalmatia', type: 'mountain', height: 0.84 + n * 0.1 }; // Srđ & Sniježnica
+        }
+        return {
+          isLand: true,
+          biome: 'dalmatia',
+          type: n > 0.65 ? 'hill' : 'coast',
+          height: 0.35 + n * 0.08,
+        };
+      }
     }
 
-    // 8. Adriatic Islands (Krk at 5,6; Cres at 4,7; Brač at 10,15; Hvar at 9,16; Korčula at 11,17)
-    const isIsland = 
-      (x === 5 && z === 7) || // Krk
-      (x === 4 && z === 8) || // Cres / Lošinj
-      (x === 10 && z === 15) || // Brač
-      (x === 9 && z === 16) || // Hvar
-      (x === 11 && z === 17); // Korčula
+    // 8. Expanded Adriatic Archipelago (Islands with shallow water bridges so all are explorable!)
+    const isIsland =
+      // Krk
+      (x >= 9 && x <= 10 && z >= 14 && z <= 15) ||
+      // Cres & Lošinj
+      (x >= 7 && x <= 8 && z >= 15 && z <= 18) ||
+      // Rab & Pag
+      (x >= 10 && x <= 11 && z >= 18 && z <= 21) ||
+      // Dugi Otok & Kornati
+      (x >= 10 && x <= 12 && z >= 23 && z <= 26) ||
+      // Brač
+      (x >= 19 && x <= 21 && z === 30) ||
+      // Hvar
+      (x >= 17 && x <= 21 && z === 32) ||
+      // Vis
+      (x >= 15 && x <= 16 && z === 33) ||
+      // Korčula
+      (x >= 20 && x <= 23 && z === 34) ||
+      // Mljet
+      (x >= 23 && x <= 25 && z === 36);
+
     if (isIsland) {
-      return { isLand: true, biome: 'dalmatia', type: 'coast', height: 0.4 };
+      return {
+        isLand: true,
+        biome: 'dalmatia',
+        type: n > 0.6 ? 'hill' : 'coast',
+        height: 0.38 + n * 0.08,
+      };
     }
 
-    // Water tile: deep water in outer Adriatic, shallow water near coast
-    const isShallow = 
-      (x >= 1 && x <= 16 && z >= 4 && z <= 19) && 
-      (Math.abs(x - 6) <= 3 || Math.abs(z - 12) <= 4);
+    // Water tile: shallow coastal waters around mainland and islands, deep water in outer Adriatic
+    const isShallow =
+      (x >= 3 && x <= 34 && z >= 8 && z <= 38) &&
+      (
+        (x >= 5 && x <= 15 && z >= 11 && z <= 28) ||
+        (x >= 13 && x <= 27 && z >= 25 && z <= 37) ||
+        (x >= 24 && x <= 33 && z >= 33 && z <= 38)
+      );
 
     return {
       isLand: false,
-      biome: x > 12 ? 'slavonia' : z < 7 ? 'zagorje' : z < 11 ? 'lika' : 'dalmatia',
+      biome: x > 24 ? 'slavonia' : z < 14 ? 'zagorje' : z < 22 ? 'lika' : 'dalmatia',
       type: isShallow ? 'shallow_water' : 'deep_water',
-      height: 0.05,
+      height: isShallow ? 0.08 : 0.04,
     };
   }
 
   for (let z = 0; z < GRID_HEIGHT; z++) {
     for (let x = 0; x < GRID_WIDTH; x++) {
       const info = isCroatiaLand(x, z);
-      
-      // Match landmark at this position
+
       let matchedLandmarkId: string | undefined;
       for (const [id, lm] of Object.entries(LANDMARKS)) {
         if (lm.gridX === x && lm.gridZ === z) {
@@ -454,7 +582,6 @@ export function generateCroatiaMap(): TileData[] {
         }
       }
 
-      // Color selection based on biome and tile type
       const biomeColors = BIOMES[info.biome].colors;
       let baseColor = biomeColors.grass;
       if (!info.isLand) {

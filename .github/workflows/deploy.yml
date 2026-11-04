@@ -3,6 +3,7 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [ "main" ]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -24,7 +25,13 @@ jobs:
       - name: Build
         env:
           VITE_PROXY_URL: https://website.brozovic-vedran.workers.dev/
-        run: npm run build
+        run: |
+          npm run build
+          cp dist/index.html dist/404.html
+          for route in vibecoding vibecoding/crotopia reading education work nonprofit ballislife blog film old; do
+            mkdir -p "dist/$route"
+            cp dist/index.html "dist/$route/index.html"
+          done
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

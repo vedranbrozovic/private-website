@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { CharacterCustomization, DEFAULT_CHARACTER_CUSTOMIZATION } from './types';
 
 // Shared materials for performance and crisp low-poly flat-shaded aesthetic
 const materialsCache = new Map<string, THREE.Material>();
@@ -734,108 +735,292 @@ export function createDubrovnikWalls(): THREE.Group {
 }
 
 /**
- * Low-poly Explorer Character
+ * Low-poly Customizable Explorer Character with articulated limb pivots for smooth walking/riding animation
  */
-export function createExplorerUnit(isMounted: boolean = false): THREE.Group {
+export function createExplorerUnit(
+  isMounted: boolean = false,
+  customization: CharacterCustomization = DEFAULT_CHARACTER_CUSTOMIZATION
+): THREE.Group {
   const group = new THREE.Group();
   group.name = 'explorer_unit';
 
+  const bodyPivot = new THREE.Group();
+  bodyPivot.name = 'body_pivot';
+  group.add(bodyPivot);
+
+  const outfitMat = getMat(customization.outfitColor || '#2563eb', 0.78, 0.12);
+  const cloakMat = getMat(customization.cloakColor || '#dc2626', 0.7, 0.1);
+  const skinMat = getMat(customization.skinTone || '#ffd8be', 0.7, 0.05);
+  const hairMat = getMat(customization.hairColor || '#4a2e1b', 0.85, 0.05);
+
+  // Helper to attach headgear & hair to a head group
+  const attachHeadgear = (headNode: THREE.Group, headY: number) => {
+    // Styled hair base
+    const hairBack = new THREE.Mesh(new THREE.BoxGeometry(0.21, 0.12, 0.19), hairMat);
+    hairBack.position.set(0, headY + 0.03, -0.02);
+    headNode.add(hairBack);
+
+    switch (customization.hatStyle) {
+      case 'sestine': {
+        // Traditional Zagreb Šestine Hat (Šestinski škrlak): Black dome + red/gold band
+        const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.03, 10), getMat(0x18181b, 0.85, 0.05));
+        brim.position.set(0, headY + 0.08, 0);
+        headNode.add(brim);
+
+        const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 0.13, 8), getMat(0x18181b, 0.85, 0.05));
+        crown.position.set(0, headY + 0.15, 0);
+        headNode.add(crown);
+
+        const ribbon = new THREE.Mesh(new THREE.CylinderGeometry(0.152, 0.152, 0.035, 8), getMat(0xdc2626, 0.6, 0.1));
+        ribbon.position.set(0, headY + 0.105, 0);
+        headNode.add(ribbon);
+        break;
+      }
+      case 'sailor': {
+        // Adriatic Captain / Sailor Cap
+        const visor = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.025, 0.12), getMat(0x0f172a, 0.4, 0.3));
+        visor.position.set(0, headY + 0.08, 0.09);
+        headNode.add(visor);
+
+        const band = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.04, 8), getMat(0x1e3a8a, 0.7, 0.1));
+        band.position.set(0, headY + 0.1, 0);
+        headNode.add(band);
+
+        const top = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.13, 0.06, 8), getMat(0xf8fafc, 0.75, 0.05));
+        top.position.set(0, headY + 0.14, 0);
+        headNode.add(top);
+        break;
+      }
+      case 'beanie': {
+        // Alpine Velebit Knitted Beanie
+        const dome = new THREE.Mesh(new THREE.SphereGeometry(0.135, 7, 6), cloakMat);
+        dome.position.set(0, headY + 0.07, 0);
+        headNode.add(dome);
+
+        const pom = new THREE.Mesh(new THREE.SphereGeometry(0.05, 5, 5), getMat(0xf8fafc, 0.9, 0.0));
+        pom.position.set(0, headY + 0.21, 0);
+        headNode.add(pom);
+        break;
+      }
+      case 'crown': {
+        // Medieval Croatian King Tomislav Golden Crown
+        const goldMat = getMat(0xfbbf24, 0.25, 0.85);
+        const circlet = new THREE.Mesh(new THREE.CylinderGeometry(0.135, 0.13, 0.07, 8), goldMat);
+        circlet.position.set(0, headY + 0.11, 0);
+        headNode.add(circlet);
+
+        for (let i = 0; i < 4; i++) {
+          const angle = (i * Math.PI) / 2;
+          const gem = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.06, 0.04), getMat(0xdc2626, 0.3, 0.4));
+          gem.position.set(Math.cos(angle) * 0.13, headY + 0.15, Math.sin(angle) * 0.13);
+          headNode.add(gem);
+        }
+        break;
+      }
+      case 'none': {
+        // Extra hair crest when hatless
+        const hairTop = new THREE.Mesh(new THREE.DodecahedronGeometry(0.125, 0), hairMat);
+        hairTop.position.set(0, headY + 0.07, 0.01);
+        headNode.add(hairTop);
+        break;
+      }
+      case 'fedora':
+      default: {
+        const hatBrim = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.03, 8), getMat(0x8a5d3b, 0.85, 0.05));
+        hatBrim.position.set(0, headY + 0.08, 0);
+        headNode.add(hatBrim);
+
+        const hatCrown = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.12, 7), getMat(0x8a5d3b, 0.85, 0.05));
+        hatCrown.position.set(0, headY + 0.15, 0);
+        headNode.add(hatCrown);
+        break;
+      }
+    }
+  };
+
+  // Helper to attach handheld accessory to right arm group
+  const attachAccessory = (armR: THREE.Group) => {
+    switch (customization.accessory) {
+      case 'tambura': {
+        // Slavonian Tambura lute
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.05, 7), getMat(0xd97706, 0.7, 0.1));
+        body.rotation.z = Math.PI / 2;
+        body.position.set(0.05, -0.14, 0.12);
+        armR.add(body);
+
+        const neck = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.28, 0.03), getMat(0x78350f, 0.85, 0.05));
+        neck.rotation.x = -0.5;
+        neck.position.set(0.05, 0.0, 0.2);
+        armR.add(neck);
+        break;
+      }
+      case 'lantern': {
+        // Glowing Explorer Lantern
+        const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.15, 4), getMat(0x334155, 0.5, 0.7));
+        handle.position.set(0.04, -0.16, 0.12);
+        armR.add(handle);
+
+        const core = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.055, 0.045, 0.12, 6),
+          getMat(0xfef08a, 0.2, 0.1, 0xf59e0b)
+        );
+        core.position.set(0.04, -0.24, 0.12);
+        armR.add(core);
+        break;
+      }
+      case 'shield': {
+        // Croatian Šahovnica Shield
+        const shieldBase = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.28, 0.24), getMat(0xf8fafc, 0.6, 0.2));
+        shieldBase.position.set(0.06, -0.1, 0.06);
+        armR.add(shieldBase);
+
+        const crest = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.16, 0.16), getMat(0xdc2626, 0.5, 0.1));
+        crest.position.set(0.065, -0.1, 0.06);
+        armR.add(crest);
+        break;
+      }
+      case 'staff':
+      default: {
+        const staff = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.025, 0.82, 5), getMat(0x8c6239, 0.9, 0.05));
+        staff.position.set(0.04, -0.05, 0.1);
+        armR.add(staff);
+        break;
+      }
+    }
+  };
+
   if (isMounted) {
     // Snow-white Lipizzaner Horse Mount
-    const horseMat = getMat(0xffffff, 0.6, 0.1);
+    const horseMat = getMat(0xffffff, 0.55, 0.1);
     const saddleMat = getMat(0x8a3826, 0.85, 0.1);
 
     // Horse body
     const horseBody = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.32, 0.6), horseMat);
     horseBody.position.y = 0.45;
-    group.add(horseBody);
+    bodyPivot.add(horseBody);
 
     // Horse neck & head
     const neck = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.32, 0.2), horseMat);
     neck.position.set(0, 0.68, 0.28);
     neck.rotation.x = 0.35;
-    group.add(neck);
+    bodyPivot.add(neck);
 
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.16, 0.24), horseMat);
     head.position.set(0, 0.82, 0.38);
-    group.add(head);
+    bodyPivot.add(head);
 
-    // 4 Horse legs
-    for (let x = -0.1; x <= 0.1; x += 0.2) {
-      for (let z = -0.22; z <= 0.22; z += 0.44) {
-        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.035, 0.36, 4), horseMat);
-        leg.position.set(x, 0.18, z);
-        group.add(leg);
-      }
-    }
+    // 4 Articulated Horse legs
+    const legCoords = [
+      { name: 'horse_leg_fl', x: -0.1, z: 0.22 },
+      { name: 'horse_leg_fr', x: 0.1, z: 0.22 },
+      { name: 'horse_leg_bl', x: -0.1, z: -0.22 },
+      { name: 'horse_leg_br', x: 0.1, z: -0.22 },
+    ];
+    legCoords.forEach(lc => {
+      const legPivot = new THREE.Group();
+      legPivot.name = lc.name;
+      legPivot.position.set(lc.x, 0.34, lc.z);
+      const legMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.035, 0.34, 5), horseMat);
+      legMesh.position.y = -0.17;
+      legPivot.add(legMesh);
+      bodyPivot.add(legPivot);
+    });
 
     // Saddle
     const saddle = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.08, 0.26), saddleMat);
     saddle.position.set(0, 0.62, 0);
-    group.add(saddle);
+    bodyPivot.add(saddle);
 
     // Explorer Rider on top
-    const riderTorso = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.28, 0.16), getMat(0x23497d, 0.8, 0.1));
+    const riderTorso = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.28, 0.16), outfitMat);
     riderTorso.position.set(0, 0.8, 0);
-    group.add(riderTorso);
+    bodyPivot.add(riderTorso);
 
-    const riderHead = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 6), getMat(0xffd5b8, 0.7, 0.05));
-    riderHead.position.set(0, 1.02, 0);
-    group.add(riderHead);
+    const riderScarf = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.07, 0.18), cloakMat);
+    riderScarf.position.set(0, 0.93, 0);
+    bodyPivot.add(riderScarf);
 
-    const hat = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.04, 8), getMat(0x6b4a2d, 0.85, 0.05));
-    hat.position.set(0, 1.1, 0);
-    group.add(hat);
+    const headNode = new THREE.Group();
+    const riderHead = new THREE.Mesh(new THREE.SphereGeometry(0.105, 7, 7), skinMat);
+    riderHead.position.set(0, 1.03, 0);
+    headNode.add(riderHead);
+    attachHeadgear(headNode, 1.03);
+    bodyPivot.add(headNode);
+
+    const armR = new THREE.Group();
+    armR.name = 'arm_r';
+    armR.position.set(0.14, 0.88, 0);
+    attachAccessory(armR);
+    bodyPivot.add(armR);
   } else {
-    // Ground Explorer on foot
-    // Legs
-    const pantsMat = getMat(0x3e4d59, 0.85, 0.05);
+    // Ground Explorer on foot with articulated limbs
+    const pantsMat = getMat(0x334155, 0.85, 0.05);
+
+    const legLPivot = new THREE.Group();
+    legLPivot.name = 'leg_l';
+    legLPivot.position.set(-0.07, 0.28, 0);
     const legL = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.28, 0.1), pantsMat);
-    legL.position.set(-0.07, 0.14, 0);
-    group.add(legL);
+    legL.position.y = -0.14;
+    legLPivot.add(legL);
+    bodyPivot.add(legLPivot);
 
+    const legRPivot = new THREE.Group();
+    legRPivot.name = 'leg_r';
+    legRPivot.position.set(0.07, 0.28, 0);
     const legR = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.28, 0.1), pantsMat);
-    legR.position.set(0.07, 0.14, 0);
-    group.add(legR);
+    legR.position.y = -0.14;
+    legRPivot.add(legR);
+    bodyPivot.add(legRPivot);
 
-    // Torso (Cozy jacket with red scarf)
-    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.32, 0.18), getMat(0x325b84, 0.8, 0.1));
+    // Torso
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.32, 0.18), outfitMat);
     torso.position.set(0, 0.44, 0);
-    group.add(torso);
+    bodyPivot.add(torso);
 
-    // Red scarf
-    const scarf = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.08, 0.2), getMat(0xd4382c, 0.7, 0.1));
+    // Croatian Cravat / Scarf & Cloak Trim
+    const scarf = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.08, 0.2), cloakMat);
     scarf.position.set(0, 0.6, 0);
-    group.add(scarf);
+    bodyPivot.add(scarf);
 
-    // Head
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.11, 7, 7), getMat(0xffd8be, 0.7, 0.05));
+    const cravatTie = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.14, 0.03), cloakMat);
+    cravatTie.position.set(0, 0.5, 0.1);
+    bodyPivot.add(cravatTie);
+
+    // Articulated Arms
+    const armLPivot = new THREE.Group();
+    armLPivot.name = 'arm_l';
+    armLPivot.position.set(-0.16, 0.56, 0);
+    const armLMesh = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.24, 0.08), outfitMat);
+    armLMesh.position.y = -0.12;
+    armLPivot.add(armLMesh);
+    bodyPivot.add(armLPivot);
+
+    const armRPivot = new THREE.Group();
+    armRPivot.name = 'arm_r';
+    armRPivot.position.set(0.16, 0.56, 0);
+    const armRMesh = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.24, 0.08), outfitMat);
+    armRMesh.position.y = -0.12;
+    armRPivot.add(armRMesh);
+    attachAccessory(armRPivot);
+    bodyPivot.add(armRPivot);
+
+    // Head + Hat
+    const headNode = new THREE.Group();
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.11, 7, 7), skinMat);
     head.position.set(0, 0.72, 0);
-    group.add(head);
-
-    // Explorer Fedora Hat
-    const hatBrim = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.03, 8), getMat(0x8a5d3b, 0.85, 0.05));
-    hatBrim.position.set(0, 0.8, 0);
-    group.add(hatBrim);
-
-    const hatCrown = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.12, 7), getMat(0x8a5d3b, 0.85, 0.05));
-    hatCrown.position.set(0, 0.87, 0);
-    group.add(hatCrown);
+    headNode.add(head);
+    attachHeadgear(headNode, 0.72);
+    bodyPivot.add(headNode);
 
     // Backpack
     const pack = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.24, 0.12), getMat(0x73512b, 0.9, 0.05));
     pack.position.set(0, 0.44, -0.13);
-    group.add(pack);
-
-    // Wooden Walking Staff
-    const staff = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.025, 0.8, 4), getMat(0x8c6239, 0.9, 0.05));
-    staff.position.set(0.18, 0.4, 0.1);
-    group.add(staff);
+    bodyPivot.add(pack);
   }
 
   // Soft contact shadow disc underneath
   const shadow = new THREE.Mesh(
-    new THREE.CircleGeometry(0.35, 12),
+    new THREE.CircleGeometry(0.36, 12),
     new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false })
   );
   shadow.rotation.x = -Math.PI / 2;

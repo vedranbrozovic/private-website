@@ -3,49 +3,69 @@ import { TitleScreen } from './components/TitleScreen';
 import { HUD } from './components/HUD';
 import { BottomDrawer } from './components/BottomDrawer';
 import { CodexModal } from './components/CodexModal';
+import { CharacterCustomizerModal } from './components/CharacterCustomizerModal';
 import { PauseModal, VictoryModal } from './components/StatusModals';
 import { WorldScene } from './game/worldScene';
-import { generateCroatiaMap, LANDMARKS, getTileKey } from './game/mapData';
+import { generateCroatiaMap, LANDMARKS, SPAWN_X, SPAWN_Z, getTileKey } from './game/mapData';
 import { canMoveTo, getReachableTiles, revealFogOfWar } from './game/logic';
-import { TileData, LandmarkData, PlayerState } from './game/types';
+import {
+  TileData,
+  LandmarkData,
+  PlayerState,
+  CharacterCustomization,
+  DEFAULT_CHARACTER_CUSTOMIZATION,
+} from './game/types';
 import { sound } from './game/audio';
 
 type GameState = 'title' | 'playing' | 'paused' | 'victory';
 
+const CUSTOMIZATION_STORAGE_KEY = 'crotopia_character_v1';
+
+function loadSavedCustomization(): CharacterCustomization {
+  try {
+    const raw = localStorage.getItem(CUSTOMIZATION_STORAGE_KEY);
+    if (raw) {
+      return { ...DEFAULT_CHARACTER_CUSTOMIZATION, ...JSON.parse(raw) };
+    }
+  } catch {
+    // ignore storage errors
+  }
+  return DEFAULT_CHARACTER_CUSTOMIZATION;
+}
+
 export default function App() {
   const [gameState, setGameState] = useState<GameState>('title');
   const [isCodexOpen, setIsCodexOpen] = useState<boolean>(false);
+  const [isCustomizerOpen, setIsCustomizerOpen] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(false);
 
-  // Selected tile and landmark for the Polytopia bottom drawer
+  // Selected tile and landmark for the bottom drawer
   const [selectedTile, setSelectedTile] = useState<TileData | null>(null);
   const [selectedLandmark, setSelectedLandmark] = useState<LandmarkData | null>(null);
 
-  // Map and game state
+  // Map and game state (42x40 = 1,680 tiles, 4x size)
   const [tiles, setTiles] = useState<TileData[]>(() => generateCroatiaMap());
   const [playerState, setPlayerState] = useState<PlayerState>(() => {
-    // Start at Zagreb (St. Mark's Church: x=10, z=4)
     const initialRevealed = new Set<string>();
     return {
-      x: 10,
-      z: 4,
+      x: SPAWN_X,
+      z: SPAWN_Z,
       isMoving: false,
       isMounted: false,
-      moveRange: 2,
+      moveRange: 4,
       stars: 50,
       discoveredLandmarks: new Set<string>(['st_marks_church']),
       revealedTiles: initialRevealed,
       activeBuffs: ['Triune Kingdom Civic Anchor'],
+      customization: loadSavedCustomization(),
     };
   });
 
   const canvasMountRef = useRef<HTMLDivElement>(null);
   const worldSceneRef = useRef<WorldScene | null>(null);
-
-  // Fast map lookup cache
   const tilesMapRef = useRef<Map<string, TileData>>(new Map());
+  const pressedKeysRef = useRef<Set<string>>(new Set());
 
-  // Keep state refs for continuous keyboard handlers and event callbacks
   const playerStateRef = useRef(playerState);
   playerStateRef.current = playerState;
 
@@ -54,10 +74,17 @@ export default function App() {
 
   // Sync dataset.state with body
   useEffect(() => {
-    document.body.dataset.state = gameState === 'title' ? 'title' : gameState === 'paused' ? 'paused' : gameState === 'victory' ? 'gameover' : 'playing';
+    document.body.dataset.state =
+      gameState === 'title'
+        ? 'title'
+        : gameState === 'paused'
+        ? 'paused'
+        : gameState === 'victory'
+        ? 'gameover'
+        : 'playing';
   }, [gameState]);
 
-  // Initial map tiles map population
+  // Initial map tiles lookup population
   useEffect(() => {
     const map = new Map<string, TileData>();
     tiles.forEach(t => map.set(getTileKey(t.x, t.z), t));
@@ -65,7 +92,7 @@ export default function App() {
   }, [tiles]);
 
   // Reveal fog around a position
-  const revealAreaAround = useCallback((px: number, pz: number, radius: number = 2) => {
+  const revealAreaAround = useCallback((px: number, pz: number, radius: number = 4) => {
     const { newlyRevealed, updatedRevealed } = revealFogOfWar(
       px,
       pz,
@@ -75,7 +102,6 @@ export default function App() {
     );
 
     if (newlyRevealed.length > 0) {
-      // Update tiles revealed property
       setTiles(prev =>
         prev.map(t => {
           const key = getTileKey(t.x, t.z);
@@ -86,7 +112,6 @@ export default function App() {
         })
       );
 
-      // Check if newly revealed tiles contain landmarks
       const newlyFoundLandmarks: string[] = [];
       newlyRevealed.forEach(key => {
         const tile = tilesMapRef.current.get(key);
@@ -98,7 +123,7 @@ export default function App() {
       setPlayerState(prev => {
         const nextDiscovered = new Set(prev.discoveredLandmarks);
         newlyFoundLandmarks.forEach(id => nextDiscovered.add(id));
-        const addedStars = newlyRevealed.length * 2 + newlyFoundLandmarks.length * 25;
+        const addedStars = newlyRevealed.length + newlyFoundLandmarks.length * 25;
 
         return {
           ...prev,
@@ -108,30 +133,70 @@ export default function App() {
         };
       });
 
-      // Animate clouds in 3D world
       worldSceneRef.current?.revealTiles(newlyRevealed);
 
-      // If landmarks found, play chime
       if (newlyFoundLandmarks.length > 0) {
         sound.playDiscoveryChime();
       }
     }
   }, []);
 
+  // Handle player entering a new grid tile during smooth movement
+  const handlePlayerEnterTile = useCallback(
+    (x: number, z: number) => {
+      setPlayerState(prev => ({
+        ...prev,
+        x,
+        z,
+      }));
+
+      revealAreaAround(x, z, playerStateRef.current.isMounted ? 6 : 4);
+
+      const currentTile = tilesMapRef.current.get(getTileKey(x, z));
+      if (currentTile?.landmarkId) {
+        const lm = LANDMARKS[currentTile.landmarkId];
+        if (lm && !playerStateRef.current.discoveredLandmarks.has(lm.id)) {
+          setPlayerState(p => {
+            const d = new Set(p.discoveredLandmarks);
+            d.add(lm.id);
+            return { ...p, discoveredLandmarks: d, stars: p.stars + 35 };
+          });
+          sound.playDiscoveryChime();
+        }
+        setSelectedTile(currentTile);
+        setSelectedLandmark(lm);
+      }
+
+      if (playerStateRef.current.discoveredLandmarks.size >= Object.keys(LANDMARKS).length) {
+        setTimeout(() => {
+          setGameState('victory');
+        }, 600);
+      }
+    },
+    [revealAreaAround]
+  );
+
   // Initialize Three.js scene once
   useEffect(() => {
     if (!canvasMountRef.current) return;
 
     const scene = new WorldScene(canvasMountRef.current, {
-      onTileSelect: (tile) => {
+      onTileSelect: tile => {
         setSelectedTile(tile);
         const lm = tile.landmarkId ? LANDMARKS[tile.landmarkId] || null : null;
         setSelectedLandmark(lm);
 
-        // Update reachable rings from player position
         const currentP = playerStateRef.current;
-        const reachable = getReachableTiles(currentP.x, currentP.z, currentP.moveRange, tilesMapRef.current);
+        const reachable = getReachableTiles(
+          currentP.x,
+          currentP.z,
+          currentP.moveRange,
+          tilesMapRef.current
+        );
         scene.updateReachableIndicators(reachable);
+      },
+      onPlayerTileEnter: (x, z) => {
+        handlePlayerEnterTile(x, z);
       },
       onMoveComplete: (x, z) => {
         setPlayerState(prev => ({
@@ -140,42 +205,17 @@ export default function App() {
           z,
           isMoving: false,
         }));
-
-        // Reveal fog of war around new position
-        revealAreaAround(x, z, playerStateRef.current.isMounted ? 3 : 2);
-
-        // Check if current tile is a landmark
-        const currentTile = tilesMapRef.current.get(getTileKey(x, z));
-        if (currentTile?.landmarkId) {
-          const lm = LANDMARKS[currentTile.landmarkId];
-          if (lm && !playerStateRef.current.discoveredLandmarks.has(lm.id)) {
-            setPlayerState(p => {
-              const d = new Set(p.discoveredLandmarks);
-              d.add(lm.id);
-              return { ...p, discoveredLandmarks: d, stars: p.stars + 35 };
-            });
-            sound.playDiscoveryChime();
-          }
-          setSelectedTile(currentTile);
-          setSelectedLandmark(lm);
-        }
-
-        // Check grand tour victory
-        if (playerStateRef.current.discoveredLandmarks.size >= Object.keys(LANDMARKS).length) {
-          setTimeout(() => {
-            setGameState('victory');
-          }, 600);
-        }
+        handlePlayerEnterTile(x, z);
       },
     });
 
     worldSceneRef.current = scene;
+    scene.setCharacterCustomization(playerStateRef.current.customization);
     scene.populateMap(tiles, LANDMARKS);
 
     // Initial reveal at spawn (Zagreb)
-    revealAreaAround(10, 4, 3);
+    revealAreaAround(SPAWN_X, SPAWN_Z, 5);
 
-    // Check autostart query param
     const params = new URLSearchParams(window.location.search);
     if (params.get('autostart') === '1') {
       setGameState('playing');
@@ -188,38 +228,46 @@ export default function App() {
       scene.dispose();
       worldSceneRef.current = null;
     };
-  }, [revealAreaAround]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [revealAreaAround, handlePlayerEnterTile]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Move player to target tile
+  // Smoothly walk/ride player to target tile anywhere on map
   const handleMovePlayer = useCallback((targetX: number, targetZ: number) => {
-    const currentP = playerStateRef.current;
-    if (currentP.isMoving) return;
-
-    if (!canMoveTo(currentP.x, currentP.z, targetX, targetZ, currentP.moveRange, tilesMapRef.current)) {
-      // Step closer if beyond single hop range
-      const dx = Math.sign(targetX - currentP.x);
-      const dz = Math.sign(targetZ - currentP.z);
-      const nextX = currentP.x + dx;
-      const nextZ = currentP.z + dz;
-
-      if (canMoveTo(currentP.x, currentP.z, nextX, nextZ, currentP.moveRange, tilesMapRef.current)) {
-        targetX = nextX;
-        targetZ = nextZ;
-      } else {
-        return;
-      }
-    }
-
     setPlayerState(prev => ({ ...prev, isMoving: true }));
     worldSceneRef.current?.movePlayerTo(targetX, targetZ);
   }, []);
 
-  // Keyboard navigation (WASD & Arrows)
+  // Continuous smooth keyboard navigation (WASD & Arrow keys)
   useEffect(() => {
+    const syncKeyboardVector = () => {
+      const keys = pressedKeysRef.current;
+      let dx = 0;
+      let dz = 0;
+      if (keys.has('w') || keys.has('arrowup')) dz -= 1;
+      if (keys.has('s') || keys.has('arrowdown')) dz += 1;
+      if (keys.has('a') || keys.has('arrowleft')) dx -= 1;
+      if (keys.has('d') || keys.has('arrowright')) dx += 1;
+
+      if (dx !== 0 && dz !== 0) {
+        const inv = 1 / Math.SQRT2;
+        dx *= inv;
+        dz *= inv;
+      }
+
+      worldSceneRef.current?.setManualInput(dx, dz);
+    };
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Enter or Space starts game from title
+      // Ignore keyboard shortcuts if typing in customizer input
+      if (
+        document.activeElement &&
+        (document.activeElement.tagName === 'INPUT' ||
+          document.activeElement.tagName === 'TEXTAREA')
+      ) {
+        return;
+      }
+
       if (gameStateRef.current === 'title') {
-        if (e.key === 'Enter' || e.key === ' ') {
+        if ((e.key === 'Enter' || e.key === ' ') && !isCustomizerOpen) {
           e.preventDefault();
           setGameState('playing');
           sound.startAmbient();
@@ -227,14 +275,22 @@ export default function App() {
         return;
       }
 
-      // Esc / P toggles pause
       if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
         e.preventDefault();
-        setGameState(prev => (prev === 'playing' ? 'paused' : prev === 'paused' ? 'playing' : prev));
+        if (isCustomizerOpen) {
+          setIsCustomizerOpen(false);
+          return;
+        }
+        if (isCodexOpen) {
+          setIsCodexOpen(false);
+          return;
+        }
+        setGameState(prev =>
+          prev === 'playing' ? 'paused' : prev === 'paused' ? 'playing' : prev
+        );
         return;
       }
 
-      // M toggles audio mute
       if (e.key === 'm' || e.key === 'M') {
         e.preventDefault();
         setIsMuted(sound.toggleMute());
@@ -243,49 +299,61 @@ export default function App() {
 
       if (gameStateRef.current !== 'playing') return;
 
-      const currentP = playerStateRef.current;
-      if (currentP.isMoving) return;
-
-      let dx = 0;
-      let dz = 0;
-
-      switch (e.key) {
-        case 'w':
-        case 'W':
-        case 'ArrowUp':
-          dz = -1;
-          break;
-        case 's':
-        case 'S':
-        case 'ArrowDown':
-          dz = 1;
-          break;
-        case 'a':
-        case 'A':
-        case 'ArrowLeft':
-          dx = -1;
-          break;
-        case 'd':
-        case 'D':
-        case 'ArrowRight':
-          dx = 1;
-          break;
-        default:
-          return;
-      }
-
-      const nextX = currentP.x + dx;
-      const nextZ = currentP.z + dz;
-
-      if (canMoveTo(currentP.x, currentP.z, nextX, nextZ, currentP.moveRange, tilesMapRef.current)) {
+      const k = e.key.toLowerCase();
+      if (
+        k === 'w' ||
+        k === 'a' ||
+        k === 's' ||
+        k === 'd' ||
+        k === 'arrowup' ||
+        k === 'arrowdown' ||
+        k === 'arrowleft' ||
+        k === 'arrowright'
+      ) {
         e.preventDefault();
-        handleMovePlayer(nextX, nextZ);
+        pressedKeysRef.current.add(k);
+        syncKeyboardVector();
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      const k = e.key.toLowerCase();
+      if (pressedKeysRef.current.has(k)) {
+        pressedKeysRef.current.delete(k);
+        syncKeyboardVector();
+      }
+    };
+
+    const handleBlur = () => {
+      if (pressedKeysRef.current.size > 0) {
+        pressedKeysRef.current.clear();
+        worldSceneRef.current?.setManualInput(0, 0);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleMovePlayer]);
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, [isCustomizerOpen, isCodexOpen]);
+
+  // Update character customization & persist
+  const handleUpdateCustomization = useCallback((updated: CharacterCustomization) => {
+    setPlayerState(prev => ({
+      ...prev,
+      customization: updated,
+    }));
+    worldSceneRef.current?.setCharacterCustomization(updated);
+    try {
+      localStorage.setItem(CUSTOMIZATION_STORAGE_KEY, JSON.stringify(updated));
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
 
   // Special landmark interactions
   const handleInteractLandmark = (landmark: LandmarkData) => {
@@ -295,14 +363,15 @@ export default function App() {
         setPlayerState(prev => ({
           ...prev,
           stars: prev.stars + 15,
-          activeBuffs: Array.from(new Set([...prev.activeBuffs, 'Adriatic Wave Harmony (+100% Joy)'])),
+          activeBuffs: Array.from(
+            new Set([...prev.activeBuffs, 'Adriatic Wave Harmony (+100% Joy)'])
+          ),
         }));
         break;
 
       case 'smiljan_tesla_coil':
         sound.playTeslaZap();
-        // Reveal 5-tile radius around Tesla tower
-        revealAreaAround(landmark.gridX, landmark.gridZ, 5);
+        revealAreaAround(landmark.gridX, landmark.gridZ, 9);
         setPlayerState(prev => ({
           ...prev,
           stars: prev.stars + 20,
@@ -310,18 +379,18 @@ export default function App() {
         }));
         break;
 
-      case 'djakovo_stables':
-        // Mount Lipizzaner Horse!
+      case 'djakovo_stables': {
         const nextMounted = !playerState.isMounted;
         setPlayerState(prev => ({
           ...prev,
           isMounted: nextMounted,
-          moveRange: nextMounted ? 3 : 2,
+          moveRange: nextMounted ? 6 : 4,
           stars: prev.stars + 10,
         }));
         worldSceneRef.current?.setMountedState(nextMounted);
         sound.playHop();
         break;
+      }
 
       case 'st_marks_church':
         sound.playCathedralBell();
@@ -358,7 +427,6 @@ export default function App() {
         break;
     }
 
-    // Trigger bounce on mesh
     worldSceneRef.current?.selectTile(landmark.gridX, landmark.gridZ);
   };
 
@@ -369,24 +437,27 @@ export default function App() {
 
   const handleRestart = () => {
     const initialRevealed = new Set<string>();
-    setPlayerState({
-      x: 10,
-      z: 4,
+    const freshTiles = generateCroatiaMap();
+    setPlayerState(prev => ({
+      x: SPAWN_X,
+      z: SPAWN_Z,
       isMoving: false,
       isMounted: false,
-      moveRange: 2,
+      moveRange: 4,
       stars: 50,
       discoveredLandmarks: new Set<string>(['st_marks_church']),
       revealedTiles: initialRevealed,
       activeBuffs: ['Triune Kingdom Civic Anchor'],
-    });
-    setTiles(generateCroatiaMap());
+      customization: prev.customization,
+    }));
+    setTiles(freshTiles);
     setSelectedTile(null);
     setSelectedLandmark(null);
-    worldSceneRef.current?.setPlayerTilePosition(10, 4, false);
+    worldSceneRef.current?.populateMap(freshTiles, LANDMARKS);
+    worldSceneRef.current?.setPlayerTilePosition(SPAWN_X, SPAWN_Z, false);
     worldSceneRef.current?.setMountedState(false);
-    worldSceneRef.current?.focusCameraOn(10, 4);
-    revealAreaAround(10, 4, 3);
+    worldSceneRef.current?.recenterOnPlayer();
+    revealAreaAround(SPAWN_X, SPAWN_Z, 5);
     setGameState('playing');
   };
 
@@ -404,11 +475,21 @@ export default function App() {
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-slate-950 font-sans select-none">
-      {/* Isolated Three.js WebGL Mount (No React state rebuilds) */}
-      <div ref={canvasMountRef} className="absolute inset-0 z-0 cursor-grab active:cursor-grabbing" />
+      {/* Isolated Three.js WebGL Mount */}
+      <div
+        ref={canvasMountRef}
+        className="absolute inset-0 z-0 cursor-grab active:cursor-grabbing"
+        style={{ touchAction: 'none' }}
+      />
 
       {/* Title Screen */}
-      {gameState === 'title' && <TitleScreen onStart={handleStartGame} />}
+      {gameState === 'title' && (
+        <TitleScreen
+          customization={playerState.customization}
+          onOpenCustomizer={() => setIsCustomizerOpen(true)}
+          onStart={handleStartGame}
+        />
+      )}
 
       {/* In-Game World HUD */}
       {gameState !== 'title' && (
@@ -419,7 +500,11 @@ export default function App() {
           isMuted={isMuted}
           onToggleMute={() => setIsMuted(sound.toggleMute())}
           onOpenCodex={() => setIsCodexOpen(true)}
-          onRecenterPlayer={() => worldSceneRef.current?.focusCameraOn(playerState.x, playerState.z)}
+          onOpenCustomizer={() => setIsCustomizerOpen(true)}
+          onRecenterPlayer={() => worldSceneRef.current?.recenterOnPlayer()}
+          onFocusCamera={(x, z) => worldSceneRef.current?.focusCameraOn(x, z)}
+          onAdjustZoom={delta => worldSceneRef.current?.adjustZoom(delta)}
+          onJoystickMove={(dx, dz) => worldSceneRef.current?.setManualInput(dx, dz)}
           onPause={() => setGameState('paused')}
         />
       )}
@@ -438,6 +523,15 @@ export default function App() {
             setSelectedTile(null);
             setSelectedLandmark(null);
           }}
+        />
+      )}
+
+      {/* Character Customizer Modal (Available from Title Screen and In-Game) */}
+      {isCustomizerOpen && (
+        <CharacterCustomizerModal
+          customization={playerState.customization}
+          onChange={handleUpdateCustomization}
+          onClose={() => setIsCustomizerOpen(false)}
         />
       )}
 
