@@ -8,6 +8,7 @@ import {
   X,
   Gamepad2,
   Compass,
+  Trophy,
   TrendingUp,
   Coins,
   Beer,
@@ -31,6 +32,16 @@ interface VibeApp {
 }
 
 const APPS: VibeApp[] = [
+  {
+    id: 'nbagame',
+    title: 'NBA Franchise Wins Pool & Snake Draft',
+    category: 'REACT / LIVE SPORTS POOL',
+    year: '2026',
+    description: 'Draft all 30 NBA franchises in a snake draft with 2, 3, 5, or 6 players. Features a Multi-League Vault to store and switch between leagues, JSON import/export, live ESPN standings, head-to-head Possible Points math, and a 3-day schedule sneak peek.',
+    localUrl: '/vibecoding/nbagame',
+    githubUrl: 'https://github.com/vedranbrozovic',
+    icon: Trophy
+  },
   {
     id: 'crotopia',
     title: 'Crotopia: A Cozy Biome Odyssey',

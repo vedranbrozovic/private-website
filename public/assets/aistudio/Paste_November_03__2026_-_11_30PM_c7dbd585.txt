@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NBA Franchise Wins League (2026-27)</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React & ReactDOM -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- Babel for in-browser JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+    body { font-family: 'Inter', sans-serif; background-color: #090d16; color: #f8fafc; }
+    .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #1e293b; border-radius: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+  </style>
+</head>
+<body class="min-h-screen bg-[#090d16] text-slate-100 selection:bg-orange-500 selection:text-white">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+
+    // --- ALL 30 NBA TEAMS METADATA ---
+    const NBA_TEAMS = [
+      // Eastern - Atlantic
+      { id: 'bos', espnId: '2', abbr: 'BOS', name: 'Boston Celtics', conf: 'East', div: 'Atlantic' },
+      { id: 'bkn', espnId: '17', abbr: 'BKN', name: 'Brooklyn Nets', conf: 'East', div: 'Atlantic' },
+      { id: 'nyk', espnId: '18', abbr: 'NYK', name: 'New York Knicks', conf: 'East', div: 'Atlantic' },
+      { id: 'phi', espnId: '20', abbr: 'PHI', name: 'Philadelphia 76ers', conf: 'East', div: 'Atlantic' },
+      { id: 'tor', espnId: '28', abbr: 'TOR', name: 'Toronto Raptors', conf: 'East', div: 'Atlantic' },
+      // Eastern - Central
+      { id: 'chi', espnId: '4', abbr: 'CHI', name: 'Chicago Bulls', conf: 'East', div: 'Central' },
+      { id: 'cle', espnId: '5', abbr: 'CLE', name: 'Cleveland Cavaliers', conf: 'East', div: 'Central' },
+      { id: 'det', espnId: '8', abbr: 'DET', name: 'Detroit Pistons', conf: 'East', div: 'Central' },
+      { id: 'ind', espnId: '11', abbr: 'IND', name: 'Indiana Pacers', conf: 'East', div: 'Central' },
+      { id: 'mil', espnId: '15', abbr: 'MIL', name: 'Milwaukee Bucks', conf: 'East', div: 'Central' },
+      // Eastern - Southeast
+      { id: 'atl', espnId: '1', abbr: 'ATL', name: 'Atlanta Hawks', conf: 'East', div: 'Southeast' },
+      { id: 'cha', espnId: '30', abbr: 'CHA', name: 'Charlotte Hornets', conf: 'East', div: 'Southeast' },
+      { id: 'mia', espnId: '14', abbr: 'MIA', name: 'Miami Heat', conf: 'East', div: 'Southeast' },
+      { id: 'orl', espnId: '19', abbr: 'ORL', name: 'Orlando Magic', conf: 'East', div: 'Southeast' },
+      { id: 'was', espnId: '27', abbr: 'WAS', name: 'Washington Wizards', conf: 'East', div: 'Southeast' },
+      // Western - Northwest
+      { id: 'den', espnId: '7', abbr: 'DEN', name: 'Denver Nuggets', conf: 'West', div: 'Northwest' },
+      { id: 'min', espnId: '16', abbr: 'MIN', name: 'Minnesota Timberwolves', conf: 'West', div: 'Northwest' },
+      { id: 'okc', espnId: '25', abbr: 'OKC', name: 'Oklahoma City Thunder', conf: 'West', div: 'Northwest' },
+      { id: 'por', espnId: '22', abbr: 'POR', name: 'Portland Trail Blazers', conf: 'West', div: 'Northwest' },
+      { id: 'uta', espnId: '26', abbr: 'UTA', name: 'Utah Jazz', conf: 'West', div: 'Northwest' },
+      // Western - Pacific
+      { id: 'gsw', espnId: '9', abbr: 'GSW', name: 'Golden State Warriors', conf: 'West', div: 'Pacific' },
+      { id: 'lac', espnId: '12', abbr: 'LAC', name: 'LA Clippers', conf: 'West', div: 'Pacific' },
+      { id: 'lal', espnId: '13', abbr: 'LAL', name: 'Los Angeles Lakers', conf: 'West', div: 'Pacific' },
+      { id: 'phx', espnId: '21', abbr: 'PHX', name: 'Phoenix Suns', conf: 'West', div: 'Pacific' },
+      { id: 'sac', espnId: '23', abbr: 'SAC', name: 'Sacramento Kings', conf: 'West', div: 'Pacific' },
+      // Western - Southwest
+      { id: 'dal', espnId: '6', abbr: 'DAL', name: 'Dallas Mavericks', conf: 'West', div: 'Southwest' },
+      { id: 'hou', espnId: '10', abbr: 'HOU', name: 'Houston Rockets', conf: 'West', div: 'Southwest' },
+      { id: 'mem', espnId: '29', abbr: 'MEM', name: 'Memphis Grizzlies', conf: 'West', div: 'Southwest' },
+      { id: 'nop', espnId: '3', abbr: 'NOP', name: 'New Orleans Pelicans', conf: 'West', div: 'Southwest' },
+      { id: 'sas', espnId: '24', abbr: 'SAS', name: 'San Antonio Spurs', conf: 'West', div: 'Southwest' },
+    ];
+
+    const PLAYER_COLORS = [
+      'from-orange-500 to-amber-500',
+      'from-blue-500 to-cyan-500',
+      'from-emerald-500 to-teal-500',
+      'from-purple-500 to-pink-500',
+      'from-rose-500 to-red-500',
+      'from-indigo-500 to-violet-500'
+    ];
+
+    const getLogoUrl = (abbr) => `https://a.espncdn.com/i/teamlogos/nba/500/${abbr.toLowerCase()}.png`;
+
+    // Standard NBA schedule matrix head-to-head games per pair of teams
+    function getPairSeasonGames(teamA, teamB) {
+      if (teamA.div === teamB.div) return 4;
+      if (teamA.conf === teamB.conf) return 3.6;
+      return 2;
+    }
+
+    // Generate full 30-pick Snake Order array of player indices (e.g., 0,1,2, 2,1,0, 0,1,2...)
+    function generateSnakeOrder(numPlayers) {
+      const order = [];
+      const rounds = 30 / numPlayers;
+      for (let r = 0; r < rounds; r++) {
+        const roundIndices = Array.from({ length: numPlayers }, (_, i) => i);
+        if (r % 2 === 1) roundIndices.reverse();
+        order.push(...roundIndices);
+      }
+      return order;
+    }
+
+    function App() {
+      const STORAGE_KEY = 'nba_wins_league_v1';
+
+      // --- PERSISTENT LEAGUE STATE ---
+      const [league, setLeague] = useState(() => {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          try { return JSON.parse(saved); } catch (e) {}
+        }
+        return null;
+      });
+
+      // Setup Screen State
+      const [numPlayers, setNumPlayers] = useState(3);
+      const [playerNames, setPlayerNames] = useState(['Player 1', 'Player 2', 'Player 3']);
+      const [seasonYear, setSeasonYear] = useState('2027'); // '2027' = 2026-27 NBA Season
+
+      // Draft Room Filter State
+      const [confFilter, setConfFilter] = useState('ALL');
+      const [searchQuery, setSearchQuery] = useState('');
+
+      // Live NBA Standings & Schedule State
+      const [teamRecords, setTeamRecords] = useState({});
+      const [upcomingGames, setUpcomingGames] = useState([]);
+      const [loadingStats, setLoadingStats] = useState(false);
+      const [lastUpdated, setLastUpdated] = useState(null);
+      const [showDraftRecap, setShowDraftRecap] = useState(false);
+
+      // Automatically save league to browser localStorage whenever it changes
+      useEffect(() => {
+        if (league) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(league));
+        }
+      }, [league]);
+
+      const handlePlayerCountChange = (count) => {
+        setNumPlayers(count);
+        setPlayerNames((prev) => {
+          const next = [...prev];
+          while (next.length < count) next.push(`Player ${next.length + 1}`);
+          return next.slice(0, count);
+        });
+      };
+
+      const startDraft = () => {
+        const cleanNames = playerNames.map((n, i) => n.trim() || `Player ${i + 1}`);
+        const newLeague = {
+          version: 1,
+          seasonYear,
+          status: 'DRAFTING',
+          numPlayers,
+          players: cleanNames.map((name, idx) => ({
+            id: idx,
+            name,
+            teams: []
+          })),
+          picks: [],
+          createdAt: new Date().toISOString()
+        };
+        setLeague(newLeague);
+      };
+
+      const makeDraftPick = (teamId) => {
+        if (!league || league.status !== 'DRAFTING') return;
+        const snakeOrder = generateSnakeOrder(league.numPlayers);
+        const currentPickIndex = league.picks.length;
+        if (currentPickIndex >= 30) return;
+
+        const activePlayerIdx = snakeOrder[currentPickIndex];
+        const updatedPlayers = league.players.map((p, idx) =>
+          idx === activePlayerIdx ? { ...p, teams: [...p.teams, teamId] } : p
+        );
+        const updatedPicks = [
+          ...league.picks,
+          { pickNumber: currentPickIndex + 1, playerIndex: activePlayerIdx, teamId }
+        ];
+
+        setLeague({
+          ...league,
+          status: updatedPicks.length === 30 ? 'ACTIVE' : 'DRAFTING',
+          players: updatedPlayers,
+          picks: updatedPicks
+        });
+      };
+
+      const undoLastPick = () => {
+        if (!league || league.picks.length === 0) return;
+        const lastPick = league.picks[league.picks.length - 1];
+        const updatedPicks = league.picks.slice(0, -1);
+        const updatedPlayers = league.players.map((p, idx) =>
+          idx === lastPick.playerIndex
+            ? { ...p, teams: p.teams.filter((t) => t !== lastPick.teamId) }
+            : p
+        );
+        setLeague({
+          ...league,
+          status: 'DRAFTING',
+          players: updatedPlayers,
+          picks: updatedPicks
+        });
+      };
+
+      const resetLeague = () => {
+        if (window.confirm('Delete this saved league and start a fresh draft? (Make sure to export a JSON backup first if you want to keep it!)')) {
+          localStorage.removeItem(STORAGE_KEY);
+          setLeague(null);
+        }
+      };
+
+      // --- FETCH LIVE NBA STANDINGS & 3-DAY SCHEDULE ---
+      const fetchNbaData = async (targetSeason = league?.seasonYear || seasonYear) => {
+        setLoadingStats(true);
+        try {
+          const standingsUrl = `https://site.api.espn.com/apis/v2/sports/basketball/nba/standings?season=${targetSeason}`;
+          const res = await fetch(standingsUrl);
+          const data = await res.json();
+
+          const recordsMap = {};
+          NBA_TEAMS.forEach((t) => {
+            recordsMap[t.id] = { wins: 0, losses: 0, gamesPlayed: 0, winPct: 0 };
+          });
+
+          const children = data?.children || [];
+          children.forEach((conf) => {
+            const entries = conf?.standings?.entries || [];
+            entries.forEach((entry) => {
+              const espnId = String(entry?.team?.id);
+              const matchedTeam = NBA_TEAMS.find((t) => t.espnId === espnId);
+              if (matchedTeam) {
+                const stats = entry?.stats || [];
+                const wins = Number(stats.find((s) => s.name === 'wins')?.value || 0);
+                const losses = Number(stats.find((s) => s.name === 'losses')?.value || 0);
+                const gp = wins + losses;
+                recordsMap[matchedTeam.id] = {
+                  wins,
+                  losses,
+                  gamesPlayed: gp,
+                  winPct: gp > 0 ? wins / gp : 0
+                };
+              }
+            });
+          });
+          setTeamRecords(recordsMap);
+
+          // Fetch Next 3 Days of Schedule
+          const dates = [];
+          const now = new Date();
+          for (let i = 0; i < 3; i++) {
+            const d = new Date(now);
+            d.setDate(now.getDate() + i);
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            dates.push({
+              code: `${yyyy}${mm}${dd}`,
+              label: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+            });
+          }
+
+          const schedulePromises = dates.map(async (dObj) => {
+            const sbRes = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${dObj.code}`);
+            const sbData = await sbRes.json();
+            const events = (sbData?.events || []).map((ev) => {
+              const comp = ev.competitions?.[0];
+              const homeComp = comp?.competitors?.find((c) => c.homeAway === 'home');
+              const awayComp = comp?.competitors?.find((c) => c.homeAway === 'away');
+              const homeTeam = NBA_TEAMS.find((t) => t.espnId === String(homeComp?.team?.id));
+              const awayTeam = NBA_TEAMS.find((t) => t.espnId === String(awayComp?.team?.id));
+              return {
+                id: ev.id,
+                status: ev.status?.type?.shortDetail || 'Scheduled',
+                homeTeam,
+                awayTeam,
+                homeScore: homeComp?.score,
+                awayScore: awayComp?.score
+              };
+            }).filter((g) => g.homeTeam && g.awayTeam);
+
+            return { dateLabel: dObj.label, dateCode: dObj.code, games: events };
+          });
+
+          const scheduleDays = await Promise.all(schedulePromises);
+          setUpcomingGames(scheduleDays);
+          setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+        } catch (err) {
+          console.error('Error fetching NBA data:', err);
+        } finally {
+          setLoadingStats(false);
+        }
+      };
+
+      useEffect(() => {
+        fetchNbaData(league?.seasonYear || seasonYear);
+      }, [league?.seasonYear, seasonYear]);
+
+      // --- SCOREBOARD & POSSIBLE POINTS ENGINE ---
+      const scoreboard = useMemo(() => {
+        if (!league) return [];
+
+        return league.players.map((player, idx) => {
+          const ownedTeamObjs = player.teams.map((id) => NBA_TEAMS.find((t) => t.id === id)).filter(Boolean);
+          let totalWins = 0;
+          let totalLosses = 0;
+          let totalGamesPlayed = 0;
+
+          ownedTeamObjs.forEach((t) => {
+            const rec = teamRecords[t.id] || { wins: 0, losses: 0, gamesPlayed: 0 };
+            totalWins += rec.wins;
+            totalLosses += rec.losses;
+            totalGamesPlayed += rec.gamesPlayed;
+          });
+
+          // Calculate internal matchups between this player's own teams across the 82-game season
+          let totalInternalGamesSeason = 0;
+          for (let i = 0; i < ownedTeamObjs.length; i++) {
+            for (let j = i + 1; j < ownedTeamObjs.length; j++) {
+              totalInternalGamesSeason += getPairSeasonGames(ownedTeamObjs[i], ownedTeamObjs[j]);
+            }
+          }
+          totalInternalGamesSeason = Math.round(totalInternalGamesSeason);
+
+          const rawTotalSeasonGames = ownedTeamObjs.length * 82;
+          const seasonProgressRatio = rawTotalSeasonGames > 0 ? totalGamesPlayed / rawTotalSeasonGames : 0;
+          const estimatedInternalGamesPlayedSoFar = Math.round(totalInternalGamesSeason * seasonProgressRatio);
+          const remainingInternalGames = Math.max(0, totalInternalGamesSeason - estimatedInternalGamesPlayedSoFar);
+
+          // Possible Points (To Date): Total games played minus guaranteed losses from internal clashes
+          const possiblePointsToDate = Math.max(totalWins, totalGamesPlayed - estimatedInternalGamesPlayedSoFar);
+
+          // Remaining Season Ceiling: Current Wins + Remaining Games - Remaining Forced Internal Losses
+          const remainingTeamGames = Math.max(0, rawTotalSeasonGames - totalGamesPlayed);
+          const maxPossibleSeasonPoints = totalWins + remainingTeamGames - remainingInternalGames;
+          const initialSeasonCeiling = rawTotalSeasonGames - totalInternalGamesSeason;
+
+          return {
+            ...player,
+            colorClass: PLAYER_COLORS[idx % PLAYER_COLORS.length],
+            ownedTeamObjs,
+            totalWins,
+            totalLosses,
+            totalGamesPlayed,
+            winPct: totalGamesPlayed > 0 ? ((totalWins / totalGamesPlayed) * 100).toFixed(1) : '0.0',
+            possiblePointsToDate,
+            possibleEfficiencyPct: possiblePointsToDate > 0 ? ((totalWins / possiblePointsToDate) * 100).toFixed(1) : '0.0',
+            maxPossibleSeasonPoints,
+            initialSeasonCeiling,
+            totalInternalGamesSeason
+          };
+        }).sort((a, b) => b.totalWins - a.totalWins || b.winPct - a.winPct);
+      }, [league, teamRecords]);
+
+      // Map teamId -> owner for schedule badges
+      const teamOwnerMap = useMemo(() => {
+        const map = {};
+        if (!league) return map;
+        league.players.forEach((p, idx) => {
+          p.teams.forEach((tId) => {
+            map[tId] = { ...p, colorClass: PLAYER_COLORS[idx % PLAYER_COLORS.length] };
+          });
+        });
+        return map;
+      }, [league]);
+
+      // JSON Save / Restore Handlers
+      const exportLeagueJson = () => {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(league, null, 2));
+        const dlAnchor = document.createElement('a');
+        dlAnchor.setAttribute("href", dataStr);
+        dlAnchor.setAttribute("download", `nba_wins_league_${league.seasonYear}.json`);
+        document.body.appendChild(dlAnchor);
+        dlAnchor.click();
+        dlAnchor.remove();
+      };
+
+      const importLeagueJson = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const imported = JSON.parse(event.target.result);
+            if (imported && imported.players && imported.picks) {
+              setLeague(imported);
+            } else {
+              alert('Invalid league JSON file.');
+            }
+          } catch (err) {
+            alert('Could not read JSON file.');
+          }
+        };
+        reader.readAsText(file);
+      };
+
+      // =========================================================================
+      // VIEW 1: SETUP SCREEN
+      // =========================================================================
+      if (!league) {
+        return (
+          <div className="max-w-3xl mx-auto px-4 py-12">
+            <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-8 shadow-2xl">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center font-black text-2xl shadow-lg shadow-orange-500/20">
+                  🏀
+                </div>
+                <div>
+                  <h1 className="text-3xl font-black tracking-tight text-white">NBA Franchise Snake Draft</h1>
+                  <p className="text-slate-400 text-sm">Draft all 30 NBA teams & track season-long wins</p>
+                </div>
+              </div>
+
+              {/* Season Selection */}
+              <div className="mb-6">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+                  Target NBA Season
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setSeasonYear('2027')}
+                    className={`py-3 px-4 rounded-xl border text-left transition ${
+                      seasonYear === '2027'
+                        ? 'bg-orange-500/15 border-orange-500 text-white'
+                        : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <div className="font-bold">2026–27 NBA Season</div>
+                    <div className="text-xs text-slate-400">Current Target Season</div>
+                  </button>
+                  <button
+                    onClick={() => setSeasonYear('2026')}
+                    className={`py-3 px-4 rounded-xl border text-left transition ${
+                      seasonYear === '2026'
+                        ? 'bg-orange-500/15 border-orange-500 text-white'
+                        : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <div className="font-bold">2025–26 NBA Season</div>
+                    <div className="text-xs text-slate-400">Previous Season Standings</div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Number of Players */}
+              <div className="mb-6">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+                  Number of Players (Divisible by 30 NBA Teams)
+                </label>
+                <div className="grid grid-cols-4 gap-3">
+                  {[2, 3, 5, 6].map((count) => (
+                    <button
+                      key={count}
+                      onClick={() => handlePlayerCountChange(count)}
+                      className={`py-4 rounded-2xl font-bold border transition flex flex-col items-center ${
+                        numPlayers === count
+                          ? 'bg-gradient-to-b from-orange-500 to-amber-600 border-orange-400 text-white shadow-lg shadow-orange-500/20'
+                          : 'bg-slate-800/60 border-slate-700/80 text-slate-300 hover:bg-slate-800'
+                      }`}
+                    >
+                      <span className="text-2xl font-black">{count} Players</span>
+                      <span className="text-xs opacity-80 mt-0.5">{30 / count} Teams Each</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Player Names in Draft Order */}
+              <div className="mb-8">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+                  Draft Order (Pick #1 to Pick #{numPlayers})
+                </label>
+                <div className="space-y-3">
+                  {playerNames.map((name, idx) => (
+                    <div key={idx} className="flex items-center gap-3">
+                      <span className={`w-9 h-9 rounded-xl bg-gradient-to-br ${PLAYER_COLORS[idx]} flex items-center justify-center font-black text-sm text-white shrink-0`}>
+                        #{idx + 1}
+                      </span>
+                      <input
+                        type="text"
+                        value={name}
+                        onChange={(e) => {
+                          const updated = [...playerNames];
+                          updated[idx] = e.target.value;
+                          setPlayerNames(updated);
+                        }}
+                        placeholder={`Player ${idx + 1} Name`}
+                        className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-orange-500"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-800">
+                <label className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200 cursor-pointer transition">
+                  📂 Load Saved League (.json)
+                  <input type="file" accept=".json" onChange={importLeagueJson} className="hidden" />
+                </label>
+                <button
+                  onClick={startDraft}
+                  className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white font-black shadow-lg shadow-orange-500/25 transition"
+                >
+                  Start Snake Draft →
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      // =========================================================================
+      // VIEW 2: SNAKE DRAFT ROOM
+      // =========================================================================
+      if (league.status === 'DRAFTING') {
+        const snakeOrder = generateSnakeOrder(league.numPlayers);
+        const currentPickIdx = league.picks.length;
+        const activePlayerIdx = snakeOrder[currentPickIdx];
+        const activePlayer = league.players[activePlayerIdx];
+        const pickedTeamIds = new Set(league.picks.map((p) => p.teamId));
+
+        const availableTeams = NBA_TEAMS.filter((t) => {
+          if (pickedTeamIds.has(t.id)) return false;
+          if (confFilter !== 'ALL' && t.conf !== confFilter) return false;
+          if (searchQuery && !t.name.toLowerCase().includes(searchQuery.toLowerCase()) && !t.abbr.toLowerCase().includes(searchQuery.toLowerCase())) {
+            return false;
+          }
+          return true;
+        });
+
+        return (
+          <div className="max-w-7xl mx-auto px-4 py-6">
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-widest text-orange-400">
+                  Live Snake Draft • Pick {currentPickIdx + 1} of 30
+                </span>
+                <h1 className="text-2xl font-black text-white">
+                  On the Clock: <span className="text-orange-400">{activePlayer.name}</span>
+                </h1>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={undoLastPick}
+                  disabled={league.picks.length === 0}
+                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-sm font-semibold transition"
+                >
+                  ↩ Undo Last Pick
+                </button>
+                <button
+                  onClick={exportLeagueJson}
+                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm font-semibold transition"
+                >
+                  💾 Save Progress (.json)
+                </button>
+                <button
+                  onClick={resetLeague}
+                  className="px-4 py-2 rounded-xl bg-rose-950/60 hover:bg-rose-900/70 text-rose-300 text-sm font-semibold border border-rose-800/50 transition"
+                >
+                  Cancel Draft
+                </button>
+              </div>
+            </div>
+
+            {/* Snake Order Ribbon */}
+            <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 mb-6 overflow-x-auto custom-scrollbar">
+              <div className="flex items-center gap-2 min-w-max">
+                {snakeOrder.map((pIdx, idx) => {
+                  const p = league.players[pIdx];
+                  const pickRecord = league.picks[idx];
+                  const pickedTeam = pickRecord ? NBA_TEAMS.find((t) => t.id === pickRecord.teamId) : null;
+                  const isCurrent = idx === currentPickIdx;
+
+                  return (
+                    <div
+                      key={idx}
+                      className={`w-28 p-2.5 rounded-xl border transition shrink-0 ${
+                        isCurrent
+                          ? 'bg-orange-500/20 border-orange-500 ring-2 ring-orange-500/40'
+                          : pickRecord
+                          ? 'bg-slate-800/40 border-slate-800 opacity-75'
+                          : 'bg-slate-800/80 border-slate-700/70'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 mb-1">
+                        <span>Pick #{idx + 1}</span>
+                        <span>R{Math.floor(idx / league.numPlayers) + 1}</span>
+                      </div>
+                      <div className="font-bold text-xs truncate text-white">{p.name}</div>
+                      {pickedTeam ? (
+                        <div className="flex items-center gap-1.5 mt-1.5 pt-1.5 border-t border-slate-700/60">
+                          <img src={getLogoUrl(pickedTeam.abbr)} className="w-4 h-4 object-contain" />
+                          <span className="text-xs font-extrabold text-orange-300">{pickedTeam.abbr}</span>
+                        </div>
+                      ) : (
+                        <div className="text-[11px] text-slate-500 mt-1.5 pt-1.5 border-t border-slate-800">
+                          {isCurrent ? 'Picking...' : 'Waiting'}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Available Teams Grid */}
+              <div className="lg:col-span-2 bg-slate-900/90 border border-slate-800 rounded-2xl p-5">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+                  <div className="flex items-center gap-2">
+                    {['ALL', 'East', 'West'].map((c) => (
+                      <button
+                        key={c}
+                        onClick={() => setConfFilter(c)}
+                        className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${
+                          confFilter === c ? 'bg-orange-500 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {c === 'ALL' ? 'All Teams' : `${c}ern Conf`}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search team..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-1.5 text-sm text-white focus:outline-none focus:border-orange-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[540px] overflow-y-auto pr-1 custom-scrollbar">
+                  {availableTeams.map((team) => {
+                    const rec = teamRecords[team.id] || { wins: 0, losses: 0 };
+                    return (
+                      <button
+                        key={team.id}
+                        onClick={() => makeDraftPick(team.id)}
+                        className="group flex flex-col items-start p-3.5 rounded-2xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700/70 hover:border-orange-500 transition text-left"
+                      >
+                        <div className="flex items-center justify-between w-full mb-2">
+                          <img
+                            src={getLogoUrl(team.abbr)}
+                            alt={team.name}
+                            className="w-11 h-11 object-contain group-hover:scale-110 transition"
+                          />
+                          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-900/80 text-slate-300">
+                            {team.conf} • {team.div}
+                          </span>
+                        </div>
+                        <div className="font-extrabold text-sm text-white group-hover:text-orange-400 transition">
+                          {team.name}
+                        </div>
+                        <div className="text-xs text-slate-400 mt-1">
+                          Record: <span className="text-slate-200 font-semibold">{rec.wins}-{rec.losses}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Drafted Rosters */}
+              <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5">
+                <h2 className="text-base font-black uppercase tracking-wider text-slate-300 mb-4">
+                  Drafted Rosters
+                </h2>
+                <div className="space-y-4">
+                  {league.players.map((p, idx) => (
+                    <div key={p.id} className="p-3.5 rounded-xl bg-slate-800/50 border border-slate-700/60">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className={`w-3 h-3 rounded-full bg-gradient-to-r ${PLAYER_COLORS[idx]}`} />
+                          <span className="font-bold text-sm text-white">{p.name}</span>
+                        </div>
+                        <span className="text-xs text-slate-400 font-semibold">
+                          {p.teams.length} / {30 / league.numPlayers}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {p.teams.map((tId) => {
+                          const t = NBA_TEAMS.find((team) => team.id === tId);
+                          return (
+                            <div
+                              key={tId}
+                              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-xs font-bold"
+                            >
+                              <img src={getLogoUrl(t.abbr)} className="w-4 h-4 object-contain" />
+                              <span>{t.abbr}</span>
+                            </div>
+                          );
+                        })}
+                        {p.teams.length === 0 && (
+                          <span className="text-xs text-slate-500 italic">No teams drafted yet</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      // =========================================================================
+      // VIEW 3: ACTIVE SEASON DASHBOARD
+      // =========================================================================
+      return (
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          {/* Header */}
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-8 pb-6 border-b border-slate-800">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-2xl shadow-lg shadow-orange-500/20">
+                🏆
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/30">
+                    {league.seasonYear === '2027' ? '2026–27 Season' : '2025–26 Season'}
+                  </span>
+                  {lastUpdated && (
+                    <span className="text-xs text-slate-400">Updated {lastUpdated}</span>
+                  )}
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-black text-white mt-0.5">
+                  NBA Wins Pool Standings
+                </h1>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5">
+              <select
+                value={league.seasonYear}
+                onChange={(e) => setLeague({ ...league, seasonYear: e.target.value })}
+                className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-200"
+              >
+                <option value="2027">2026–27 Season</option>
+                <option value="2026">2025–26 Season</option>
+              </select>
+
+              <button
+                onClick={() => fetchNbaData(league.seasonYear)}
+                disabled={loadingStats}
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-white transition"
+              >
+                {loadingStats ? 'Refreshing...' : '↻ Refresh Scores'}
+              </button>
+
+              <button
+                onClick={() => setShowDraftRecap(true)}
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200 transition"
+              >
+                📋 Draft Board
+              </button>
+
+              <button
+                onClick={exportLeagueJson}
+                className="px-3.5 py-2 rounded-xl bg-emerald-950/70 hover:bg-emerald-900/80 border border-emerald-700/50 text-xs font-bold text-emerald-300 transition"
+              >
+                ⬇ Save JSON
+              </button>
+
+              <label className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200 cursor-pointer transition">
+                ⬆ Load JSON
+                <input type="file" accept=".json" onChange={importLeagueJson} className="hidden" />
+              </label>
+
+              <button
+                onClick={resetLeague}
+                className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-rose-950/60 border border-slate-800 hover:border-rose-800 text-xs font-semibold text-slate-400 hover:text-rose-300 transition"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+
+          {/* SCOREBOARD CARDS */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-10">
+            {scoreboard.map((player, rankIdx) => (
+              <div
+                key={player.id}
+                className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 flex flex-col justify-between shadow-xl relative overflow-hidden"
+              >
+                <div className={`absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r ${player.colorClass}`} />
+
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <span className={`w-8 h-8 rounded-xl bg-gradient-to-br ${player.colorClass} flex items-center justify-center font-black text-sm text-white`}>
+                        #{rankIdx + 1}
+                      </span>
+                      <div>
+                        <h2 className="text-lg font-black text-white">{player.name}</h2>
+                        <span className="text-xs text-slate-400">{player.ownedTeamObjs.length} NBA Franchises</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-3xl font-black text-white">{player.totalWins}</div>
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-orange-400">Points (Wins)</div>
+                    </div>
+                  </div>
+
+                  {/* Core Tracking Metrics */}
+                  <div className="grid grid-cols-2 gap-3 mb-5">
+                    {/* Wins / Total Games Played */}
+                    <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-3">
+                      <div className="text-[11px] font-bold uppercase text-slate-400">Wins / Games Played</div>
+                      <div className="text-lg font-black text-white mt-0.5">
+                        {player.totalWins} <span className="text-slate-400 font-semibold">/ {player.totalGamesPlayed}</span>
+                      </div>
+                      <div className="text-xs text-slate-300 font-semibold mt-0.5">
+                        {player.winPct}% Win Rate
+                      </div>
+                    </div>
+
+                    {/* Points Gained / Total Possible Points */}
+                    <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-3">
+                      <div className="text-[11px] font-bold uppercase text-slate-400" title="Accounts for guaranteed losses when two of your own teams play each other">
+                        Pts / Possible Pts
+                      </div>
+                      <div className="text-lg font-black text-emerald-400 mt-0.5">
+                        {player.totalWins} <span className="text-slate-400 font-semibold">/ {player.possiblePointsToDate}</span>
+                      </div>
+                      <div className="text-xs text-slate-300 font-semibold mt-0.5">
+                        Max Season Ceiling: <span className="text-white">{player.maxPossibleSeasonPoints}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Owned Franchises List */}
+                  <div className="space-y-2">
+                    <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+                      Drafted Teams
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
+                      {player.ownedTeamObjs.map((t) => {
+                        const rec = teamRecords[t.id] || { wins: 0, losses: 0 };
+                        return (
+                          <div
+                            key={t.id}
+                            className="flex items-center justify-between p-2 rounded-xl bg-slate-800/40 border border-slate-800"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <img src={getLogoUrl(t.abbr)} alt={t.abbr} className="w-6 h-6 object-contain shrink-0" />
+                              <div className="truncate">
+                                <div className="text-xs font-bold text-white leading-tight">{t.abbr}</div>
+                                <div className="text-[10px] text-slate-400">{rec.wins}-{rec.losses}</div>
+                              </div>
+                            </div>
+                            <span className="text-xs font-extrabold text-orange-400 px-1.5 py-0.5 rounded bg-orange-500/10">
+                              +{rec.wins}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
+                  <span>Own-Team Clashes: ~{player.totalInternalGamesSeason}/yr</span>
+                  <span>Pre-Season Max: {player.initialSeasonCeiling} pts</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* 3-DAY SCHEDULE SNEAK PEEK */}
+          <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-xl">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
+              <div>
+                <h2 className="text-xl font-black text-white">📅 Next 3 Days Schedule Sneak Peek</h2>
+                <p className="text-xs text-slate-400">
+                  Upcoming NBA games with player ownership tags & internal collision alerts
+                </p>
+              </div>
+              <span className="px-3 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 text-xs font-semibold">
+                ⚡ Internal Clash = Both teams owned by same player (+1 Pt guaranteed, -1 Max Possible)
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {upcomingGames.map((day) => (
+                <div key={day.dateCode} className="bg-slate-800/40 border border-slate-800 rounded-2xl p-4">
+                  <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-700/70">
+                    <span className="font-black text-sm text-white uppercase tracking-wider">{day.dateLabel}</span>
+                    <span className="text-xs text-slate-400 font-semibold">{day.games.length} Games</span>
+                  </div>
+
+                  {day.games.length === 0 ? (
+                    <div className="text-center py-8 text-xs text-slate-500">
+                      No NBA games scheduled on this date.
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1 custom-scrollbar">
+                      {day.games.map((game) => {
+                        const awayOwner = teamOwnerMap[game.awayTeam.id];
+                        const homeOwner = teamOwnerMap[game.homeTeam.id];
+                        const isInternalClash = awayOwner && homeOwner && awayOwner.id === homeOwner.id;
+
+                        return (
+                          <div
+                            key={game.id}
+                            className={`p-3 rounded-xl border transition ${
+                              isInternalClash
+                                ? 'bg-amber-500/10 border-amber-500/40'
+                                : 'bg-slate-900/80 border-slate-800'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between text-[11px] text-slate-400 mb-2">
+                              <span className="font-semibold">{game.status}</span>
+                              {isInternalClash && (
+                                <span className="text-[10px] font-bold text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-full">
+                                  ⚡ {awayOwner.name} Internal Clash
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Away Team */}
+                            <div className="flex items-center justify-between py-1">
+                              <div className="flex items-center gap-2">
+                                <img src={getLogoUrl(game.awayTeam.abbr)} className="w-5 h-5 object-contain" />
+                                <span className="font-bold text-sm text-white">{game.awayTeam.abbr}</span>
+                                {awayOwner && (
+                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md bg-gradient-to-r ${awayOwner.colorClass} text-white`}>
+                                    {awayOwner.name}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="font-mono font-bold text-sm text-slate-200">
+                                {game.awayScore ?? ''}
+                              </span>
+                            </div>
+
+                            {/* Home Team */}
+                            <div className="flex items-center justify-between py-1 mt-1">
+                              <div className="flex items-center gap-2">
+                                <img src={getLogoUrl(game.homeTeam.abbr)} className="w-5 h-5 object-contain" />
+                                <span className="font-bold text-sm text-white">{game.homeTeam.abbr}</span>
+                                {homeOwner && (
+                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md bg-gradient-to-r ${homeOwner.colorClass} text-white`}>
+                                    {homeOwner.name}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="font-mono font-bold text-sm text-slate-200">
+                                {game.homeScore ?? ''}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* FULL SNAKE DRAFT RECAP MODAL */}
+          {showDraftRecap && (
+            <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+              <div className="bg-slate-900 border border-slate-700 rounded-3xl max-w-2xl w-full p-6 shadow-2xl max-h-[85vh] flex flex-col">
+                <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+                  <h3 className="text-lg font-black text-white">Snake Draft Pick History (Picks 1–30)</h3>
+                  <button onClick={() => setShowDraftRecap(false)} className="text-slate-400 hover:text-white font-bold">✕</button>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 overflow-y-auto pr-1 custom-scrollbar">
+                  {league.picks.map((pick) => {
+                    const player = league.players[pick.playerIndex];
+                    const team = NBA_TEAMS.find((t) => t.id === pick.teamId);
+                    return (
+                      <div key={pick.pickNumber} className="p-3 rounded-xl bg-slate-800/70 border border-slate-700/70 flex items-center justify-between">
+                        <div>
+                          <div className="text-[10px] font-bold text-slate-400">
+                            Pick #{pick.pickNumber} • R{Math.floor((pick.pickNumber - 1) / league.numPlayers) + 1}
+                          </div>
+                          <div className="text-xs font-bold text-white">{player?.name}</div>
+                          <div className="text-xs font-extrabold text-orange-400 mt-0.5">{team?.name}</div>
+                        </div>
+                        {team && <img src={getLogoUrl(team.abbr)} className="w-8 h-8 object-contain" />}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>

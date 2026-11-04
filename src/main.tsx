@@ -5,6 +5,7 @@ import OldApp from './old/App.tsx';
 import Reading from './Reading.tsx';
 import VibeCoding from './VibeCoding.tsx';
 import CrotopiaApp from './crotopia/App.tsx';
+import NbaGameApp from './nbagame/NbaGameApp.tsx';
 import {
   EducationPage,
   WorkPage,
@@ -37,6 +38,10 @@ function Root() {
 
   if (currentPath.startsWith('/vibecoding/crotopia')) {
     return <CrotopiaApp />;
+  }
+
+  if (currentPath.startsWith('/vibecoding/nbagame')) {
+    return <NbaGameApp />;
   }
 
   if (currentPath.startsWith('/vibecoding')) {
