@@ -19,7 +19,10 @@ import {
   FileJson,
   X,
   ChevronRight,
-  Undo2
+  Undo2,
+  History,
+  MessageSquarePlus,
+  Filter
 } from 'lucide-react';
 
 // ============================================================================
@@ -112,6 +115,7 @@ export interface LeagueData {
   snakeOrder: number[];
   picks: DraftPick[];
   status: 'DRAFTING' | 'ACTIVE';
+  gameNotes?: Record<string, string>; // Custom notes keyed by game ID
   createdAt: string;
   updatedAt: string;
 }
@@ -137,6 +141,21 @@ interface DaySchedule {
   dateLabel: string;
   dateCode: string;
   games: ScheduleGame[];
+}
+
+export interface HistoricalGame {
+  id: string;
+  dateIso: string;
+  dateFormatted: string;
+  statusDetail: string;
+  awayTeam: NbaTeam;
+  homeTeam: NbaTeam;
+  awayScore: number;
+  homeScore: number;
+  winnerTeam: NbaTeam;
+  loserTeam: NbaTeam;
+  winnerScore: number;
+  loserScore: number;
 }
 
 const getLogoUrl = (abbr: string) =>
@@ -263,6 +282,7 @@ function normalizeImportedLeague(raw: any): LeagueData | null {
       teamId: Number(pk.teamId),
     })),
     status: raw.status === 'ACTIVE' || raw.picks.length === 30 ? 'ACTIVE' : 'DRAFTING',
+    gameNotes: raw.gameNotes && typeof raw.gameNotes === 'object' ? raw.gameNotes : {},
     createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : now,
     updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : now,
   };
@@ -279,7 +299,6 @@ function createSampleLeague(): LeagueData {
     teamIds: [],
   }));
 
-  // Sample realistic 30-pick snake order of team IDs
   const draftPriorityIds = [
     18, 1, 7, 16, 3, 26, 17, 24, 10, 21,
     14, 27, 23, 28, 9, 25, 13, 22, 4, 30,
@@ -306,6 +325,7 @@ function createSampleLeague(): LeagueData {
     snakeOrder,
     picks,
     status: 'ACTIVE',
+    gameNotes: {},
     createdAt: now,
     updatedAt: now,
   };
@@ -334,7 +354,6 @@ export default function NbaGameApp() {
           loaded = parsed.map(normalizeImportedLeague).filter((l): l is LeagueData => Boolean(l));
         }
       }
-      // Check legacy key from prototype
       const legacyStr = localStorage.getItem(LEGACY_SINGLE_KEY);
       if (legacyStr) {
         const legacyLeague = normalizeImportedLeague(JSON.parse(legacyStr));
@@ -365,7 +384,6 @@ export default function NbaGameApp() {
     }
   });
 
-  // Active league derived from leagues vault
   const league = useMemo(
     () => leagues.find((l) => l.id === activeLeagueId) || null,
     [leagues, activeLeagueId]
@@ -388,7 +406,6 @@ export default function NbaGameApp() {
     }
   }, [leagues, activeLeagueId, league]);
 
-  // Helper to update the active league in the vault
   const updateActiveLeague = (updater: (current: LeagueData) => LeagueData) => {
     if (!league) return;
     const updated = {
@@ -409,7 +426,7 @@ export default function NbaGameApp() {
     'Player 5',
     'Player 6',
   ]);
-  const [seasonInput, setSeasonInput] = useState<string>('2027'); // '2027' = 2026-27, '2026' = 2025-26
+  const [seasonInput, setSeasonInput] = useState<string>('2027');
 
   // Draft Filter State
   const [confFilter, setConfFilter] = useState<'ALL' | 'East' | 'West'>('ALL');
@@ -428,6 +445,20 @@ export default function NbaGameApp() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [copiedLeagueId, setCopiedLeagueId] = useState<string | null>(null);
 
+  // Historical Games State & Filters
+  const [showHistoricalSection, setShowHistoricalSection] = useState<boolean>(true);
+  const [historicalGames, setHistoricalGames] = useState<HistoricalGame[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState<boolean>(false);
+  const [historyPlayerFilter, setHistoryPlayerFilter] = useState<string>('ALL'); // 'ALL' or player index string
+  const [historyWinnerOnly, setHistoryWinnerOnly] = useState<boolean>(false);
+  const [historyTeamFilter, setHistoryTeamFilter] = useState<string>('ALL'); // 'ALL' or team ID string
+  const [historyMatchupType, setHistoryMatchupType] = useState<'ALL' | 'PVP' | 'INTERNAL' | 'NOTES'>('ALL');
+  const [historySearch, setHistorySearch] = useState<string>('');
+  const [historySortOrder, setHistorySortOrder] = useState<'DESC' | 'ASC'>('DESC');
+  const [historyVisibleCount, setHistoryVisibleCount] = useState<number>(30);
+  const [editingNoteGameId, setEditingNoteGameId] = useState<string | null>(null);
+  const [editingNoteText, setEditingNoteText] = useState<string>('');
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => {
@@ -443,22 +474,149 @@ export default function NbaGameApp() {
   const [apiNotice, setApiNotice] = useState<string | null>(null);
 
   // ============================================================================
-  // 4. FETCH LIVE NBA STANDINGS & 3-DAY SCHEDULE (ESPN PUBLIC API)
+  // 4. FETCH LIVE NBA STANDINGS, 3-DAY SCHEDULE & ALL HISTORICAL SEASON GAMES
   // ============================================================================
   const fetchLiveNbaData = async (targetSeason?: string) => {
     const activeSeason = targetSeason || league?.season || seasonInput || '2027';
     setLoadingLive(true);
+    setLoadingHistory(true);
     setApiNotice(null);
 
+    const parsedStandings: Record<number, TeamStanding> = {};
+    NBA_TEAMS.forEach((t) => {
+      parsedStandings[t.id] = { wins: 0, losses: 0, gamesPlayed: 0, winPct: 0 };
+    });
+
+    // 1. Fetch All 30 Teams' Regular Season Schedules to build the complete Historical Games Log
+    //    AND accurately compute standings from completed regular season games!
+    try {
+      const gameMap = new Map<string, HistoricalGame>();
+      const scheduleWins: Record<number, { wins: number; losses: number }> = {};
+      NBA_TEAMS.forEach((t) => {
+        scheduleWins[t.id] = { wins: 0, losses: 0 };
+      });
+
+      await Promise.all(
+        NBA_TEAMS.map(async (team) => {
+          try {
+            const url = `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${team.espnId}/schedule?season=${activeSeason}&seasontype=2`;
+            const res = await fetch(url);
+            const data = await res.json();
+            const events = data?.events || [];
+
+            events.forEach((ev: any) => {
+              const comp = ev.competitions?.[0];
+              const isCompleted = Boolean(comp?.status?.type?.completed);
+              if (!isCompleted) return;
+
+              const eventId = String(ev.id);
+              if (gameMap.has(eventId)) return;
+
+              const competitors = comp?.competitors || [];
+              const homeComp =
+                competitors.find((c: any) => c.homeAway === 'home') || competitors[0];
+              const awayComp =
+                competitors.find((c: any) => c.homeAway === 'away') || competitors[1];
+
+              const homeTeam = NBA_TEAMS.find(
+                (t) =>
+                  t.espnId === String(homeComp?.team?.id || homeComp?.id) ||
+                  t.abbr === String(homeComp?.team?.abbreviation || '').toUpperCase()
+              );
+              const awayTeam = NBA_TEAMS.find(
+                (t) =>
+                  t.espnId === String(awayComp?.team?.id || awayComp?.id) ||
+                  t.abbr === String(awayComp?.team?.abbreviation || '').toUpperCase()
+              );
+
+              if (!homeTeam || !awayTeam) return;
+
+              const homeScore = Number(
+                homeComp?.score?.value ?? homeComp?.score?.displayValue ?? homeComp?.score ?? 0
+              );
+              const awayScore = Number(
+                awayComp?.score?.value ?? awayComp?.score?.displayValue ?? awayComp?.score ?? 0
+              );
+
+              const homeWon =
+                homeComp?.winner === true ||
+                (homeComp?.winner === undefined && homeScore > awayScore);
+
+              const winnerTeam = homeWon ? homeTeam : awayTeam;
+              const loserTeam = homeWon ? awayTeam : homeTeam;
+              const winnerScore = homeWon ? homeScore : awayScore;
+              const loserScore = homeWon ? awayScore : homeScore;
+
+              const dateObj = new Date(ev.date);
+              const dateFormatted = dateObj.toLocaleDateString('en-US', {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              });
+
+              gameMap.set(eventId, {
+                id: eventId,
+                dateIso: ev.date,
+                dateFormatted,
+                statusDetail:
+                  comp?.status?.type?.shortDetail ||
+                  comp?.status?.type?.detail ||
+                  'Final',
+                awayTeam,
+                homeTeam,
+                awayScore,
+                homeScore,
+                winnerTeam,
+                loserTeam,
+                winnerScore,
+                loserScore,
+              });
+            });
+          } catch {
+            // Ignore single team schedule fetch failure
+          }
+        })
+      );
+
+      const allHistorical = Array.from(gameMap.values()).sort(
+        (a, b) => new Date(b.dateIso).getTime() - new Date(a.dateIso).getTime()
+      );
+
+      // Tally wins & losses from all deduplicated completed regular-season games
+      allHistorical.forEach((g) => {
+        if (scheduleWins[g.winnerTeam.id]) {
+          scheduleWins[g.winnerTeam.id].wins += 1;
+        }
+        if (scheduleWins[g.loserTeam.id]) {
+          scheduleWins[g.loserTeam.id].losses += 1;
+        }
+      });
+
+      NBA_TEAMS.forEach((t) => {
+        const w = scheduleWins[t.id].wins;
+        const l = scheduleWins[t.id].losses;
+        const gp = w + l;
+        parsedStandings[t.id] = {
+          wins: w,
+          losses: l,
+          gamesPlayed: gp,
+          winPct: gp > 0 ? w / gp : 0,
+        };
+      });
+
+      setHistoricalGames(allHistorical);
+    } catch (err) {
+      console.warn('Could not load historical schedule from ESPN:', err);
+    } finally {
+      setLoadingHistory(false);
+    }
+
+    // 2. Also check ESPN Standings API (overrides if standings API has higher GP)
     try {
       const standingsUrl = `https://site.api.espn.com/apis/v2/sports/basketball/nba/standings?season=${activeSeason}`;
       const res = await fetch(standingsUrl);
       const data = await res.json();
-
-      const parsedStandings: Record<number, TeamStanding> = {};
-      NBA_TEAMS.forEach((t) => {
-        parsedStandings[t.id] = { wins: 0, losses: 0, gamesPlayed: 0, winPct: 0 };
-      });
 
       const extractEntries = (node: any) => {
         if (node?.standings?.entries) {
@@ -475,12 +633,14 @@ export default function NbaGameApp() {
               const wins = Number(winsStat?.value ?? 0);
               const losses = Number(lossesStat?.value ?? 0);
               const gp = wins + losses;
-              parsedStandings[matchedTeam.id] = {
-                wins,
-                losses,
-                gamesPlayed: gp,
-                winPct: gp > 0 ? wins / gp : 0,
-              };
+              if (gp >= (parsedStandings[matchedTeam.id]?.gamesPlayed || 0)) {
+                parsedStandings[matchedTeam.id] = {
+                  wins,
+                  losses,
+                  gamesPlayed: gp,
+                  winPct: gp > 0 ? wins / gp : 0,
+                };
+              }
             }
           });
         }
@@ -490,24 +650,13 @@ export default function NbaGameApp() {
       };
 
       extractEntries(data);
-
-      const totalWinsAcrossLeague = Object.values(parsedStandings).reduce(
-        (acc, s) => acc + s.wins,
-        0
-      );
-      if (totalWinsAcrossLeague === 0 && activeSeason === '2027') {
-        setApiNotice(
-          '2026-27 regular season games have not tipped off yet (0-0 records). You can toggle to 2025-26 Season anytime to test with full live standings!'
-        );
-      }
-
-      setStandings(parsedStandings);
-    } catch (err) {
-      console.warn('Could not load standings from ESPN API:', err);
-      setApiNotice('Live standings temporarily unavailable — showing 0-0 records.');
+    } catch {
+      // Standings already populated from schedule games
     }
 
-    // Fetch Next 3 Days Schedule from ESPN Scoreboard API
+    setStandings(parsedStandings);
+
+    // 3. Fetch Next 3 Days Schedule from ESPN Scoreboard API
     try {
       const daysToFetch: { dateObj: Date; dateCode: string; label: string }[] = [];
       const now = new Date();
@@ -607,7 +756,7 @@ export default function NbaGameApp() {
   }, [league?.season]);
 
   // ============================================================================
-  // 5. LEAGUE CREATION, DRAFT & VAULT MANAGEMENT ACTIONS
+  // 5. LEAGUE CREATION, DRAFT, NOTES & VAULT MANAGEMENT ACTIONS
   // ============================================================================
   const handleStartDraft = () => {
     const cleanName = setupLeagueName.trim() || `NBA Wins League (${seasonInput === '2027' ? '2026-27' : '2025-26'})`;
@@ -629,6 +778,7 @@ export default function NbaGameApp() {
       snakeOrder,
       picks: [],
       status: 'DRAFTING',
+      gameNotes: {},
       createdAt: now,
       updatedAt: now,
     };
@@ -706,6 +856,25 @@ export default function NbaGameApp() {
     }));
   };
 
+  const handleSaveGameNote = (gameId: string, noteText: string) => {
+    if (!league) return;
+    const trimmed = noteText.trim();
+    updateActiveLeague((curr) => {
+      const nextNotes = { ...(curr.gameNotes || {}) };
+      if (trimmed) {
+        nextNotes[gameId] = trimmed;
+      } else {
+        delete nextNotes[gameId];
+      }
+      return {
+        ...curr,
+        gameNotes: nextNotes,
+      };
+    });
+    setEditingNoteGameId(null);
+    showToast(trimmed ? 'Game note saved to league.' : 'Game note removed.');
+  };
+
   const handleDeleteLeague = (targetId: string) => {
     const target = leagues.find((l) => l.id === targetId);
     const remaining = leagues.filter((l) => l.id !== targetId);
@@ -748,7 +917,6 @@ export default function NbaGameApp() {
     showToast('League name saved.');
   };
 
-  // Export single league or full vault as JSON
   const exportLeagueJson = (targetLeague: LeagueData) => {
     const slug = targetLeague.name
       .toLowerCase()
@@ -797,7 +965,6 @@ export default function NbaGameApp() {
   };
 
   const processImportedJsonPayload = (parsed: any) => {
-    // Support importing either a multi-league backup ({ leagues: [...] } or [...]) or a single league object
     const rawList = Array.isArray(parsed)
       ? parsed
       : Array.isArray(parsed?.leagues)
@@ -814,13 +981,6 @@ export default function NbaGameApp() {
     }
 
     setLeagues((prev) => {
-      const map = new Map<string, LeagueData>();
-      prev.forEach((l) => map.set(l.id, l));
-      normalizedList.forEach((imported) => {
-        // If same ID exists, update it; otherwise prepend
-        map.set(imported.id, imported);
-      });
-      // Put newly imported leagues first
       const importedIds = new Set(normalizedList.map((l) => l.id));
       const rest = prev.filter((l) => !importedIds.has(l.id));
       return [...normalizedList, ...rest];
@@ -855,7 +1015,7 @@ export default function NbaGameApp() {
   };
 
   // ============================================================================
-  // 6. DERIVED DATA FOR DRAFT & SCOREBOARD
+  // 6. DERIVED DATA FOR DRAFT, SCOREBOARD & HISTORICAL GAMES
   // ============================================================================
   const draftedTeamIds = useMemo(
     () => new Set(league?.picks.map((p) => p.teamId) || []),
@@ -865,7 +1025,7 @@ export default function NbaGameApp() {
   const teamOwnerMap = useMemo(() => {
     const map: Record<
       number,
-      { id: number; name: string; colorClass: string; badgeClass: string }
+      { id: number; name: string; colorClass: string; badgeClass: string; textClass: string }
     > = {};
     if (!league) return map;
     league.players.forEach((p, idx) => {
@@ -876,6 +1036,7 @@ export default function NbaGameApp() {
           name: p.name,
           colorClass: c.bg,
           badgeClass: c.badge,
+          textClass: c.text,
         };
       });
     });
@@ -901,6 +1062,79 @@ export default function NbaGameApp() {
           b.maxPossibleSeasonPoints - a.maxPossibleSeasonPoints
       );
   }, [league, standings]);
+
+  // Enriched & Filtered Historical Games
+  const filteredHistoricalGames = useMemo(() => {
+    const notesMap = league?.gameNotes || {};
+
+    const list = historicalGames.filter((game) => {
+      const awayOwner = teamOwnerMap[game.awayTeam.id];
+      const homeOwner = teamOwnerMap[game.homeTeam.id];
+      const winnerOwner = teamOwnerMap[game.winnerTeam.id];
+      const isInternal = awayOwner && homeOwner && awayOwner.id === homeOwner.id;
+      const customNote = notesMap[game.id] || '';
+
+      // 1. Player Filter
+      if (historyPlayerFilter !== 'ALL') {
+        const targetPlayerIdx = Number(historyPlayerFilter);
+        if (historyWinnerOnly) {
+          if (!winnerOwner || winnerOwner.id !== targetPlayerIdx) return false;
+        } else {
+          const awayMatches = awayOwner && awayOwner.id === targetPlayerIdx;
+          const homeMatches = homeOwner && homeOwner.id === targetPlayerIdx;
+          if (!awayMatches && !homeMatches) return false;
+        }
+      }
+
+      // 2. Team Filter
+      if (historyTeamFilter !== 'ALL') {
+        const targetTeamId = Number(historyTeamFilter);
+        if (game.awayTeam.id !== targetTeamId && game.homeTeam.id !== targetTeamId) {
+          return false;
+        }
+      }
+
+      // 3. Matchup Type Filter
+      if (historyMatchupType === 'INTERNAL' && !isInternal) return false;
+      if (historyMatchupType === 'PVP' && isInternal) return false;
+      if (historyMatchupType === 'NOTES' && !customNote) return false;
+
+      // 4. Search Query
+      if (historySearch.trim()) {
+        const q = historySearch.toLowerCase();
+        const hay = [
+          game.awayTeam.name,
+          game.awayTeam.abbr,
+          game.homeTeam.name,
+          game.homeTeam.abbr,
+          awayOwner?.name || '',
+          homeOwner?.name || '',
+          game.dateFormatted,
+          customNote,
+        ]
+          .join(' ')
+          .toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+
+      return true;
+    });
+
+    if (historySortOrder === 'ASC') {
+      return [...list].reverse();
+    }
+    return list;
+  }, [
+    historicalGames,
+    teamOwnerMap,
+    league?.gameNotes,
+    historyPlayerFilter,
+    historyWinnerOnly,
+    historyTeamFilter,
+    historyMatchupType,
+    historySearch,
+    historySortOrder,
+  ]);
 
   const navigateBackToVibeCoding = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
@@ -952,7 +1186,6 @@ export default function NbaGameApp() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Quick Dropdown Switcher if multiple leagues exist */}
           {leagues.length > 0 && (
             <select
               aria-label="Switch saved league"
@@ -1006,7 +1239,6 @@ export default function NbaGameApp() {
 
   const renderModalsAndToast = () => (
     <>
-      {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-5 right-5 z-50 bg-slate-900 border border-orange-500/50 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2.5 text-xs sm:text-sm font-semibold animate-fade-in">
           <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" />
@@ -1025,7 +1257,7 @@ export default function NbaGameApp() {
                   <span>Saved Leagues Vault ({leagues.length})</span>
                 </h2>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  All leagues are automatically saved in your browser. Switch leagues, export JSON backups, or import a league code anytime.
+                  All leagues and custom game notes are automatically saved in your browser. Switch leagues, export JSON backups, or import a league code anytime.
                 </p>
               </div>
               <button
@@ -1037,7 +1269,6 @@ export default function NbaGameApp() {
               </button>
             </div>
 
-            {/* Vault Action Toolbar */}
             <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
               <div className="flex flex-wrap items-center gap-2">
                 <button
@@ -1099,7 +1330,6 @@ export default function NbaGameApp() {
               </div>
             </div>
 
-            {/* Saved Leagues List */}
             <div className="overflow-y-auto space-y-3 pr-1 flex-1">
               {leagues.length === 0 ? (
                 <div className="text-center py-12 bg-slate-950/60 border border-slate-800 rounded-2xl p-6">
@@ -1228,7 +1458,6 @@ export default function NbaGameApp() {
                           </div>
                         </div>
 
-                        {/* Actions for this saved league */}
                         <div className="flex flex-wrap items-center gap-1.5 shrink-0">
                           <button
                             type="button"
@@ -1315,7 +1544,7 @@ export default function NbaGameApp() {
         </div>
       )}
 
-      {/* Paste JSON Modal for easy text sharing */}
+      {/* Paste JSON Modal */}
       {showPasteJsonModal && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-slate-900 border border-slate-700 rounded-3xl max-w-xl w-full p-6 shadow-2xl">
@@ -1361,7 +1590,7 @@ export default function NbaGameApp() {
                 }}
                 className="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-400 text-slate-950 text-xs font-black"
               >
-                Import & Save League
+                Import &amp; Save League
               </button>
             </div>
           </div>
@@ -1399,7 +1628,6 @@ export default function NbaGameApp() {
             </div>
 
             <div className="space-y-6">
-              {/* League Name Input */}
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
                   1. League Name (Stored in your League Vault)
@@ -1413,7 +1641,6 @@ export default function NbaGameApp() {
                 />
               </div>
 
-              {/* Season Selection */}
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
                   2. Target NBA Season
@@ -1429,7 +1656,7 @@ export default function NbaGameApp() {
                     }`}
                   >
                     <div className="font-bold text-sm">2026–27 Season</div>
-                    <div className="text-xs opacity-75">Upcoming Season Pool</div>
+                    <div className="text-xs opacity-75">Full Season &amp; Game History</div>
                   </button>
                   <button
                     type="button"
@@ -1441,12 +1668,11 @@ export default function NbaGameApp() {
                     }`}
                   >
                     <div className="font-bold text-sm">2025–26 Season</div>
-                    <div className="text-xs opacity-75">Current Live Standings</div>
+                    <div className="text-xs opacity-75">Completed Season &amp; Game Log</div>
                   </button>
                 </div>
               </div>
 
-              {/* Number of Players */}
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
                   3. Number of Players (Evenly Divides 30 NBA Teams)
@@ -1472,7 +1698,6 @@ export default function NbaGameApp() {
                 </div>
               </div>
 
-              {/* Player Names & Draft Order */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
@@ -1640,7 +1865,6 @@ export default function NbaGameApp() {
         {renderModalsAndToast()}
 
         <div className="max-w-7xl w-full mx-auto p-4 md:p-8 flex-1">
-          {/* Top Bar */}
           <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
             <div>
               <div className="flex items-center gap-2">
@@ -1676,7 +1900,6 @@ export default function NbaGameApp() {
             </div>
           </div>
 
-          {/* ON THE CLOCK BANNER & UPCOMING PICKS */}
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 md:p-5 mb-6 shadow-xl">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
@@ -1697,7 +1920,6 @@ export default function NbaGameApp() {
                 </div>
               </div>
 
-              {/* Next 6 Picks Ticker */}
               <div className="flex items-center gap-2 overflow-x-auto pb-1">
                 {league.snakeOrder
                   .slice(league.picks.length, league.picks.length + 6)
@@ -1722,7 +1944,6 @@ export default function NbaGameApp() {
             </div>
           </div>
 
-          {/* PLAYER ROSTERS PROGRESS */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
             {league.players.map((p) => {
               const c = PLAYER_COLORS[p.colorIndex];
@@ -1765,7 +1986,6 @@ export default function NbaGameApp() {
             })}
           </div>
 
-          {/* TABS & FILTERS */}
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <div className="flex items-center gap-2">
               <button
@@ -1822,7 +2042,6 @@ export default function NbaGameApp() {
             )}
           </div>
 
-          {/* TEAM SELECTION GRID OR DRAFT BOARD */}
           {draftTab === 'AVAILABLE' ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
               {availableTeams.map((team) => {
@@ -1908,7 +2127,7 @@ export default function NbaGameApp() {
   }
 
   // ============================================================================
-  // VIEW C: ACTIVE LEAGUE DASHBOARD (Scoreboard, Possible Points, 3-Day Schedule)
+  // VIEW C: ACTIVE LEAGUE DASHBOARD (Scoreboard, Possible Points, 3-Day Schedule & Historical Games Log)
   // ============================================================================
   return (
     <div className="min-h-screen bg-[#0b0f19] text-slate-100 flex flex-col">
@@ -1942,14 +2161,13 @@ export default function NbaGameApp() {
               </div>
               <p className="text-xs text-slate-400">
                 {league.numPlayers} Players · {30 / league.numPlayers} NBA Teams per Player ·{' '}
-                {lastUpdated ? `Live synced at ${lastUpdated}` : 'Syncing live data...'}
+                {historicalGames.length} Completed Season Games ·{' '}
+                {lastUpdated ? `Synced at ${lastUpdated}` : 'Syncing live data...'}
               </p>
             </div>
           </div>
 
-          {/* Action Controls */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* Season Toggle */}
             <select
               aria-label="Select NBA season"
               value={league.season}
@@ -1961,7 +2179,7 @@ export default function NbaGameApp() {
               className="bg-slate-800 border border-slate-700 text-xs font-bold text-white rounded-xl px-3 py-2 focus:outline-none focus:border-orange-500"
             >
               <option value="2027">2026–27 Season</option>
-              <option value="2026">2025–26 Season (Live Data)</option>
+              <option value="2026">2025–26 Season</option>
             </select>
 
             <button
@@ -1972,6 +2190,23 @@ export default function NbaGameApp() {
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loadingLive ? 'animate-spin' : ''}`} />
               <span>{loadingLive ? 'Refreshing...' : 'Refresh Scores'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setShowHistoricalSection((prev) => !prev);
+              }}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                showHistoricalSection
+                  ? 'bg-orange-500/20 border-orange-500/50 text-orange-300'
+                  : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+              }`}
+            >
+              <History className="w-3.5 h-3.5" />
+              <span>
+                {showHistoricalSection ? 'Hide' : 'Show'} Historical Games ({historicalGames.length})
+              </span>
             </button>
 
             <button
@@ -2008,22 +2243,9 @@ export default function NbaGameApp() {
           </div>
         </div>
 
-        {/* Notice Banner if 2026-27 hasn't started yet */}
         {apiNotice && (
           <div className="bg-amber-500/10 border border-amber-500/30 text-amber-200 px-4 py-3 rounded-2xl text-xs flex flex-wrap items-center justify-between gap-2">
             <span>ℹ️ {apiNotice}</span>
-            {league.season === '2027' && (
-              <button
-                type="button"
-                onClick={() => {
-                  updateActiveLeague((curr) => ({ ...curr, season: '2026' }));
-                  fetchLiveNbaData('2026');
-                }}
-                className="px-3 py-1 rounded-lg bg-amber-500 text-slate-950 font-bold text-xs hover:bg-amber-400 transition cursor-pointer"
-              >
-                Switch to 2025–26 Live Standings
-              </button>
-            )}
           </div>
         )}
 
@@ -2198,7 +2420,12 @@ export default function NbaGameApp() {
                       {playerTeams.map((t) => (
                         <div
                           key={t.id}
-                          className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80"
+                          onClick={() => {
+                            setHistoryTeamFilter(String(t.id));
+                            setShowHistoricalSection(true);
+                          }}
+                          className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/70 hover:bg-slate-800/80 border border-slate-800/80 transition cursor-pointer"
+                          title={`Click to filter historical games for ${t.name}`}
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
                             <img
@@ -2298,7 +2525,6 @@ export default function NbaGameApp() {
                             )}
                           </div>
 
-                          {/* Away Team */}
                           <div className="flex items-center justify-between py-1">
                             <div className="flex items-center gap-2">
                               <img
@@ -2322,7 +2548,6 @@ export default function NbaGameApp() {
                             </span>
                           </div>
 
-                          {/* Home Team */}
                           <div className="flex items-center justify-between py-1 mt-1">
                             <div className="flex items-center gap-2">
                               <img
@@ -2353,6 +2578,479 @@ export default function NbaGameApp() {
               </div>
             ))}
           </div>
+        </div>
+
+        {/* SECTION 4: ALL HISTORICAL SEASON GAMES LOG WITH OWNER ATTRIBUTION, SCORE, OUTCOME & NOTES */}
+        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 md:p-6 shadow-xl">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+            <div>
+              <h2 className="text-lg md:text-xl font-black text-white flex items-center gap-2">
+                <History className="w-5 h-5 text-orange-400" />
+                <span>
+                  All Historical Season Games ({filteredHistoricalGames.length} of{' '}
+                  {historicalGames.length})
+                </span>
+              </h2>
+              <p className="text-xs text-slate-400">
+                Complete regular-season game log showing date, away &amp; home team owners, final score, winning outcome (+1 pt attribution), and custom game notes.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowHistoricalSection((prev) => !prev)}
+              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-slate-700 transition cursor-pointer"
+            >
+              {showHistoricalSection ? 'Collapse Game Log' : 'Expand Game Log'}
+            </button>
+          </div>
+
+          {showHistoricalSection && (
+            <>
+              {/* Filter Controls Bar */}
+              <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 mb-5 space-y-3">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  <Filter className="w-3.5 h-3.5 text-orange-400" />
+                  <span>Filter Historical Games</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                  {/* Player Filter */}
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
+                      Player Owner
+                    </label>
+                    <select
+                      value={historyPlayerFilter}
+                      onChange={(e) => {
+                        setHistoryPlayerFilter(e.target.value);
+                        setHistoryVisibleCount(30);
+                      }}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:border-orange-500"
+                    >
+                      <option value="ALL">All Players ({league.numPlayers})</option>
+                      {league.players.map((p, idx) => (
+                        <option key={p.id} value={String(idx)}>
+                          {p.name}&apos;s Teams
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Team Filter */}
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
+                      NBA Team
+                    </label>
+                    <select
+                      value={historyTeamFilter}
+                      onChange={(e) => {
+                        setHistoryTeamFilter(e.target.value);
+                        setHistoryVisibleCount(30);
+                      }}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:border-orange-500"
+                    >
+                      <option value="ALL">All 30 NBA Franchises</option>
+                      {NBA_TEAMS.slice()
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map((t) => {
+                          const owner = teamOwnerMap[t.id];
+                          return (
+                            <option key={t.id} value={String(t.id)}>
+                              {t.abbr} — {t.name} {owner ? `(${owner.name})` : ''}
+                            </option>
+                          );
+                        })}
+                    </select>
+                  </div>
+
+                  {/* Matchup Type Filter */}
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
+                      Matchup Type / Notes
+                    </label>
+                    <select
+                      value={historyMatchupType}
+                      onChange={(e) => {
+                        setHistoryMatchupType(
+                          e.target.value as 'ALL' | 'PVP' | 'INTERNAL' | 'NOTES'
+                        );
+                        setHistoryVisibleCount(30);
+                      }}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:border-orange-500"
+                    >
+                      <option value="ALL">All Matchups</option>
+                      <option value="PVP">⚔️ Player vs. Player Only</option>
+                      <option value="INTERNAL">⚡ Internal Clashes Only</option>
+                      <option value="NOTES">📝 Games With Custom Notes</option>
+                    </select>
+                  </div>
+
+                  {/* Date Sort Order */}
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
+                      Sort Order
+                    </label>
+                    <select
+                      value={historySortOrder}
+                      onChange={(e) => setHistorySortOrder(e.target.value as 'DESC' | 'ASC')}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:border-orange-500"
+                    >
+                      <option value="DESC">Newest Games First</option>
+                      <option value="ASC">Oldest Games First</option>
+                    </select>
+                  </div>
+
+                  {/* Search Input */}
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">
+                      Search Team, Owner, Date, Note
+                    </label>
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={historySearch}
+                        onChange={(e) => {
+                          setHistorySearch(e.target.value);
+                          setHistoryVisibleCount(30);
+                        }}
+                        placeholder="e.g. BOS, Oct 24, OT..."
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-8 pr-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Extra quick toggles */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/80 text-xs">
+                  <div className="flex flex-wrap items-center gap-3">
+                    {historyPlayerFilter !== 'ALL' && (
+                      <label className="inline-flex items-center gap-2 text-slate-300 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={historyWinnerOnly}
+                          onChange={(e) => setHistoryWinnerOnly(e.target.checked)}
+                          className="rounded border-slate-700 text-orange-500 focus:ring-0"
+                        />
+                        <span>
+                          Show only games <strong>won</strong> by{' '}
+                          {league.players[Number(historyPlayerFilter)]?.name}
+                        </span>
+                      </label>
+                    )}
+                  </div>
+
+                  {(historyPlayerFilter !== 'ALL' ||
+                    historyTeamFilter !== 'ALL' ||
+                    historyMatchupType !== 'ALL' ||
+                    historySearch.trim() !== '') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHistoryPlayerFilter('ALL');
+                        setHistoryWinnerOnly(false);
+                        setHistoryTeamFilter('ALL');
+                        setHistoryMatchupType('ALL');
+                        setHistorySearch('');
+                      }}
+                      className="text-xs font-bold text-orange-400 hover:text-orange-300 cursor-pointer"
+                    >
+                      Reset Filters
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Historical Games Table / List */}
+              {loadingHistory ? (
+                <div className="text-center py-12 text-slate-400 text-sm">
+                  Loading season game history from ESPN...
+                </div>
+              ) : filteredHistoricalGames.length === 0 ? (
+                <div className="text-center py-12 bg-slate-950/50 border border-slate-800 rounded-2xl p-6 text-slate-400 text-xs">
+                  No completed historical games match your current filter criteria.
+                </div>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-800 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                          <th className="py-3 px-3">Date</th>
+                          <th className="py-3 px-3">Away Team &amp; Owner</th>
+                          <th className="py-3 px-3 text-center">Final Score</th>
+                          <th className="py-3 px-3">Home Team &amp; Owner</th>
+                          <th className="py-3 px-3">Outcome (+1 Win Point)</th>
+                          <th className="py-3 px-3">Matchup &amp; Custom Notes</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/60 text-xs sm:text-sm">
+                        {filteredHistoricalGames
+                          .slice(0, historyVisibleCount)
+                          .map((game) => {
+                            const awayOwner = teamOwnerMap[game.awayTeam.id];
+                            const homeOwner = teamOwnerMap[game.homeTeam.id];
+                            const winnerOwner = teamOwnerMap[game.winnerTeam.id];
+                            const loserOwner = teamOwnerMap[game.loserTeam.id];
+                            const isInternalClash =
+                              awayOwner && homeOwner && awayOwner.id === homeOwner.id;
+                            const awayWon = game.winnerTeam.id === game.awayTeam.id;
+                            const homeWon = game.winnerTeam.id === game.homeTeam.id;
+                            const margin = game.winnerScore - game.loserScore;
+                            const savedNote = league.gameNotes?.[game.id] || '';
+                            const isEditingThisNote = editingNoteGameId === game.id;
+
+                            const autoNote = isInternalClash
+                              ? `⚡ Internal Clash: ${awayOwner.name} owns both ${game.awayTeam.abbr} & ${game.homeTeam.abbr} (Guaranteed +1W / +1L)`
+                              : winnerOwner && loserOwner
+                              ? `⚔️ ${winnerOwner.name}'s ${game.winnerTeam.abbr} def. ${loserOwner.name}'s ${game.loserTeam.abbr} by ${margin} pts`
+                              : `${game.winnerTeam.name} defeated ${game.loserTeam.name} by ${margin} pts`;
+
+                            return (
+                              <tr
+                                key={game.id}
+                                className={`transition ${
+                                  isInternalClash
+                                    ? 'bg-amber-500/5 hover:bg-amber-500/10'
+                                    : 'hover:bg-slate-800/40'
+                                }`}
+                              >
+                                {/* Date */}
+                                <td className="py-3.5 px-3 whitespace-nowrap">
+                                  <div className="font-bold text-white text-xs">
+                                    {game.dateFormatted}
+                                  </div>
+                                  <div className="text-[10px] text-slate-500">
+                                    {game.statusDetail}
+                                  </div>
+                                </td>
+
+                                {/* Away Team & Owner */}
+                                <td className="py-3.5 px-3">
+                                  <div className="flex items-center gap-2">
+                                    <img
+                                      src={getLogoUrl(game.awayTeam.abbr)}
+                                      alt={game.awayTeam.abbr}
+                                      className="w-6 h-6 object-contain shrink-0"
+                                    />
+                                    <div>
+                                      <div className="flex items-center gap-1.5">
+                                        <span
+                                          className={`font-bold text-xs ${
+                                            awayWon ? 'text-white' : 'text-slate-400'
+                                          }`}
+                                        >
+                                          {game.awayTeam.name}
+                                        </span>
+                                        {awayWon && (
+                                          <span className="text-[10px] text-emerald-400 font-black">
+                                            ✓
+                                          </span>
+                                        )}
+                                      </div>
+                                      {awayOwner && (
+                                        <span
+                                          className={`inline-block mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded bg-gradient-to-r ${awayOwner.colorClass} text-slate-950`}
+                                        >
+                                          {awayOwner.name}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </td>
+
+                                {/* Score */}
+                                <td className="py-3.5 px-3 text-center whitespace-nowrap">
+                                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs sm:text-sm">
+                                    <span
+                                      className={
+                                        awayWon
+                                          ? 'font-black text-emerald-400'
+                                          : 'text-slate-400'
+                                      }
+                                    >
+                                      {game.awayScore}
+                                    </span>
+                                    <span className="text-slate-600">–</span>
+                                    <span
+                                      className={
+                                        homeWon
+                                          ? 'font-black text-emerald-400'
+                                          : 'text-slate-400'
+                                      }
+                                    >
+                                      {game.homeScore}
+                                    </span>
+                                  </div>
+                                </td>
+
+                                {/* Home Team & Owner */}
+                                <td className="py-3.5 px-3">
+                                  <div className="flex items-center gap-2">
+                                    <img
+                                      src={getLogoUrl(game.homeTeam.abbr)}
+                                      alt={game.homeTeam.abbr}
+                                      className="w-6 h-6 object-contain shrink-0"
+                                    />
+                                    <div>
+                                      <div className="flex items-center gap-1.5">
+                                        <span
+                                          className={`font-bold text-xs ${
+                                            homeWon ? 'text-white' : 'text-slate-400'
+                                          }`}
+                                        >
+                                          {game.homeTeam.name}
+                                        </span>
+                                        {homeWon && (
+                                          <span className="text-[10px] text-emerald-400 font-black">
+                                            ✓
+                                          </span>
+                                        )}
+                                      </div>
+                                      {homeOwner && (
+                                        <span
+                                          className={`inline-block mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded bg-gradient-to-r ${homeOwner.colorClass} text-slate-950`}
+                                        >
+                                          {homeOwner.name}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </td>
+
+                                {/* Outcome */}
+                                <td className="py-3.5 px-3">
+                                  <div className="flex flex-col gap-0.5">
+                                    <div className="flex items-center gap-1.5">
+                                      <img
+                                        src={getLogoUrl(game.winnerTeam.abbr)}
+                                        alt={game.winnerTeam.abbr}
+                                        className="w-4 h-4 object-contain"
+                                      />
+                                      <span className="font-black text-xs text-emerald-400">
+                                        {game.winnerTeam.abbr} Won ({game.winnerScore}–
+                                        {game.loserScore})
+                                      </span>
+                                    </div>
+                                    {winnerOwner && (
+                                      <div className="text-[11px] font-bold text-slate-200">
+                                        +1 Win Pt →{' '}
+                                        <span className={winnerOwner.textClass}>
+                                          {winnerOwner.name}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+
+                                {/* Notes (Auto Matchup Note + Editable Custom Note) */}
+                                <td className="py-3.5 px-3 min-w-[230px]">
+                                  <div className="text-[11px] text-slate-400">
+                                    {autoNote}
+                                  </div>
+
+                                  {isEditingThisNote ? (
+                                    <div className="mt-1.5 flex items-center gap-1.5">
+                                      <input
+                                        type="text"
+                                        value={editingNoteText}
+                                        onChange={(e) => setEditingNoteText(e.target.value)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') {
+                                            handleSaveGameNote(game.id, editingNoteText);
+                                          }
+                                          if (e.key === 'Escape') {
+                                            setEditingNoteGameId(null);
+                                          }
+                                        }}
+                                        placeholder="Add note (e.g. OT thriller, side bet)..."
+                                        autoFocus
+                                        className="bg-slate-950 border border-orange-500 rounded-lg px-2 py-1 text-xs text-white w-full focus:outline-none"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleSaveGameNote(game.id, editingNoteText)
+                                        }
+                                        className="px-2 py-1 rounded-lg bg-emerald-500 text-slate-950 font-bold text-[11px] shrink-0 cursor-pointer"
+                                      >
+                                        Save
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setEditingNoteGameId(null)}
+                                        className="px-2 py-1 rounded-lg bg-slate-800 text-slate-400 text-[11px] shrink-0 cursor-pointer"
+                                      >
+                                        ✕
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div className="mt-1 flex items-center gap-2">
+                                      {savedNote ? (
+                                        <div className="inline-flex items-center gap-1.5 bg-orange-500/15 border border-orange-500/30 text-orange-200 px-2 py-0.5 rounded-md text-[11px]">
+                                          <span>📝 {savedNote}</span>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setEditingNoteGameId(game.id);
+                                              setEditingNoteText(savedNote);
+                                            }}
+                                            className="text-orange-400 hover:text-white ml-1"
+                                            title="Edit note"
+                                          >
+                                            <Edit3 className="w-3 h-3" />
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setEditingNoteGameId(game.id);
+                                            setEditingNoteText('');
+                                          }}
+                                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-orange-400 transition cursor-pointer"
+                                        >
+                                          <MessageSquarePlus className="w-3 h-3" />
+                                          <span>Add Note</span>
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination / Load More Controls */}
+                  {filteredHistoricalGames.length > historyVisibleCount && (
+                    <div className="mt-5 pt-4 border-t border-slate-800 flex flex-wrap items-center justify-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setHistoryVisibleCount((prev) => prev + 50)}
+                        className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-white border border-slate-700 transition cursor-pointer"
+                      >
+                        Show Next 50 Games ({historyVisibleCount} of{' '}
+                        {filteredHistoricalGames.length} shown)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setHistoryVisibleCount(filteredHistoricalGames.length)
+                        }
+                        className="px-4 py-2 rounded-xl bg-orange-500/20 hover:bg-orange-500/30 text-xs font-bold text-orange-300 border border-orange-500/30 transition cursor-pointer"
+                      >
+                        Show All {filteredHistoricalGames.length} Games
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </>
+          )}
         </div>
 
         {/* FULL SNAKE DRAFT RECAP MODAL */}
