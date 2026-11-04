@@ -7,6 +7,7 @@ import {
   Maximize2,
   X,
   Gamepad2,
+  Compass,
   TrendingUp,
   Coins,
   Beer,
@@ -30,6 +31,16 @@ interface VibeApp {
 }
 
 const APPS: VibeApp[] = [
+  {
+    id: 'crotopia',
+    title: 'Crotopia: A Cozy Biome Odyssey',
+    category: 'THREE.JS / 3D GAME',
+    year: '2026',
+    description: 'Explore the four distinct biomes of Croatia in a Polytopia-style isometric low-poly 3D world with 14 interactive landmarks, folklore lore notes, and cozy discovery mechanics.',
+    localUrl: '/vibecoding/crotopia',
+    githubUrl: 'https://github.com/vedranbrozovic/crotopia',
+    icon: Compass
+  },
   {
     id: 'wolt-game',
     title: 'Wolt Delivery Game (v2)',
@@ -73,7 +84,7 @@ const APPS: VibeApp[] = [
 ];
 
 const VibeCoding: React.FC = () => {
-  const [selectedAppId, setSelectedAppId] = useState<string>('wolt-game');
+  const [selectedAppId, setSelectedAppId] = useState<string>('crotopia');
   const [iframeKey, setIframeKey] = useState<number>(0);
   const playerRef = useRef<HTMLDivElement>(null);
 
@@ -118,7 +129,7 @@ const VibeCoding: React.FC = () => {
             Vibe Coding Apps
           </h1>
           <p className="text-[15px] sm:text-base text-[#1c2229]/75 leading-relaxed">
-            Single-file HTML5 games, data visualizers, and playful apps built in quick vibe coding sessions. Select any app below to play or explore directly.
+            Interactive 3D worlds, single-file HTML5 games, data visualizers, and playful apps built in quick vibe coding sessions. Select any app below to play or explore directly.
           </p>
         </div>
 
@@ -215,7 +226,7 @@ const VibeCoding: React.FC = () => {
         {/* Apps Directory / Details List */}
         <div className="space-y-4 mb-14">
           <h2 className="text-xs font-bold uppercase tracking-wider text-[#1c2229]/50 mb-3">
-            All Vibe Coded Single-HTML Apps
+            All Vibe Coded Apps &amp; Games
           </h2>
 
           <div className="grid grid-cols-1 gap-3.5">
