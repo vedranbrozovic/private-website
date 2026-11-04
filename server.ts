@@ -1,4 +1,5 @@
 import express from 'express';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
@@ -8,6 +9,132 @@ dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const NBA_SAVED_SLOTS_FILE = path.join(__dirname, 'nba-saved-leagues.json');
+const MAX_NBA_SLOTS = 10;
+
+interface StoredNbaSlot {
+  slotNumber: number; // 1..10
+  league: Record<string, any>;
+  passwordHash?: string; // plain trimmed password for simple unlock
+  savedAt: string;
+}
+
+function createDefaultSampleSlot(): StoredNbaSlot {
+  const numPlayers = 3;
+  const rounds = 30 / numPlayers;
+  const snakeOrder: number[] = [];
+  for (let r = 0; r < rounds; r++) {
+    const row = [0, 1, 2];
+    if (r % 2 === 1) row.reverse();
+    snakeOrder.push(...row);
+  }
+  const sampleNames = ['Vedran', 'Luka', 'Nikola'];
+  const players = sampleNames.map((name, idx) => ({
+    id: idx,
+    name,
+    colorIndex: idx,
+    teamIds: [] as number[],
+  }));
+  const draftPriorityIds = [
+    18, 1, 7, 16, 3, 26, 17, 24, 10, 21,
+    14, 27, 23, 28, 9, 25, 13, 22, 4, 30,
+    11, 29, 6, 8, 5, 2, 12, 19, 20, 15,
+  ];
+  const picks = draftPriorityIds.map((teamId, pickIdx) => {
+    const playerIndex = snakeOrder[pickIdx];
+    players[playerIndex].teamIds.push(teamId);
+    return {
+      pickNumber: pickIdx + 1,
+      playerIndex,
+      teamId,
+    };
+  });
+  const now = new Date().toISOString();
+  return {
+    slotNumber: 1,
+    savedAt: now,
+    league: {
+      id: 'league_shared_slot_1',
+      name: 'Championship Trio 2026-27 (Demo)',
+      season: '2027',
+      numPlayers,
+      players,
+      snakeOrder,
+      picks,
+      status: 'ACTIVE',
+      gameNotes: {},
+      createdAt: now,
+      updatedAt: now,
+    },
+  };
+}
+
+function readNbaSavedSlots(): StoredNbaSlot[] {
+  try {
+    if (!fs.existsSync(NBA_SAVED_SLOTS_FILE)) {
+      const initial = [createDefaultSampleSlot()];
+      fs.writeFileSync(NBA_SAVED_SLOTS_FILE, JSON.stringify(initial, null, 2), 'utf-8');
+      return initial;
+    }
+    const raw = fs.readFileSync(NBA_SAVED_SLOTS_FILE, 'utf-8');
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed.filter(
+        (s) =>
+          s &&
+          typeof s.slotNumber === 'number' &&
+          s.slotNumber >= 1 &&
+          s.slotNumber <= MAX_NBA_SLOTS &&
+          s.league
+      );
+    }
+    return [];
+  } catch (err) {
+    console.error('Error reading NBA saved slots:', err);
+    return [];
+  }
+}
+
+function writeNbaSavedSlots(slots: StoredNbaSlot[]): void {
+  try {
+    const sorted = [...slots]
+      .filter((s) => s.slotNumber >= 1 && s.slotNumber <= MAX_NBA_SLOTS)
+      .sort((a, b) => a.slotNumber - b.slotNumber)
+      .slice(0, MAX_NBA_SLOTS);
+    fs.writeFileSync(NBA_SAVED_SLOTS_FILE, JSON.stringify(sorted, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Error writing NBA saved slots:', err);
+  }
+}
+
+function sanitizeSlotForPublicList(slot: StoredNbaSlot) {
+  const hasPassword = Boolean(slot.passwordHash && slot.passwordHash.trim().length > 0);
+  const league = slot.league || {};
+  return {
+    slotNumber: slot.slotNumber,
+    hasPassword,
+    savedAt: slot.savedAt,
+    summary: {
+      id: league.id,
+      name: league.name || `Slot #${slot.slotNumber} League`,
+      season: league.season || '2027',
+      numPlayers: league.numPlayers || (Array.isArray(league.players) ? league.players.length : 3),
+      status: league.status || 'ACTIVE',
+      picksCount: Array.isArray(league.picks) ? league.picks.length : 0,
+      players: Array.isArray(league.players)
+        ? league.players.map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            colorIndex: p.colorIndex,
+            teamCount: Array.isArray(p.teamIds) ? p.teamIds.length : 0,
+          }))
+        : [],
+      updatedAt: league.updatedAt || slot.savedAt,
+    },
+    // If no password is set, include full league right away for 1-click instant load!
+    league: hasPassword ? null : slot.league,
+  };
+}
 
 const VEDRAN_SYSTEM_PROMPT = `You are "Vedran's AI", the personal AI assistant on Vedran Brozović's website (vedranbrozovic.com).
 Speak in a warm, sharp, articulate, slightly witty product-leader tone. Always reply in the language the user asked in (English or Croatian / Hrvatski). Format your responses cleanly using concise Markdown (bullet points, bold key phrases, and relevant links where helpful).
@@ -205,6 +332,135 @@ async function startServer() {
       const { status, message } = extractCleanErrorMessage(err);
       return res.status(status).json({ error: message });
     }
+  });
+
+  // ============================================================================
+  // SHARED 10-SLOT NBA GAME STORAGE (/vibecoding/nbagame/saved)
+  // ============================================================================
+  app.get(['/api/nbagame/saved', '/vibecoding/nbagame/saved.json'], (_req, res) => {
+    const slots = readNbaSavedSlots();
+    return res.json({
+      maxSlots: MAX_NBA_SLOTS,
+      slots: slots.map(sanitizeSlotForPublicList),
+    });
+  });
+
+  app.post('/api/nbagame/saved/unlock', (req, res) => {
+    const slotNumber = Number(req.body?.slotNumber);
+    const password = String(req.body?.password ?? '').trim();
+
+    if (!slotNumber || slotNumber < 1 || slotNumber > MAX_NBA_SLOTS) {
+      return res.status(400).json({ error: 'Invalid slot number (must be 1–10).' });
+    }
+
+    const slots = readNbaSavedSlots();
+    const found = slots.find((s) => s.slotNumber === slotNumber);
+    if (!found) {
+      return res.status(404).json({ error: `Slot #${slotNumber} is currently empty.` });
+    }
+
+    const storedPass = (found.passwordHash || '').trim();
+    if (storedPass && storedPass !== password) {
+      return res.status(403).json({ error: 'Incorrect password for this league slot.' });
+    }
+
+    return res.json({
+      ok: true,
+      slotNumber: found.slotNumber,
+      league: found.league,
+    });
+  });
+
+  app.post('/api/nbagame/saved', (req, res) => {
+    const slotNumber = Number(req.body?.slotNumber);
+    const league = req.body?.league;
+    const currentPassword = String(req.body?.currentPassword ?? req.body?.password ?? '').trim();
+    const newPasswordRaw = req.body?.newPassword;
+
+    if (!slotNumber || slotNumber < 1 || slotNumber > MAX_NBA_SLOTS) {
+      return res.status(400).json({ error: 'Slot number must be between 1 and 10.' });
+    }
+    if (!league || typeof league !== 'object' || !Array.isArray(league.players)) {
+      return res.status(400).json({ error: 'Valid league object is required.' });
+    }
+
+    const slots = readNbaSavedSlots();
+    const existingIdx = slots.findIndex((s) => s.slotNumber === slotNumber);
+
+    if (existingIdx !== -1) {
+      const existing = slots[existingIdx];
+      const existingPass = (existing.passwordHash || '').trim();
+      if (existingPass && existingPass !== currentPassword) {
+        return res.status(403).json({
+          error: `Slot #${slotNumber} is password-protected. Enter the existing slot password to overwrite or update it.`,
+        });
+      }
+    }
+
+    // Determine password to store: if newPassword is explicitly provided, use it; otherwise if creating new slot use currentPassword; if updating existing slot keep existing password
+    let finalPassword = '';
+    if (typeof newPasswordRaw === 'string') {
+      finalPassword = newPasswordRaw.trim();
+    } else if (existingIdx !== -1) {
+      finalPassword = (slots[existingIdx].passwordHash || '').trim();
+    } else {
+      finalPassword = currentPassword;
+    }
+
+    const now = new Date().toISOString();
+    const updatedSlot: StoredNbaSlot = {
+      slotNumber,
+      league: {
+        ...league,
+        updatedAt: now,
+      },
+      ...(finalPassword ? { passwordHash: finalPassword } : {}),
+      savedAt: now,
+    };
+
+    if (existingIdx !== -1) {
+      slots[existingIdx] = updatedSlot;
+    } else {
+      slots.push(updatedSlot);
+    }
+
+    writeNbaSavedSlots(slots);
+
+    return res.json({
+      ok: true,
+      slot: sanitizeSlotForPublicList(updatedSlot),
+      slots: readNbaSavedSlots().map(sanitizeSlotForPublicList),
+    });
+  });
+
+  app.delete('/api/nbagame/saved/:slotNumber', (req, res) => {
+    const slotNumber = Number(req.params.slotNumber);
+    const password = String(req.body?.password ?? req.query?.password ?? '').trim();
+
+    if (!slotNumber || slotNumber < 1 || slotNumber > MAX_NBA_SLOTS) {
+      return res.status(400).json({ error: 'Invalid slot number.' });
+    }
+
+    const slots = readNbaSavedSlots();
+    const existing = slots.find((s) => s.slotNumber === slotNumber);
+    if (!existing) {
+      return res.json({ ok: true, slots: slots.map(sanitizeSlotForPublicList) });
+    }
+
+    const existingPass = (existing.passwordHash || '').trim();
+    if (existingPass && existingPass !== password) {
+      return res.status(403).json({
+        error: `Slot #${slotNumber} is password-protected. Enter its password to clear this slot.`,
+      });
+    }
+
+    const remaining = slots.filter((s) => s.slotNumber !== slotNumber);
+    writeNbaSavedSlots(remaining);
+
+    return res.json({
+      ok: true,
+      slots: remaining.map(sanitizeSlotForPublicList),
+    });
   });
 
   if (process.env.NODE_ENV !== 'production') {

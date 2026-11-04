@@ -22,7 +22,12 @@ import {
   Undo2,
   History,
   MessageSquarePlus,
-  Filter
+  Filter,
+  Cloud,
+  Lock,
+  Unlock,
+  KeyRound,
+  Share2
 } from 'lucide-react';
 
 // ============================================================================
@@ -157,6 +162,28 @@ export interface HistoricalGame {
   winnerScore: number;
   loserScore: number;
 }
+
+export interface SharedSlotSummary {
+  id: string;
+  name: string;
+  season: string;
+  numPlayers: number;
+  status: 'DRAFTING' | 'ACTIVE';
+  picksCount: number;
+  players: { id: number; name: string; colorIndex: number; teamCount: number }[];
+  updatedAt: string;
+}
+
+export interface SharedSlotItem {
+  slotNumber: number; // 1..10
+  hasPassword: boolean;
+  savedAt: string;
+  summary: SharedSlotSummary;
+  league: LeagueData | null; // Present immediately when hasPassword is false
+}
+
+const SHARED_SLOTS_FALLBACK_KEY = 'nba_wins_shared_10_slots_fallback_v1';
+const MAX_SHARED_SLOTS = 10;
 
 const getLogoUrl = (abbr: string) =>
   `https://a.espncdn.com/i/teamlogos/nba/500/${abbr.toLowerCase()}.png`;
@@ -435,6 +462,27 @@ export default function NbaGameApp() {
 
   // Modals & UI Feedback State
   const [showLeagueVault, setShowLeagueVault] = useState<boolean>(false);
+  const [showSharedSavedHub, setShowSharedSavedHub] = useState<boolean>(() => {
+    try {
+      const path = window.location.pathname.replace(/\/+$/, '');
+      return path === '/vibecoding/nbagame/saved';
+    } catch {
+      return false;
+    }
+  });
+  const [sharedSlots, setSharedSlots] = useState<SharedSlotItem[]>([]);
+  const [loadingSharedSlots, setLoadingSharedSlots] = useState<boolean>(false);
+  const [savingToSlotNumber, setSavingToSlotNumber] = useState<number | null>(null);
+  const [selectedSaveSlot, setSelectedSaveSlot] = useState<number>(1);
+  const [saveSlotPassword, setSaveSlotPassword] = useState<string>('');
+  const [unlockingSlotNumber, setUnlockingSlotNumber] = useState<number | null>(null);
+  const [unlockPasswordInput, setUnlockPasswordInput] = useState<string>('');
+  const [unlockError, setUnlockError] = useState<string | null>(null);
+  const [deletingSlotNumber, setDeletingSlotNumber] = useState<number | null>(null);
+  const [deleteSlotPasswordInput, setDeleteSlotPasswordInput] = useState<string>('');
+  // Remember unlocked passwords by slot number during session so updates are 1-click
+  const [sessionUnlockedPasswords, setSessionUnlockedPasswords] = useState<Record<number, string>>({});
+
   const [showDraftRecap, setShowDraftRecap] = useState<boolean>(false);
   const [showHowItWorks, setShowHowItWorks] = useState<boolean>(false);
   const [showPasteJsonModal, setShowPasteJsonModal] = useState<boolean>(false);
@@ -444,6 +492,7 @@ export default function NbaGameApp() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [copiedLeagueId, setCopiedLeagueId] = useState<string | null>(null);
+  const [copiedSharedUrl, setCopiedSharedUrl] = useState<boolean>(false);
 
   // Historical Games State & Filters
   const [showHistoricalSection, setShowHistoricalSection] = useState<boolean>(true);
@@ -464,6 +513,294 @@ export default function NbaGameApp() {
     setTimeout(() => {
       setToastMessage((prev) => (prev === msg ? null : prev));
     }, 3200);
+  };
+
+  // Toggle /vibecoding/nbagame/saved URL & modal cleanly
+  const openSharedSavedHub = () => {
+    setShowSharedSavedHub(true);
+    try {
+      if (!window.location.pathname.endsWith('/saved')) {
+        window.history.pushState({}, '', '/vibecoding/nbagame/saved');
+      }
+    } catch {
+      // Ignore history push error
+    }
+    fetchSharedSavedSlots();
+  };
+
+  const closeSharedSavedHub = () => {
+    setShowSharedSavedHub(false);
+    setUnlockingSlotNumber(null);
+    setUnlockError(null);
+    setDeletingSlotNumber(null);
+    try {
+      if (window.location.pathname.endsWith('/saved')) {
+        window.history.pushState({}, '', '/vibecoding/nbagame');
+      }
+    } catch {
+      // Ignore history push error
+    }
+  };
+
+  useEffect(() => {
+    const onPopState = () => {
+      const path = window.location.pathname.replace(/\/+$/, '');
+      setShowSharedSavedHub(path === '/vibecoding/nbagame/saved');
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  // Fetch the 10 shared saved slots from /api/nbagame/saved (with local fallback)
+  const fetchSharedSavedSlots = async () => {
+    setLoadingSharedSlots(true);
+    try {
+      const res = await fetch('/api/nbagame/saved');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data?.slots)) {
+          setSharedSlots(data.slots);
+          localStorage.setItem(SHARED_SLOTS_FALLBACK_KEY, JSON.stringify(data.slots));
+          setLoadingSharedSlots(false);
+          return data.slots as SharedSlotItem[];
+        }
+      }
+    } catch {
+      // Fallback to local storage if offline or static host
+    }
+
+    try {
+      const raw = localStorage.getItem(SHARED_SLOTS_FALLBACK_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          setSharedSlots(parsed);
+          setLoadingSharedSlots(false);
+          return parsed as SharedSlotItem[];
+        }
+      }
+    } catch {
+      // Ignore parse error
+    }
+    setLoadingSharedSlots(false);
+    return [];
+  };
+
+  useEffect(() => {
+    fetchSharedSavedSlots().then((loadedSlots) => {
+      // Check if URL has ?slot=N for quick deep-link loading
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const slotParam = Number(params.get('slot'));
+        if (slotParam >= 1 && slotParam <= MAX_SHARED_SLOTS && loadedSlots.length > 0) {
+          const targetSlot = loadedSlots.find((s) => s.slotNumber === slotParam);
+          if (targetSlot) {
+            if (!targetSlot.hasPassword && targetSlot.league) {
+              const normalized = normalizeImportedLeague(targetSlot.league);
+              if (normalized) {
+                setLeagues((prev) => {
+                  const rest = prev.filter((l) => l.id !== normalized.id);
+                  return [normalized, ...rest];
+                });
+                setActiveLeagueId(normalized.id);
+                setSelectedSaveSlot(slotParam);
+                showToast(`Loaded Slot #${slotParam}: "${normalized.name}"`);
+              }
+            } else if (targetSlot.hasPassword) {
+              setShowSharedSavedHub(true);
+              setUnlockingSlotNumber(slotParam);
+            }
+          }
+        }
+      } catch {
+        // Ignore URL param error
+      }
+    });
+  }, []);
+
+  // Auto-select matching slot number when active league changes
+  useEffect(() => {
+    if (!league) return;
+    const matched = sharedSlots.find((s) => s.summary?.id === league.id);
+    if (matched) {
+      setSelectedSaveSlot(matched.slotNumber);
+    } else {
+      // Default to first empty slot (1..10), or Slot 1 if all full
+      const occupiedNums = new Set(sharedSlots.map((s) => s.slotNumber));
+      for (let i = 1; i <= MAX_SHARED_SLOTS; i++) {
+        if (!occupiedNums.has(i)) {
+          setSelectedSaveSlot(i);
+          break;
+        }
+      }
+    }
+  }, [league?.id, sharedSlots]);
+
+  const handleLoadSharedSlot = (slot: SharedSlotItem) => {
+    if (slot.hasPassword && !slot.league) {
+      setUnlockingSlotNumber(slot.slotNumber);
+      setUnlockPasswordInput(sessionUnlockedPasswords[slot.slotNumber] || '');
+      setUnlockError(null);
+      return;
+    }
+    if (slot.league) {
+      const normalized = normalizeImportedLeague(slot.league);
+      if (normalized) {
+        setLeagues((prev) => {
+          const rest = prev.filter((l) => l.id !== normalized.id);
+          return [normalized, ...rest];
+        });
+        setActiveLeagueId(normalized.id);
+        setSelectedSaveSlot(slot.slotNumber);
+        closeSharedSavedHub();
+        showToast(`Loaded Slot #${slot.slotNumber}: "${normalized.name}"`);
+      }
+    }
+  };
+
+  const handleUnlockAndLoadSlot = async (slotNumber: number) => {
+    setUnlockError(null);
+    const pwd = unlockPasswordInput.trim();
+    try {
+      const res = await fetch('/api/nbagame/saved/unlock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slotNumber, password: pwd }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setUnlockError(data?.error || 'Incorrect password.');
+        return;
+      }
+      if (data?.league) {
+        const normalized = normalizeImportedLeague(data.league);
+        if (normalized) {
+          setSessionUnlockedPasswords((prev) => ({ ...prev, [slotNumber]: pwd }));
+          setLeagues((prev) => {
+            const rest = prev.filter((l) => l.id !== normalized.id);
+            return [normalized, ...rest];
+          });
+          setActiveLeagueId(normalized.id);
+          setSelectedSaveSlot(slotNumber);
+          setUnlockingSlotNumber(null);
+          setUnlockPasswordInput('');
+          closeSharedSavedHub();
+          showToast(`Unlocked & loaded Slot #${slotNumber}: "${normalized.name}"!`);
+        }
+      }
+    } catch {
+      setUnlockError('Unable to verify password right now.');
+    }
+  };
+
+  const handleSaveLeagueToSharedSlot = async (
+    targetSlotNumber: number,
+    targetLeague: LeagueData,
+    passwordInput?: string
+  ) => {
+    setSavingToSlotNumber(targetSlotNumber);
+    const pwd =
+      passwordInput !== undefined
+        ? passwordInput.trim()
+        : saveSlotPassword.trim() || sessionUnlockedPasswords[targetSlotNumber] || '';
+
+    try {
+      const res = await fetch('/api/nbagame/saved', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          slotNumber: targetSlotNumber,
+          league: targetLeague,
+          currentPassword: pwd,
+          ...(saveSlotPassword.trim() ? { newPassword: saveSlotPassword.trim() } : {}),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data?.error || `Could not save to Slot #${targetSlotNumber}.`);
+        setSavingToSlotNumber(null);
+        return;
+      }
+      if (Array.isArray(data?.slots)) {
+        setSharedSlots(data.slots);
+        localStorage.setItem(SHARED_SLOTS_FALLBACK_KEY, JSON.stringify(data.slots));
+      }
+      if (pwd) {
+        setSessionUnlockedPasswords((prev) => ({ ...prev, [targetSlotNumber]: pwd }));
+      }
+      setSaveSlotPassword('');
+      showToast(
+        `Saved "${targetLeague.name}" to Shared Slot #${targetSlotNumber} (/vibecoding/nbagame/saved)!`
+      );
+    } catch {
+      // Offline / static fallback
+      const now = new Date().toISOString();
+      const newSlot: SharedSlotItem = {
+        slotNumber: targetSlotNumber,
+        hasPassword: Boolean(pwd),
+        savedAt: now,
+        summary: {
+          id: targetLeague.id,
+          name: targetLeague.name,
+          season: targetLeague.season,
+          numPlayers: targetLeague.numPlayers,
+          status: targetLeague.status,
+          picksCount: targetLeague.picks.length,
+          players: targetLeague.players.map((p) => ({
+            id: p.id,
+            name: p.name,
+            colorIndex: p.colorIndex,
+            teamCount: p.teamIds.length,
+          })),
+          updatedAt: now,
+        },
+        league: targetLeague,
+      };
+      setSharedSlots((prev) => {
+        const next = [...prev.filter((s) => s.slotNumber !== targetSlotNumber), newSlot].sort(
+          (a, b) => a.slotNumber - b.slotNumber
+        );
+        localStorage.setItem(SHARED_SLOTS_FALLBACK_KEY, JSON.stringify(next));
+        return next;
+      });
+      showToast(`Saved "${targetLeague.name}" to Slot #${targetSlotNumber}!`);
+    } finally {
+      setSavingToSlotNumber(null);
+    }
+  };
+
+  const handleClearSharedSlot = async (slotNumber: number, passwordToUse?: string) => {
+    const pwd =
+      passwordToUse !== undefined
+        ? passwordToUse.trim()
+        : deleteSlotPasswordInput.trim() || sessionUnlockedPasswords[slotNumber] || '';
+    try {
+      const res = await fetch(`/api/nbagame/saved/${slotNumber}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pwd }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data?.error || `Incorrect password to clear Slot #${slotNumber}.`);
+        return;
+      }
+      if (Array.isArray(data?.slots)) {
+        setSharedSlots(data.slots);
+        localStorage.setItem(SHARED_SLOTS_FALLBACK_KEY, JSON.stringify(data.slots));
+      }
+      setDeletingSlotNumber(null);
+      setDeleteSlotPasswordInput('');
+      showToast(`Cleared Shared Slot #${slotNumber}.`);
+    } catch {
+      setSharedSlots((prev) => {
+        const next = prev.filter((s) => s.slotNumber !== slotNumber);
+        localStorage.setItem(SHARED_SLOTS_FALLBACK_KEY, JSON.stringify(next));
+        return next;
+      });
+      setDeletingSlotNumber(null);
+      showToast(`Cleared Slot #${slotNumber}.`);
+    }
   };
 
   // Live Data State
@@ -1214,19 +1551,29 @@ export default function NbaGameApp() {
 
           <button
             type="button"
+            onClick={openSharedSavedHub}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-orange-500/20 to-amber-500/20 hover:from-orange-500/30 hover:to-amber-500/30 text-orange-300 text-xs font-black border border-orange-500/40 transition cursor-pointer"
+            title="Open /vibecoding/nbagame/saved — 10 shared game slots anyone can load without local JSON files"
+          >
+            <Cloud className="w-3.5 h-3.5 text-orange-400" />
+            <span>/saved Games ({sharedSlots.length}/10)</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setShowLeagueVault(true)}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition cursor-pointer"
           >
-            <FolderOpen className="w-3.5 h-3.5 text-orange-400" />
-            <span>Saved Leagues ({leagues.length})</span>
+            <FolderOpen className="w-3.5 h-3.5 text-sky-400" />
+            <span>Local JSON Vault ({leagues.length})</span>
           </button>
 
           {league && (
             <button
               type="button"
               onClick={() => setActiveLeagueId(null)}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 text-xs font-bold border border-orange-500/30 transition cursor-pointer"
-              title="Start another league (your current league stays saved in your Vault)"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700 transition cursor-pointer"
+              title="Start another league (your current league stays saved)"
             >
               <Plus className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">New League</span>
@@ -1246,6 +1593,428 @@ export default function NbaGameApp() {
         </div>
       )}
 
+      {/* Shared 10-Slot Saved Games Hub Modal (/vibecoding/nbagame/saved) */}
+      {showSharedSavedHub && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50">
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl max-w-5xl w-full p-5 sm:p-6 shadow-2xl max-h-[92vh] flex flex-col">
+            {/* Header */}
+            <div className="flex flex-wrap items-start justify-between gap-3 pb-4 mb-4 border-b border-slate-800">
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="px-2.5 py-0.5 rounded-md bg-orange-500/20 border border-orange-500/40 text-orange-300 text-[11px] font-black font-mono">
+                    /vibecoding/nbagame/saved
+                  </span>
+                  <span className="text-xs font-bold text-emerald-400">
+                    · {sharedSlots.length} of {MAX_SHARED_SLOTS} Slots Used
+                  </span>
+                </div>
+                <h2 className="text-lg sm:text-2xl font-black text-white flex items-center gap-2 mt-1">
+                  <Cloud className="w-5 h-5 text-orange-400" />
+                  <span>Shared Saved Games (Up to 10 Leagues)</span>
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Anyone can visit <span className="text-slate-200 font-mono">/vibecoding/nbagame/saved</span> to load a league in 1 click without needing a local JSON file. Optional password lock available per slot.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const url = `${window.location.origin}/vibecoding/nbagame/saved`;
+                    navigator.clipboard.writeText(url);
+                    setCopiedSharedUrl(true);
+                    setTimeout(() => setCopiedSharedUrl(false), 2000);
+                    showToast('Copied /vibecoding/nbagame/saved link!');
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition cursor-pointer"
+                >
+                  {copiedSharedUrl ? (
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  ) : (
+                    <Share2 className="w-3.5 h-3.5 text-orange-400" />
+                  )}
+                  <span>{copiedSharedUrl ? 'Copied Link!' : 'Copy /saved Link'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={fetchSharedSavedSlots}
+                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition cursor-pointer"
+                  title="Refresh shared slots"
+                >
+                  <RefreshCw className={`w-4 h-4 ${loadingSharedSlots ? 'animate-spin' : ''}`} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={closeSharedSavedHub}
+                  className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Save Active League Banner */}
+            {league ? (
+              <div className="bg-slate-950/90 border border-orange-500/40 rounded-2xl p-4 mb-4">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-orange-400">
+                      Save Active League to Shared Slot (1–10)
+                    </div>
+                    <div className="text-sm font-black text-white mt-0.5">
+                      {league.name}{' '}
+                      <span className="text-xs font-medium text-slate-400">
+                        ({league.season === '2027' ? '2026-27' : '2025-26'} · {league.numPlayers} Players ·{' '}
+                        {league.status === 'ACTIVE' ? '30/30 Complete' : `Pick ${league.picks.length}/30`})
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      aria-label="Choose slot number 1 to 10"
+                      value={selectedSaveSlot}
+                      onChange={(e) => setSelectedSaveSlot(Number(e.target.value))}
+                      className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-orange-500"
+                    >
+                      {Array.from({ length: MAX_SHARED_SLOTS }, (_, i) => i + 1).map((num) => {
+                        const existing = sharedSlots.find((s) => s.slotNumber === num);
+                        return (
+                          <option key={num} value={num}>
+                            Slot #{num}: {existing ? `${existing.summary.name} (Overwrite/Update)` : 'Empty Slot'}
+                          </option>
+                        );
+                      })}
+                    </select>
+
+                    <div className="relative flex items-center">
+                      <KeyRound className="w-3.5 h-3.5 text-slate-500 absolute left-3 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={saveSlotPassword}
+                        onChange={(e) => setSaveSlotPassword(e.target.value)}
+                        placeholder="Optional password (blank = open)"
+                        className="bg-slate-900 border border-slate-700 rounded-xl pl-8 pr-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500 w-52"
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={savingToSlotNumber !== null}
+                      onClick={() => handleSaveLeagueToSharedSlot(selectedSaveSlot, league)}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-slate-950 font-black text-xs transition cursor-pointer shadow-lg shadow-orange-500/20"
+                    >
+                      <Cloud className="w-3.5 h-3.5" />
+                      <span>
+                        {savingToSlotNumber === selectedSaveSlot
+                          ? 'Saving...'
+                          : `Save to Slot #${selectedSaveSlot}`}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-3.5 mb-4 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-300">
+                <span>
+                  💡 Select any of the 10 saved league slots below to load it immediately — no JSON download required!
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    closeSharedSavedHub();
+                    setShowLeagueVault(true);
+                  }}
+                  className="text-sky-400 hover:text-sky-300 font-bold underline cursor-pointer"
+                >
+                  Or open Local JSON Vault →
+                </button>
+              </div>
+            )}
+
+            {/* 10 Slots Grid */}
+            <div className="overflow-y-auto flex-1 pr-1 grid grid-cols-1 md:grid-cols-2 gap-3">
+              {Array.from({ length: MAX_SHARED_SLOTS }, (_, i) => i + 1).map((slotNum) => {
+                const slot = sharedSlots.find((s) => s.slotNumber === slotNum);
+                const isUnlocking = unlockingSlotNumber === slotNum;
+                const isDeleting = deletingSlotNumber === slotNum;
+                const isActiveLoaded = Boolean(league && slot && slot.summary.id === league.id);
+
+                if (!slot) {
+                  return (
+                    <div
+                      key={slotNum}
+                      className="p-4 rounded-2xl bg-slate-950/50 border border-dashed border-slate-800 flex items-center justify-between gap-3"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center font-mono font-black text-xs text-slate-500">
+                          #{slotNum}
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold text-slate-400">
+                            Slot #{slotNum} — Empty
+                          </div>
+                          <div className="text-[11px] text-slate-600">
+                            Available for any league (1-click load)
+                          </div>
+                        </div>
+                      </div>
+
+                      {league && (
+                        <button
+                          type="button"
+                          disabled={savingToSlotNumber !== null}
+                          onClick={() => handleSaveLeagueToSharedSlot(slotNum, league)}
+                          className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-orange-500 hover:text-slate-950 text-slate-300 text-xs font-bold border border-slate-700 transition cursor-pointer shrink-0"
+                        >
+                          + Save Here
+                        </button>
+                      )}
+                    </div>
+                  );
+                }
+
+                return (
+                  <div
+                    key={slotNum}
+                    className={`p-4 rounded-2xl border transition flex flex-col justify-between gap-3 ${
+                      isActiveLoaded
+                        ? 'bg-slate-800/90 border-orange-500/60 shadow-lg'
+                        : 'bg-slate-950/85 border-slate-800 hover:border-slate-700'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="px-2 py-1 rounded-lg bg-orange-500/15 border border-orange-500/30 text-orange-400 font-mono font-black text-xs shrink-0">
+                            #{slotNum}
+                          </span>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-black text-sm sm:text-base text-white truncate">
+                                {slot.summary.name}
+                              </h3>
+                              {isActiveLoaded && (
+                                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-orange-500 text-slate-950">
+                                  Loaded
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-400 mt-0.5">
+                              <span>
+                                {slot.summary.season === '2027' ? '2026-27' : '2025-26'}
+                              </span>
+                              <span>·</span>
+                              <span>{slot.summary.numPlayers} Players</span>
+                              <span>·</span>
+                              <span
+                                className={
+                                  slot.summary.status === 'ACTIVE'
+                                    ? 'text-emerald-400 font-semibold'
+                                    : 'text-amber-400 font-semibold'
+                                }
+                              >
+                                {slot.summary.status === 'ACTIVE'
+                                  ? '30/30 Active'
+                                  : `Draft ${slot.summary.picksCount}/30`}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border shrink-0 ${
+                            slot.hasPassword
+                              ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                              : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                          }`}
+                        >
+                          {slot.hasPassword ? (
+                            <>
+                              <Lock className="w-3 h-3" />
+                              <span>Password</span>
+                            </>
+                          ) : (
+                            <>
+                              <Unlock className="w-3 h-3" />
+                              <span>Open</span>
+                            </>
+                          )}
+                        </span>
+                      </div>
+
+                      {/* Players pills */}
+                      <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
+                        {slot.summary.players.map((p) => (
+                          <span
+                            key={p.id}
+                            className="text-[11px] text-slate-300 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-md"
+                          >
+                            {p.name} ({p.teamCount})
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Inline Password Unlock Box if Locked & Clicked */}
+                    {isUnlocking && (
+                      <div className="bg-slate-900 border border-amber-500/40 rounded-xl p-2.5 space-y-2">
+                        <div className="text-[11px] font-bold text-amber-300 flex items-center gap-1.5">
+                          <KeyRound className="w-3.5 h-3.5" />
+                          <span>Enter password to unlock Slot #{slotNum}:</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="password"
+                            value={unlockPasswordInput}
+                            onChange={(e) => setUnlockPasswordInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleUnlockAndLoadSlot(slotNum);
+                            }}
+                            placeholder="League password..."
+                            autoFocus
+                            className="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white flex-1 focus:outline-none focus:border-orange-500"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleUnlockAndLoadSlot(slotNum)}
+                            className="px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-400 text-slate-950 font-black text-xs cursor-pointer"
+                          >
+                            Unlock &amp; Load
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setUnlockingSlotNumber(null);
+                              setUnlockError(null);
+                            }}
+                            className="px-2 py-1.5 rounded-lg bg-slate-800 text-slate-400 text-xs cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                        {unlockError && (
+                          <div className="text-[11px] text-rose-400 font-semibold">
+                            {unlockError}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Inline Delete Confirmation */}
+                    {isDeleting && (
+                      <div className="bg-slate-900 border border-rose-500/40 rounded-xl p-2.5 space-y-2">
+                        <div className="text-[11px] font-bold text-rose-300">
+                          Clear Slot #{slotNum} ({slot.summary.name})?
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {slot.hasPassword && (
+                            <input
+                              type="password"
+                              value={deleteSlotPasswordInput}
+                              onChange={(e) => setDeleteSlotPasswordInput(e.target.value)}
+                              placeholder="Slot password..."
+                              className="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white flex-1 focus:outline-none"
+                            />
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleClearSharedSlot(slotNum)}
+                            className="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs cursor-pointer"
+                          >
+                            Confirm Clear
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDeletingSlotNumber(null);
+                              setDeleteSlotPasswordInput('');
+                            }}
+                            className="px-2 py-1 rounded-lg bg-slate-800 text-slate-400 text-xs cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Slot Action Buttons */}
+                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800/80">
+                      <span className="text-[10px] text-slate-500">
+                        Saved{' '}
+                        {new Date(slot.savedAt).toLocaleDateString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleLoadSharedSlot(slot)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-black transition cursor-pointer inline-flex items-center gap-1.5 ${
+                            isActiveLoaded
+                              ? 'bg-orange-500 text-slate-950'
+                              : 'bg-slate-800 hover:bg-orange-500 hover:text-slate-950 text-white border border-slate-700'
+                          }`}
+                        >
+                          {slot.hasPassword && !slot.league ? (
+                            <>
+                              <Lock className="w-3 h-3" />
+                              <span>Unlock &amp; Load</span>
+                            </>
+                          ) : (
+                            <span>{isActiveLoaded ? 'Reload Slot' : 'Load League'}</span>
+                          )}
+                        </button>
+
+                        {league && (
+                          <button
+                            type="button"
+                            onClick={() => handleSaveLeagueToSharedSlot(slotNum, league)}
+                            className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold transition cursor-pointer"
+                            title={`Save current active league ("${league.name}") into Slot #${slotNum}`}
+                          >
+                            Update Slot
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const slotUrl = `${window.location.origin}/vibecoding/nbagame/saved?slot=${slotNum}`;
+                            navigator.clipboard.writeText(slotUrl);
+                            showToast(`Copied direct link to Slot #${slotNum}!`);
+                          }}
+                          className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition cursor-pointer"
+                          title={`Copy direct link to Slot #${slotNum}`}
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setDeletingSlotNumber(slotNum)}
+                          className="p-1.5 rounded-xl bg-slate-800 hover:bg-rose-950/60 text-slate-400 hover:text-rose-300 border border-slate-700 transition cursor-pointer"
+                          title="Clear slot"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Saved Leagues Vault Modal */}
       {showLeagueVault && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50">
@@ -1254,10 +2023,10 @@ export default function NbaGameApp() {
               <div>
                 <h2 className="text-lg sm:text-xl font-black text-white flex items-center gap-2">
                   <FolderOpen className="w-5 h-5 text-orange-400" />
-                  <span>Saved Leagues Vault ({leagues.length})</span>
+                  <span>Local Browser Vault &amp; JSON Backup ({leagues.length})</span>
                 </h2>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  All leagues and custom game notes are automatically saved in your browser. Switch leagues, export JSON backups, or import a league code anytime.
+                  All leagues and custom game notes are automatically saved in your browser. You can also export/import local JSON files or share via /vibecoding/nbagame/saved.
                 </p>
               </div>
               <button
@@ -1749,13 +2518,73 @@ export default function NbaGameApp() {
             </div>
           </div>
 
-          {/* Right Column: Quick Access to Saved Leagues & Import/Sample */}
+          {/* Right Column: Quick Access to Shared 10 Slots (/saved) & Local Vault */}
           <div className="lg:col-span-5 space-y-5">
+            {/* Shared 10-Slot Directory Card */}
+            <div className="bg-slate-900/90 border border-orange-500/40 rounded-3xl p-6 shadow-xl">
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-base font-black text-white flex items-center gap-2">
+                  <Cloud className="w-4 h-4 text-orange-400" />
+                  <span>Shared Saved Games ({sharedSlots.length}/10)</span>
+                </h2>
+                <button
+                  type="button"
+                  onClick={openSharedSavedHub}
+                  className="text-xs font-bold text-orange-400 hover:text-orange-300 cursor-pointer"
+                >
+                  Open /saved →
+                </button>
+              </div>
+              <p className="text-xs text-slate-400 mb-3">
+                Stored in <span className="font-mono text-slate-200">/vibecoding/nbagame/saved</span> — load any of the 10 shared leagues in 1 click without needing a local JSON file:
+              </p>
+
+              <div className="space-y-2 max-h-[240px] overflow-y-auto pr-1">
+                {sharedSlots.map((slot) => (
+                  <div
+                    key={slot.slotNumber}
+                    onClick={() => handleLoadSharedSlot(slot)}
+                    className="p-3 rounded-2xl bg-slate-950/80 hover:bg-slate-800/80 border border-slate-800 hover:border-orange-500/50 transition cursor-pointer flex items-center justify-between gap-2.5 group"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="px-2 py-0.5 rounded-md bg-orange-500/15 border border-orange-500/30 text-orange-400 font-mono font-black text-xs shrink-0">
+                        #{slot.slotNumber}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="font-bold text-xs sm:text-sm text-white group-hover:text-orange-300 truncate flex items-center gap-1.5">
+                          <span className="truncate">{slot.summary.name}</span>
+                          {slot.hasPassword && <Lock className="w-3 h-3 text-amber-400 shrink-0" />}
+                        </div>
+                        <div className="text-[11px] text-slate-400">
+                          {slot.summary.season === '2027' ? '2026-27' : '2025-26'} · {slot.summary.numPlayers}P ·{' '}
+                          {slot.summary.status === 'ACTIVE'
+                            ? 'Active'
+                            : `Pick ${slot.summary.picksCount}/30`}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-xs font-bold text-orange-400 group-hover:translate-x-0.5 transition shrink-0">
+                      {slot.hasPassword ? 'Unlock →' : 'Load →'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={openSharedSavedHub}
+                className="w-full mt-3 py-2.5 px-3 rounded-xl bg-orange-500/15 hover:bg-orange-500/25 text-orange-300 font-black text-xs border border-orange-500/30 transition inline-flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <Cloud className="w-3.5 h-3.5" />
+                <span>View All 10 Shared Slots (/vibecoding/nbagame/saved)</span>
+              </button>
+            </div>
+
             <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-xl">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-base font-black text-white flex items-center gap-2">
-                  <FolderOpen className="w-4 h-4 text-orange-400" />
-                  <span>Stored Leagues ({leagues.length})</span>
+                  <FolderOpen className="w-4 h-4 text-sky-400" />
+                  <span>Local Browser Vault &amp; JSON ({leagues.length})</span>
                 </h2>
                 {leagues.length > 0 && (
                   <button
@@ -1771,7 +2600,7 @@ export default function NbaGameApp() {
               {leagues.length === 0 ? (
                 <div className="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4 text-center">
                   <p className="text-xs text-slate-400 mb-3">
-                    Every league you create or import is stored here so you can easily switch between multiple friend groups or seasons.
+                    Every league you create or import is also stored locally in your browser and can be exported as JSON anytime.
                   </p>
                   <button
                     type="button"
@@ -1783,7 +2612,7 @@ export default function NbaGameApp() {
                   </button>
                 </div>
               ) : (
-                <div className="space-y-2.5 max-h-[320px] overflow-y-auto pr-1">
+                <div className="space-y-2.5 max-h-[240px] overflow-y-auto pr-1">
                   {leagues.map((saved) => (
                     <div
                       key={saved.id}
@@ -1887,6 +2716,15 @@ export default function NbaGameApp() {
               >
                 <Undo2 className="w-3.5 h-3.5" />
                 <span>Undo Last Pick</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={openSharedSavedHub}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-orange-500/20 hover:bg-orange-500/30 text-xs font-black text-orange-300 border border-orange-500/40 transition cursor-pointer"
+              >
+                <Cloud className="w-3.5 h-3.5" />
+                <span>Save to /saved Slot</span>
               </button>
 
               <button
@@ -2216,6 +3054,16 @@ export default function NbaGameApp() {
             >
               <ListOrdered className="w-3.5 h-3.5 text-orange-400" />
               <span>Draft Board</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={openSharedSavedHub}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-orange-500/20 hover:bg-orange-500/30 text-xs font-black text-orange-300 border border-orange-500/40 transition cursor-pointer"
+              title="Save or load from the 10 shared slots at /vibecoding/nbagame/saved"
+            >
+              <Cloud className="w-3.5 h-3.5 text-orange-400" />
+              <span>Save / Load Slot ({sharedSlots.length}/10)</span>
             </button>
 
             <button
