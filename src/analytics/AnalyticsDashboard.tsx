@@ -8,7 +8,11 @@ import {
   Calendar,
   Mail,
 } from 'lucide-react';
-import { trackOutreachEvent } from './tracker';
+import {
+  trackOutreachEvent,
+  getLocalAnalyticsSnapshot,
+  saveLocalAnalyticsSnapshot,
+} from './tracker';
 
 interface DailyBucket {
   date: string;
@@ -157,8 +161,8 @@ function formatTimeAgo(isoString: string): string {
 }
 
 export default function AnalyticsDashboard() {
-  const [data, setData] = useState<AnalyticsApiResponse | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [data, setData] = useState<AnalyticsApiResponse>(() => getLocalAnalyticsSnapshot());
+  const [loading, setLoading] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState<TimeRange>('30d');
@@ -172,15 +176,28 @@ export default function AnalyticsDashboard() {
   const fetchAnalytics = useCallback(async (isSilent: boolean = false) => {
     if (!isSilent) setRefreshing(true);
     try {
-      const res = await fetch('/api/analytics');
-      if (!res.ok) throw new Error('Unable to load analytics data.');
-      const json: AnalyticsApiResponse = await res.json();
-      setData(json);
-      setError(null);
-    } catch (err) {
-      if (!isSilent) {
-        setError(err instanceof Error ? err.message : 'Unable to load analytics.');
+      const res = await fetch(`/api/analytics?t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: { Accept: 'application/json' },
+      });
+      const contentType = res.headers.get('content-type') || '';
+      if (res.ok && contentType.includes('application/json')) {
+        const json: AnalyticsApiResponse = await res.json();
+        if (json && Array.isArray(json.daily)) {
+          setData(json);
+          saveLocalAnalyticsSnapshot(json);
+          setError(null);
+          return;
+        }
       }
+      // Fallback to local snapshot if server endpoint is restarting or running on static host
+      const localSnap = getLocalAnalyticsSnapshot();
+      setData(localSnap);
+      setError(null);
+    } catch {
+      const localSnap = getLocalAnalyticsSnapshot();
+      setData(localSnap);
+      setError(null);
     } finally {
       setLoading(false);
       setRefreshing(false);

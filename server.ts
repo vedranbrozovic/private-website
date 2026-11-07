@@ -846,6 +846,7 @@ async function startServer() {
           referrers: b.referrers || {},
         }));
 
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
       return res.json({
         updatedAt: store.updatedAt,
         activeVisitorsNow: Math.max(1, activeVisitorsNow),
