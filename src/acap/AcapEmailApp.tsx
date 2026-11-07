@@ -12,6 +12,7 @@ import {
   Sun,
   Moon,
   ArrowUpDown,
+  Sliders,
   Linkedin,
   Instagram,
   Facebook,
@@ -27,23 +28,27 @@ const ACAP_HOSTED_LOGO_URL =
 export type ColorPaletteMode = 'adaptive' | 'crimson' | 'classic';
 export type SocialIconStyle = 'brand' | 'crimson' | 'navy' | 'slate';
 export type SocialIconBoxMode = 'none' | 'box';
-export type ButtonEdgeMode = 'classic' | 'round';
+export type ButtonEdgeMode = 'none' | 'round' | 'classic';
 
 export interface SocialChannel {
   id: 'linkedin' | 'instagram' | 'facebook' | 'youtube';
   label: string;
+  enabled: boolean;
   url: string;
-  fluencyIconUrl: string; // Original vibrant brand icon (no box needed)
+  defaultUrl: string;
+  fluencyIconUrl: string; // Original vibrant brand icon
   crimsonIconUrl: string; // ACAP Crimson #e81053
   navyIconUrl: string;    // ACAP Navy #010333
   slateIconUrl: string;   // Minimal Slate #475569
 }
 
-export const OFFICIAL_SOCIAL_CHANNELS: SocialChannel[] = [
+export const DEFAULT_SOCIAL_CHANNELS: SocialChannel[] = [
   {
     id: 'linkedin',
     label: 'LinkedIn',
+    enabled: true,
     url: 'https://www.linkedin.com/company/acap/',
+    defaultUrl: 'https://www.linkedin.com/company/acap/',
     fluencyIconUrl: 'https://img.icons8.com/fluency/48/linkedin.png',
     crimsonIconUrl: 'https://img.icons8.com/ios-filled/50/e81053/linkedin.png',
     navyIconUrl: 'https://img.icons8.com/ios-filled/50/010333/linkedin.png',
@@ -52,7 +57,9 @@ export const OFFICIAL_SOCIAL_CHANNELS: SocialChannel[] = [
   {
     id: 'instagram',
     label: 'Instagram',
+    enabled: true,
     url: 'https://www.instagram.com/acap_croampro/',
+    defaultUrl: 'https://www.instagram.com/acap_croampro/',
     fluencyIconUrl: 'https://img.icons8.com/fluency/48/instagram-new.png',
     crimsonIconUrl: 'https://img.icons8.com/ios-filled/50/e81053/instagram-new.png',
     navyIconUrl: 'https://img.icons8.com/ios-filled/50/010333/instagram-new.png',
@@ -61,7 +68,9 @@ export const OFFICIAL_SOCIAL_CHANNELS: SocialChannel[] = [
   {
     id: 'facebook',
     label: 'Facebook',
+    enabled: true,
     url: 'https://www.facebook.com/croampro/',
+    defaultUrl: 'https://www.facebook.com/croampro/',
     fluencyIconUrl: 'https://img.icons8.com/fluency/48/facebook-new.png',
     crimsonIconUrl: 'https://img.icons8.com/ios-filled/50/e81053/facebook-new.png',
     navyIconUrl: 'https://img.icons8.com/ios-filled/50/010333/facebook-new.png',
@@ -70,7 +79,9 @@ export const OFFICIAL_SOCIAL_CHANNELS: SocialChannel[] = [
   {
     id: 'youtube',
     label: 'YouTube',
-    url: 'https://www.youtube.com/channel/UCN0TeaVV29ldOKLqQ2PhuvQ',
+    enabled: true,
+    url: 'https://www.youtube.com/@croampro',
+    defaultUrl: 'https://www.youtube.com/@croampro',
     fluencyIconUrl: 'https://img.icons8.com/fluency/48/youtube-play.png',
     crimsonIconUrl: 'https://img.icons8.com/ios-filled/50/e81053/youtube-play.png',
     navyIconUrl: 'https://img.icons8.com/ios-filled/50/010333/youtube-play.png',
@@ -83,6 +94,7 @@ export const ROLE_GROUPS: { group: string; options: string[] }[] = [
   {
     group: 'Leadership & Board',
     options: [
+      'President',
       'Board Member',
       'Board Member | Conference Chair',
       'Board Member | Technology & Innovation',
@@ -113,21 +125,25 @@ export const CHAPTER_OPTIONS: string[] = [
   'Zagreb Chapter',
 ];
 
-// Official CTA Button Options
+// Official CTA Button Options (with editable text & URL support)
 export interface ActionButtonOption {
   id: 'member' | 'conference' | 'donate' | 'website';
   label: string;
   buttonText: string;
   url: string;
+  defaultText: string;
+  defaultUrl: string;
   description: string;
 }
 
-export const ACTION_BUTTON_OPTIONS: ActionButtonOption[] = [
+export const DEFAULT_ACTION_BUTTON_OPTIONS: ActionButtonOption[] = [
   {
     id: 'member',
     label: 'Become a Member',
     buttonText: 'Become a Member',
     url: 'https://members.croampro.com/signup',
+    defaultText: 'Become a Member',
+    defaultUrl: 'https://members.croampro.com/signup',
     description: 'members.croampro.com/signup',
   },
   {
@@ -135,6 +151,8 @@ export const ACTION_BUTTON_OPTIONS: ActionButtonOption[] = [
     label: 'Annual Conference',
     buttonText: 'Annual Conference',
     url: 'https://croampro.com/annual-conference',
+    defaultText: 'Annual Conference',
+    defaultUrl: 'https://croampro.com/annual-conference',
     description: 'croampro.com/annual-conference',
   },
   {
@@ -142,6 +160,8 @@ export const ACTION_BUTTON_OPTIONS: ActionButtonOption[] = [
     label: 'Donate',
     buttonText: 'Donate',
     url: 'https://members.croampro.com/donations/foundation',
+    defaultText: 'Donate',
+    defaultUrl: 'https://members.croampro.com/donations/foundation',
     description: 'members.croampro.com/donations/foundation',
   },
   {
@@ -149,9 +169,14 @@ export const ACTION_BUTTON_OPTIONS: ActionButtonOption[] = [
     label: 'Visit Our Website',
     buttonText: 'Visit Our Website',
     url: 'https://croampro.com/',
+    defaultText: 'Visit Our Website',
+    defaultUrl: 'https://croampro.com/',
     description: 'croampro.com',
   },
 ];
+
+export const DEFAULT_MISSION_TEXT =
+  'A member-driven 501(c)(3) non-profit business networking organization.';
 
 function getAcapLogoFallbackSvg(): string {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 230 65" width="125" height="35">
@@ -207,18 +232,34 @@ export default function AcapEmailApp() {
   const [chapter, setChapter] = useState<string>(
     () => initialParams.get('chapter') || 'Pacific Northwest (PNW)'
   );
+  const [websiteLabel, setWebsiteLabel] = useState<string>('croampro.com');
+  const [websiteUrl, setWebsiteUrl] = useState<string>('https://croampro.com/');
+
+  // Optional 501(c)(3) Mission Text below socials
+  const [showMissionText, setShowMissionText] = useState<boolean>(true);
+  const [missionText, setMissionText] = useState<string>(DEFAULT_MISSION_TEXT);
 
   // Appearance, Icons & Button Selection State
   const [colorPalette, setColorPalette] = useState<ColorPaletteMode>('adaptive');
   const [iconStyle, setIconStyle] = useState<SocialIconStyle>('brand');
-  const [iconBoxMode, setIconBoxMode] = useState<SocialIconBoxMode>('none'); // Default without box as requested!
-  const [buttonEdgeMode, setButtonEdgeMode] = useState<ButtonEdgeMode>('round'); // Option for round edges vs classic
+  const [iconBoxMode, setIconBoxMode] = useState<SocialIconBoxMode>('none');
+  const [buttonEdgeMode, setButtonEdgeMode] = useState<ButtonEdgeMode>('none');
 
-  // Selected buttons in order (first button = primary crimson, second = secondary light pill)
+  // Action Buttons State (presets + custom text/URL support)
+  const [actionButtons, setActionButtons] = useState<ActionButtonOption[]>(
+    DEFAULT_ACTION_BUTTON_OPTIONS
+  );
   const [selectedButtons, setSelectedButtons] = useState<ActionButtonOption['id'][]>([
     'member',
     'website',
   ]);
+  const [showButtonCustomEditor, setShowButtonCustomEditor] = useState<boolean>(false);
+
+  // Social Channels State (with custom URL editor support)
+  const [socialChannels, setSocialChannels] = useState<SocialChannel[]>(
+    DEFAULT_SOCIAL_CHANNELS
+  );
+  const [showSocialCustomEditor, setShowSocialCustomEditor] = useState<boolean>(false);
 
   // Simulator & Guide State
   const [viewport, setViewport] = useState<'desktop' | 'mobile'>('desktop');
@@ -261,6 +302,8 @@ export default function AcapEmailApp() {
     const safeRole = escapeHtml(role.trim() || 'Board Member');
     const safePhone = escapeHtml(phone.trim());
     const safeChapter = escapeHtml(chapter.trim() || 'ACAP Foundation');
+    const safeWebsiteLabel = escapeHtml(websiteLabel.trim() || 'croampro.com');
+    const safeWebsiteUrl = escapeHtml(websiteUrl.trim() || 'https://croampro.com/');
 
     let nameColorRule = '';
     let roleColorRule = '';
@@ -296,67 +339,102 @@ export default function AcapEmailApp() {
       return ch.fluencyIconUrl;
     };
 
-    // Build Social Icons Row — either WITHOUT box (clean icons) or WITH box (rounded card frame)
-    const socialCellsHTML = OFFICIAL_SOCIAL_CHANNELS.map((ch, idx) => {
-      const isLast = idx === OFFICIAL_SOCIAL_CHANNELS.length - 1;
-      const iconUrl = getChannelIconUrl(ch);
+    const enabledSocials = socialChannels.filter((ch) => ch.enabled && ch.url.trim());
 
-      if (iconBoxMode === 'box') {
-        const spacerCell = isLast
-          ? ''
-          : `<td width="7" style="width:7px;font-size:1px;">&nbsp;</td>`;
-        const boxBg = iconStyle === 'crimson' ? '#fff1f5' : '#f8fafc';
-        const boxBorder = iconStyle === 'crimson' ? '#fecdd3' : '#e2e5eb';
+    // Build Social Icons Row — styling the <a> element directly when 'box' is active so border-radius is 100% round!
+    const socialCellsHTML = enabledSocials
+      .map((ch, idx) => {
+        const isLast = idx === enabledSocials.length - 1;
+        const iconUrl = getChannelIconUrl(ch);
+        const safeSocialUrl = escapeHtml(ch.url.trim());
 
-        return `<td valign="middle" align="center" width="28" height="28" bgcolor="${boxBg}" style="width:28px;height:28px;background-color:${boxBg};border:1px solid ${boxBorder};border-radius:7px;text-align:center;vertical-align:middle;">
-                          <a href="${ch.url}" target="_blank" title="ACAP on ${ch.label}" style="text-decoration:none;display:block;width:28px;height:28px;line-height:28px;">
+        if (iconBoxMode === 'box') {
+          const paddingRight = isLast ? '0px' : '7px';
+          const boxBg = iconStyle === 'crimson' ? '#fff1f5' : '#f8fafc';
+          const boxBorder = iconStyle === 'crimson' ? '#fecdd3' : '#e2e5eb';
+
+          return `<td valign="middle" align="center" style="padding-right:${paddingRight};vertical-align:middle;">
+                          <a href="${safeSocialUrl}" target="_blank" title="ACAP on ${ch.label}" style="text-decoration:none;display:inline-block;width:28px;height:28px;line-height:28px;background-color:${boxBg};border:1px solid ${boxBorder};border-radius:8px;text-align:center;">
                             <img alt="${ch.label}" border="0" width="16" height="16" src="${iconUrl}" style="border:0px;display:inline-block;vertical-align:middle;width:16px;height:16px;">
                           </a>
-                        </td>${spacerCell}`;
-      }
+                        </td>`;
+        }
 
-      // Default: No Box (clean borderless icons)
-      const paddingRight = isLast ? '0px' : '8px';
-      return `<td style="padding-right:${paddingRight};">
-                          <a href="${ch.url}" target="_blank" title="ACAP on ${ch.label}" style="text-decoration:none;display:inline-block;">
+        // Default: No Box (clean borderless icons)
+        const paddingRight = isLast ? '0px' : '8px';
+        return `<td style="padding-right:${paddingRight};vertical-align:middle;">
+                          <a href="${safeSocialUrl}" target="_blank" title="ACAP on ${ch.label}" style="text-decoration:none;display:inline-block;">
                             <img alt="${ch.label}" border="0" width="22" height="22" src="${iconUrl}" style="border:0px;display:block;height:22px;width:22px;">
                           </a>
                         </td>`;
-    }).join('\n                        ');
+      })
+      .join('\n                        ');
 
-    // Button border radius & horizontal padding based on buttonEdgeMode ('round' vs 'classic')
-    const btnRadius = buttonEdgeMode === 'round' ? '999px' : '4px';
-    const btnPadding = buttonEdgeMode === 'round' ? '6px 15px' : '6px 12px';
+    const socialRowHTML =
+      enabledSocials.length > 0
+        ? `<tr>
+                <td style="padding:2px 0px 10px 0px;">
+                  <table cellpadding="0" cellspacing="0" border="0" style="border-spacing:0px;border-collapse:collapse;">
+                    <tbody>
+                      <tr>
+                        ${socialCellsHTML}
+                      </tr>
+                    </tbody>
+                  </table>
+                </td>
+              </tr>`
+        : '';
 
-    // Build Selected CTA Buttons (1st button = Primary Crimson, 2nd button = Secondary Light Pill)
+    // Build Selected CTA Buttons (either No Box clean links, genuinely round Pill Box on <a>, or Classic Box)
     const activeButtonConfigs = selectedButtons
-      .map((id) => ACTION_BUTTON_OPTIONS.find((opt) => opt.id === id))
+      .map((id) => actionButtons.find((opt) => opt.id === id))
       .filter((opt): opt is ActionButtonOption => Boolean(opt));
 
-    const buttonsCellsHTML = activeButtonConfigs
-      .map((btn, idx) => {
-        const isPrimary = idx === 0;
-        const spacer =
-          idx < activeButtonConfigs.length - 1
-            ? `\n                        <td width="8" style="width:8px;">&nbsp;</td>\n                        `
-            : '';
+    let buttonsRowHTML = '';
 
-        if (isPrimary) {
-          return `<td bgcolor="#e81053" style="background-color:#e81053;border:1px solid #e81053;border-radius:${btnRadius};padding:${btnPadding};text-align:center;">
-                          <a href="${btn.url}" target="_blank" style="font-family:Tahoma,Arial,sans-serif;font-size:8.5pt;font-weight:bold;color:#ffffff;text-decoration:none;display:inline-block;white-space:nowrap;">${escapeHtml(btn.buttonText)}</a>
-                        </td>${spacer}`;
-        }
+    if (activeButtonConfigs.length > 0) {
+      if (buttonEdgeMode === 'none') {
+        // Default: No Box — clean inline text links separated by ACAP crimson pipe
+        const linksHTML = activeButtonConfigs
+          .map((btn, idx) => {
+            const isPrimary = idx === 0;
+            const linkColor = isPrimary ? linkColorHex : orgColorHex;
+            return `<a href="${escapeHtml(btn.url.trim())}" target="_blank" style="font-family:Tahoma,Arial,sans-serif;font-size:9.5pt;font-weight:bold;color:${linkColor};text-decoration:underline;white-space:nowrap;">${escapeHtml(btn.buttonText.trim() || btn.label)}</a>`;
+          })
+          .join(` <span style="color:#e81053;font-weight:bold;padding:0px 6px;">|</span> `);
 
-        return `<td bgcolor="#f1f5f9" style="background-color:#f1f5f9;border:1px solid #cbd5e1;border-radius:${btnRadius};padding:${btnPadding};text-align:center;">
-                          <a href="${btn.url}" target="_blank" style="font-family:Tahoma,Arial,sans-serif;font-size:8.5pt;font-weight:bold;color:#0f172a;text-decoration:none;display:inline-block;white-space:nowrap;">${escapeHtml(btn.buttonText)}</a>
-                        </td>${spacer}`;
-      })
-      .join('');
+        buttonsRowHTML = `<tr>
+                <td style="padding:0px 0px 8px 0px;font-size:9.5pt;font-family:Tahoma,Arial,sans-serif;line-height:1.4;">
+                  ${linksHTML}
+                </td>
+              </tr>`;
+      } else {
+        // Apply background-color, border, and border-radius directly to the inline-block <a> tag
+        // so that 'round' (999px) has 100% smooth pill edges and never gets squared off by table border-collapse!
+        const btnRadius = buttonEdgeMode === 'round' ? '999px' : '5px';
+        const btnPadding = buttonEdgeMode === 'round' ? '6px 16px' : '6px 12px';
 
-    const buttonsRowHTML =
-      activeButtonConfigs.length > 0
-        ? `<tr>
-                <td style="padding:0px;">
+        const buttonsCellsHTML = activeButtonConfigs
+          .map((btn, idx) => {
+            const isPrimary = idx === 0;
+            const paddingRight = idx < activeButtonConfigs.length - 1 ? '8px' : '0px';
+            const safeBtnUrl = escapeHtml(btn.url.trim());
+            const safeBtnText = escapeHtml(btn.buttonText.trim() || btn.label);
+
+            if (isPrimary) {
+              return `<td style="padding-right:${paddingRight};vertical-align:middle;">
+                          <a href="${safeBtnUrl}" target="_blank" style="font-family:Tahoma,Arial,sans-serif;font-size:8.5pt;font-weight:bold;color:#ffffff;background-color:#e81053;border:1px solid #e81053;border-radius:${btnRadius};padding:${btnPadding};text-decoration:none;display:inline-block;white-space:nowrap;line-height:1.2;">${safeBtnText}</a>
+                        </td>`;
+            }
+
+            return `<td style="padding-right:${paddingRight};vertical-align:middle;">
+                          <a href="${safeBtnUrl}" target="_blank" style="font-family:Tahoma,Arial,sans-serif;font-size:8.5pt;font-weight:bold;color:#0f172a;background-color:#f1f5f9;border:1px solid #cbd5e1;border-radius:${btnRadius};padding:${btnPadding};text-decoration:none;display:inline-block;white-space:nowrap;line-height:1.2;">${safeBtnText}</a>
+                        </td>`;
+          })
+          .join('\n                        ');
+
+        buttonsRowHTML = `<tr>
+                <td style="padding:0px 0px 8px 0px;">
                   <table cellpadding="0" cellspacing="0" border="0" style="border-spacing:0px;border-collapse:collapse;">
                     <tbody>
                       <tr>
@@ -364,6 +442,18 @@ export default function AcapEmailApp() {
                       </tr>
                     </tbody>
                   </table>
+                </td>
+              </tr>`;
+      }
+    }
+
+    // Optional 501(c)(3) non-profit line below socials/buttons in smaller italics & same color as Org name
+    const safeMission = escapeHtml(missionText.trim());
+    const missionRowHTML =
+      showMissionText && safeMission
+        ? `<tr>
+                <td style="padding:2px 0px 4px 0px;font-size:8pt;font-style:italic;font-family:Tahoma,Arial,sans-serif;color:${orgColorHex};line-height:1.35;">
+                  ${safeMission}
                 </td>
               </tr>`
         : '';
@@ -377,11 +467,11 @@ export default function AcapEmailApp() {
     <tbody>
       <tr>
         <td valign="top" width="130" style="padding:8px 15px 12px 0px;width:130px;vertical-align:top;">
-          <a href="https://croampro.com/" target="_blank" style="text-decoration:none;background-color:transparent;">
+          <a href="${safeWebsiteUrl}" target="_blank" style="text-decoration:none;background-color:transparent;">
             <img border="0" alt="ACAP" width="125" src="${ACAP_HOSTED_LOGO_URL}"${onErrorAttr} style="border:0px;vertical-align:middle;width:125px;max-width:125px;height:auto;display:block;">
           </a>
         </td>
-        <td valign="top" style="padding:4px 0px 12px 0px;vertical-align:top;">
+        <td valign="top" style="padding:4px 0px 10px 0px;vertical-align:top;">
           <table cellpadding="0" cellspacing="0" border="0" style="border-spacing:0px;border-collapse:collapse;background-color:transparent;width:100%;">
             <tbody>
               <tr>
@@ -401,22 +491,13 @@ export default function AcapEmailApp() {
               </tr>
               <tr>
                 <td style="padding:0px 0px 8px 0px;font-size:9.5pt;font-family:Tahoma,Arial,sans-serif;color:${orgColorHex};line-height:1.3;">
-                  ${safeChapter} <span style="color:#e81053;font-weight:bold;">|</span> <a href="https://croampro.com/" target="_blank" style="color:${linkColorHex};text-decoration:underline;font-weight:bold;">croampro.com</a>
+                  ${safeChapter} <span style="color:#e81053;font-weight:bold;">|</span> <a href="${safeWebsiteUrl}" target="_blank" style="color:${linkColorHex};text-decoration:underline;font-weight:bold;">${safeWebsiteLabel}</a>
                 </td>
               </tr>
               ${phoneRowHTML}
-              <tr>
-                <td style="padding:2px 0px 12px 0px;">
-                  <table cellpadding="0" cellspacing="0" border="0" style="border-spacing:0px;border-collapse:collapse;">
-                    <tbody>
-                      <tr>
-                        ${socialCellsHTML}
-                      </tr>
-                    </tbody>
-                  </table>
-                </td>
-              </tr>
+              ${socialRowHTML}
               ${buttonsRowHTML}
+              ${missionRowHTML}
             </tbody>
           </table>
         </td>
@@ -436,11 +517,17 @@ export default function AcapEmailApp() {
       role,
       phone,
       chapter,
+      websiteLabel,
+      websiteUrl,
+      showMissionText,
+      missionText,
       colorPalette,
       iconStyle,
       iconBoxMode,
       buttonEdgeMode,
+      actionButtons,
       selectedButtons,
+      socialChannels,
     ]
   );
 
@@ -451,11 +538,17 @@ export default function AcapEmailApp() {
       role,
       phone,
       chapter,
+      websiteLabel,
+      websiteUrl,
+      showMissionText,
+      missionText,
       colorPalette,
       iconStyle,
       iconBoxMode,
       buttonEdgeMode,
+      actionButtons,
       selectedButtons,
+      socialChannels,
     ]
   );
 
@@ -551,11 +644,17 @@ export default function AcapEmailApp() {
     setRole('Board Member | Conference Chair');
     setPhone('');
     setChapter('Pacific Northwest (PNW)');
+    setWebsiteLabel('croampro.com');
+    setWebsiteUrl('https://croampro.com/');
+    setShowMissionText(true);
+    setMissionText(DEFAULT_MISSION_TEXT);
     setColorPalette('adaptive');
     setIconStyle('brand');
     setIconBoxMode('none');
-    setButtonEdgeMode('round');
+    setButtonEdgeMode('none');
+    setActionButtons(DEFAULT_ACTION_BUTTON_OPTIONS);
     setSelectedButtons(['member', 'website']);
+    setSocialChannels(DEFAULT_SOCIAL_CHANNELS);
   };
 
   const navigateBackToVibeCoding = (e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -842,6 +941,27 @@ export default function AcapEmailApp() {
                   ))}
                 </div>
               </div>
+
+              {/* Optional 501(c)(3) Tagline Toggle & Input */}
+              <div className="pt-2 border-t border-slate-100 space-y-1.5">
+                <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showMissionText}
+                    onChange={(e) => setShowMissionText(e.target.checked)}
+                    className="accent-[#e81053] rounded"
+                  />
+                  <span>Include 501(c)(3) non-profit tagline below socials</span>
+                </label>
+                {showMissionText && (
+                  <input
+                    type="text"
+                    value={missionText}
+                    onChange={(e) => setMissionText(e.target.value)}
+                    className="w-full px-3 py-1.5 text-xs italic text-slate-600 rounded-lg border border-slate-200 focus:outline-none focus:border-[#e81053]"
+                  />
+                )}
+              </div>
             </div>
           </div>
 
@@ -856,26 +976,36 @@ export default function AcapEmailApp() {
               </span>
             </div>
 
-            {/* Action Buttons Selector (Choose up to 2 from Member, Conference, Donate, Website) */}
+            {/* Action Buttons Selector (Choose up to 2 from Member, Conference, Donate, Website + Customize Text/Links) */}
             <div className="space-y-2.5">
               <div className="flex items-center justify-between">
                 <label className="block text-xs font-semibold text-slate-700">
-                  Action Buttons (Pick up to 2)
+                  Action Links / Buttons (Pick up to 2)
                 </label>
-                {selectedButtons.length === 2 && (
+                <div className="flex items-center gap-2.5">
+                  {selectedButtons.length === 2 && (
+                    <button
+                      type="button"
+                      onClick={handleSwapButtonOrder}
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#e81053] hover:underline cursor-pointer"
+                    >
+                      <ArrowUpDown className="w-3 h-3" />
+                      <span>Swap Order</span>
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={handleSwapButtonOrder}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#e81053] hover:underline cursor-pointer"
+                    onClick={() => setShowButtonCustomEditor((prev) => !prev)}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 hover:text-[#e81053] underline cursor-pointer"
                   >
-                    <ArrowUpDown className="w-3 h-3" />
-                    <span>Swap Order</span>
+                    <Sliders className="w-3 h-3" />
+                    <span>{showButtonCustomEditor ? 'Hide Link Editor' : 'Edit Text / Links'}</span>
                   </button>
-                )}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
-                {ACTION_BUTTON_OPTIONS.map((opt) => {
+                {actionButtons.map((opt) => {
                   const selectedIdx = selectedButtons.indexOf(opt.id);
                   const isSelected = selectedIdx !== -1;
                   const isPrimary = selectedIdx === 0;
@@ -892,64 +1022,169 @@ export default function AcapEmailApp() {
                       }`}
                     >
                       <div className="flex items-center justify-between gap-1">
-                        <span className="text-xs font-bold text-slate-900">{opt.label}</span>
+                        <span className="text-xs font-bold text-slate-900 truncate">
+                          {opt.buttonText}
+                        </span>
                         {isSelected && (
                           <span
-                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${
                               isPrimary
                                 ? 'bg-[#e81053] text-white'
                                 : 'bg-slate-200 text-slate-700'
                             }`}
                           >
-                            {isPrimary ? '1st (Pink)' : '2nd (Light)'}
+                            {isPrimary ? '1st' : '2nd'}
                           </span>
                         )}
                       </div>
                       <span className="text-[10px] text-slate-400 truncate mt-1">
-                        {opt.description}
+                        {opt.url.replace(/^https?:\/\//, '')}
                       </span>
                     </button>
                   );
                 })}
               </div>
 
-              {/* Button Edge Style (Round Edges vs Classic Corners) */}
-              <div className="flex items-center justify-between bg-slate-50 border border-slate-200/80 rounded-lg p-2">
+              {/* Collapsible Editor to change text & URLs for the links/buttons */}
+              {showButtonCustomEditor && (
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-slate-700">
+                      Customize Link Text &amp; URLs
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActionButtons(DEFAULT_ACTION_BUTTON_OPTIONS);
+                        setWebsiteLabel('croampro.com');
+                        setWebsiteUrl('https://croampro.com/');
+                      }}
+                      className="text-[11px] text-[#e81053] font-semibold hover:underline cursor-pointer"
+                    >
+                      Reset Links
+                    </button>
+                  </div>
+
+                  {/* Main Website Link in Subtitle */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pb-2 border-b border-slate-200/80">
+                    <div>
+                      <span className="block text-[10px] font-semibold text-slate-500 mb-0.5">
+                        Main Website Label
+                      </span>
+                      <input
+                        type="text"
+                        value={websiteLabel}
+                        onChange={(e) => setWebsiteLabel(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <span className="block text-[10px] font-semibold text-slate-500 mb-0.5">
+                        Main Website URL
+                      </span>
+                      <input
+                        type="text"
+                        value={websiteUrl}
+                        onChange={(e) => setWebsiteUrl(e.target.value)}
+                        className="w-full bg-white border border-slate-200 rounded px-2 py-1 text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Action Buttons Text & URLs */}
+                  {actionButtons.map((btn) => (
+                    <div key={btn.id} className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                      <input
+                        type="text"
+                        value={btn.buttonText}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setActionButtons((prev) =>
+                            prev.map((item) =>
+                              item.id === btn.id ? { ...item, buttonText: val } : item
+                            )
+                          );
+                        }}
+                        placeholder="Link text"
+                        className="bg-white border border-slate-200 rounded px-2 py-1 text-xs font-medium"
+                      />
+                      <input
+                        type="text"
+                        value={btn.url}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setActionButtons((prev) =>
+                            prev.map((item) =>
+                              item.id === btn.id ? { ...item, url: val } : item
+                            )
+                          );
+                        }}
+                        placeholder="https://..."
+                        className="bg-white border border-slate-200 rounded px-2 py-1 text-xs text-slate-600"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Button Box & Edge Style (No Box default vs True Round Pill vs Classic Box) */}
+              <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 border border-slate-200/80 rounded-lg p-2">
                 <span className="text-xs font-semibold text-slate-700 pl-1">
-                  Button Edges:
+                  Button Box:
                 </span>
                 <div className="inline-flex bg-slate-200/80 p-0.5 rounded-lg">
                   <button
                     type="button"
+                    onClick={() => setButtonEdgeMode('none')}
+                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                      buttonEdgeMode === 'none'
+                        ? 'bg-white text-[#e81053] shadow-2xs font-bold'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    No Box (Clean)
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setButtonEdgeMode('round')}
-                    className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                       buttonEdgeMode === 'round'
                         ? 'bg-white text-[#e81053] shadow-2xs font-bold'
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    Round Pill Edges
+                    Round Pill
                   </button>
                   <button
                     type="button"
                     onClick={() => setButtonEdgeMode('classic')}
-                    className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                       buttonEdgeMode === 'classic'
                         ? 'bg-white text-[#e81053] shadow-2xs font-bold'
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    Classic Corners
+                    Classic Box
                   </button>
                 </div>
               </div>
             </div>
 
-            {/* Social Media Icon Style (4 Simple Options + Separate Box Toggle) */}
+            {/* Social Media Icon Style (4 Simple Options + Separate Box Toggle + Edit Social Links) */}
             <div className="pt-3 border-t border-slate-100 space-y-2.5">
-              <label className="block text-xs font-semibold text-slate-700">
-                Social Media Icon Color (4 Options)
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-semibold text-slate-700">
+                  Social Media Icon Color (4 Options)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowSocialCustomEditor((prev) => !prev)}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 hover:text-[#e81053] underline cursor-pointer"
+                >
+                  <Sliders className="w-3 h-3" />
+                  <span>{showSocialCustomEditor ? 'Hide Social URLs' : 'Edit Social Links'}</span>
+                </button>
+              </div>
 
               <div className="grid grid-cols-2 gap-2">
                 {/* 1. Official Brand Colors */}
@@ -1059,6 +1294,57 @@ export default function AcapEmailApp() {
                   </button>
                 </div>
               </div>
+
+              {/* Collapsible Social Media Links & Toggle Editor */}
+              {showSocialCustomEditor && (
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-slate-700">
+                      Social Media Links (Toggle or Edit URL)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSocialChannels(DEFAULT_SOCIAL_CHANNELS)}
+                      className="text-[11px] text-[#e81053] font-semibold hover:underline cursor-pointer"
+                    >
+                      Reset Socials
+                    </button>
+                  </div>
+                  {socialChannels.map((ch) => (
+                    <div key={ch.id} className="flex items-center gap-2">
+                      <label className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 w-24 shrink-0 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={ch.enabled}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setSocialChannels((prev) =>
+                              prev.map((item) =>
+                                item.id === ch.id ? { ...item, enabled: checked } : item
+                              )
+                            );
+                          }}
+                          className="accent-[#e81053]"
+                        />
+                        <span>{ch.label}</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={ch.url}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSocialChannels((prev) =>
+                            prev.map((item) =>
+                              item.id === ch.id ? { ...item, url: val } : item
+                            )
+                          );
+                        }}
+                        className="flex-1 bg-white border border-slate-200 rounded px-2 py-1 text-xs text-slate-700"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Dark Mode Color Strategy Selector */}
@@ -1514,37 +1800,37 @@ export default function AcapEmailApp() {
               <div className="p-5 pt-2 space-y-3 border-t border-slate-200/60">
                 <div className="flex flex-wrap gap-2 text-xs">
                   <a
-                    href="https://croampro.com/"
+                    href={websiteUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700 hover:border-[#e81053]"
                   >
-                    <span className="w-2 h-2 rounded-full bg-[#e81053]" /> Website: croampro.com ↗
+                    <span className="w-2 h-2 rounded-full bg-[#e81053]" /> Website: {websiteLabel} ↗
                   </a>
-                  <a
-                    href="https://members.croampro.com/signup"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700 hover:border-[#e81053]"
-                  >
-                    <span className="w-2 h-2 rounded-full bg-[#e81053]" /> Join: members.croampro.com/signup ↗
-                  </a>
-                  <a
-                    href="https://croampro.com/annual-conference"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700 hover:border-[#e81053]"
-                  >
-                    <span className="w-2 h-2 rounded-full bg-[#e81053]" /> Conference: croampro.com/annual-conference ↗
-                  </a>
-                  <a
-                    href="https://members.croampro.com/donations/foundation"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700 hover:border-[#e81053]"
-                  >
-                    <span className="w-2 h-2 rounded-full bg-[#e81053]" /> Donate: members.croampro.com/donations/foundation ↗
-                  </a>
+                  {actionButtons.map((btn) => (
+                    <a
+                      key={btn.id}
+                      href={btn.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700 hover:border-[#e81053]"
+                    >
+                      <span className="w-2 h-2 rounded-full bg-[#e81053]" /> {btn.buttonText} ↗
+                    </a>
+                  ))}
+                  {socialChannels
+                    .filter((ch) => ch.enabled)
+                    .map((ch) => (
+                      <a
+                        key={ch.id}
+                        href={ch.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700 hover:border-[#e81053]"
+                      >
+                        {ch.label} ↗
+                      </a>
+                    ))}
                 </div>
                 <div className="bg-slate-900 p-4 rounded-lg overflow-x-auto max-h-56">
                   <pre className="text-[11px] text-emerald-300 font-mono leading-relaxed select-all">
