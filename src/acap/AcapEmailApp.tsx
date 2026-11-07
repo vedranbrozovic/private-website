@@ -22,8 +22,12 @@ import {
 // ============================================================================
 // 1. OFFICIAL ACAP CONSTANTS & SIMPLE SELF-SERVICE OPTIONS
 // ============================================================================
-const ACAP_HOSTED_LOGO_URL =
-  'https://ci3.googleusercontent.com/mail-sig/AIorK4wEqSyvBO5OYbjCoZh_TRsFJvM1Csn61Zm9l7rRH0bv8K4JYNEqzqLd51uDeazNIjDfrCb6vfQ';
+function getDefaultAcapLogoUrl(): string {
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return `${window.location.origin}/assets/acap-logo-r.png`;
+  }
+  return '/assets/acap-logo-r.png';
+}
 
 export type ColorPaletteMode = 'adaptive' | 'crimson' | 'classic';
 export type SocialIconStyle = 'brand' | 'crimson' | 'navy' | 'slate';
@@ -191,7 +195,7 @@ function getAcapLogoFallbackSvg(): string {
     <rect x="48" y="29" width="8" height="8" fill="#e81053"/>
     <rect x="56" y="37" width="8" height="8" fill="#e81053"/>
     <rect x="48" y="45" width="8" height="8" fill="#e81053"/>
-    <text x="213" y="20" fill="#e81053" font-family="Arial, sans-serif" font-weight="bold" font-size="7">TM</text>
+    <text x="213" y="21" fill="#e81053" font-family="Arial, sans-serif" font-weight="bold" font-size="11">&#174;</text>
   </svg>`;
   return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
 }
@@ -462,13 +466,15 @@ export default function AcapEmailApp() {
       ? ` onerror="this.onerror=null;this.src='${getAcapLogoFallbackSvg()}';"`
       : '';
 
+    const logoUrl = getDefaultAcapLogoUrl();
+
     return `<div dir="ltr">
   <table cellpadding="0" cellspacing="0" border="0" style="border-spacing:0px;border-collapse:collapse;width:100%;max-width:480px;font-size:10pt;font-family:Tahoma,Arial,sans-serif;line-height:1.4;">
     <tbody>
       <tr>
         <td valign="top" width="130" style="padding:8px 15px 12px 0px;width:130px;vertical-align:top;">
           <a href="${safeWebsiteUrl}" target="_blank" style="text-decoration:none;background-color:transparent;">
-            <img border="0" alt="ACAP" width="125" src="${ACAP_HOSTED_LOGO_URL}"${onErrorAttr} style="border:0px;vertical-align:middle;width:125px;max-width:125px;height:auto;display:block;">
+            <img border="0" alt="ACAP" width="125" src="${logoUrl}"${onErrorAttr} style="border:0px;vertical-align:middle;width:125px;max-width:125px;height:auto;display:block;">
           </a>
         </td>
         <td valign="top" style="padding:4px 0px 10px 0px;vertical-align:top;">
@@ -686,7 +692,7 @@ export default function AcapEmailApp() {
 
               <div className="px-2.5 py-1.5 rounded-lg bg-white flex items-center justify-center shadow-sm shrink-0">
                 <span className="text-[#e81053] font-black tracking-tighter text-lg leading-none">
-                  ACAP
+                  ACAP<sup className="text-[9px] font-bold ml-0.5 tracking-normal">®</sup>
                 </span>
               </div>
               <div>
