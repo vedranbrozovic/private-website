@@ -25,17 +25,18 @@ const ACAP_HOSTED_LOGO_URL =
   'https://ci3.googleusercontent.com/mail-sig/AIorK4wEqSyvBO5OYbjCoZh_TRsFJvM1Csn61Zm9l7rRH0bv8K4JYNEqzqLd51uDeazNIjDfrCb6vfQ';
 
 export type ColorPaletteMode = 'adaptive' | 'crimson' | 'classic';
-export type SocialIconStyle = 'website-card' | 'website-brand' | 'acap-crimson' | 'minimal';
+export type SocialIconStyle = 'brand' | 'crimson' | 'navy' | 'slate';
+export type SocialIconBoxMode = 'none' | 'box';
+export type ButtonEdgeMode = 'classic' | 'round';
 
 export interface SocialChannel {
   id: 'linkedin' | 'instagram' | 'facebook' | 'youtube';
   label: string;
   url: string;
-  brandHex: string;
-  iconWhiteUrl: string;
-  iconSlateUrl: string;
-  iconCrimsonUrl: string;
-  iconBrandUrl: string;
+  fluencyIconUrl: string; // Original vibrant brand icon (no box needed)
+  crimsonIconUrl: string; // ACAP Crimson #e81053
+  navyIconUrl: string;    // ACAP Navy #010333
+  slateIconUrl: string;   // Minimal Slate #475569
 }
 
 export const OFFICIAL_SOCIAL_CHANNELS: SocialChannel[] = [
@@ -43,41 +44,37 @@ export const OFFICIAL_SOCIAL_CHANNELS: SocialChannel[] = [
     id: 'linkedin',
     label: 'LinkedIn',
     url: 'https://www.linkedin.com/company/acap/',
-    brandHex: '#0A66C2',
-    iconWhiteUrl: 'https://img.icons8.com/ios-filled/96/ffffff/linkedin.png',
-    iconSlateUrl: 'https://img.icons8.com/ios-filled/96/475569/linkedin.png',
-    iconCrimsonUrl: 'https://img.icons8.com/ios-filled/96/e81053/linkedin.png',
-    iconBrandUrl: 'https://img.icons8.com/ios-filled/96/0A66C2/linkedin.png',
+    fluencyIconUrl: 'https://img.icons8.com/fluency/48/linkedin.png',
+    crimsonIconUrl: 'https://img.icons8.com/ios-filled/50/e81053/linkedin.png',
+    navyIconUrl: 'https://img.icons8.com/ios-filled/50/010333/linkedin.png',
+    slateIconUrl: 'https://img.icons8.com/ios-filled/50/475569/linkedin.png',
   },
   {
     id: 'instagram',
     label: 'Instagram',
     url: 'https://www.instagram.com/acap_croampro/',
-    brandHex: '#dc2743',
-    iconWhiteUrl: 'https://img.icons8.com/ios-filled/96/ffffff/instagram-new.png',
-    iconSlateUrl: 'https://img.icons8.com/ios-filled/96/475569/instagram-new.png',
-    iconCrimsonUrl: 'https://img.icons8.com/ios-filled/96/e81053/instagram-new.png',
-    iconBrandUrl: 'https://img.icons8.com/ios-filled/96/dc2743/instagram-new.png',
+    fluencyIconUrl: 'https://img.icons8.com/fluency/48/instagram-new.png',
+    crimsonIconUrl: 'https://img.icons8.com/ios-filled/50/e81053/instagram-new.png',
+    navyIconUrl: 'https://img.icons8.com/ios-filled/50/010333/instagram-new.png',
+    slateIconUrl: 'https://img.icons8.com/ios-filled/50/475569/instagram-new.png',
   },
   {
     id: 'facebook',
     label: 'Facebook',
     url: 'https://www.facebook.com/croampro/',
-    brandHex: '#1877F2',
-    iconWhiteUrl: 'https://img.icons8.com/ios-filled/96/ffffff/facebook-new.png',
-    iconSlateUrl: 'https://img.icons8.com/ios-filled/96/475569/facebook-new.png',
-    iconCrimsonUrl: 'https://img.icons8.com/ios-filled/96/e81053/facebook-new.png',
-    iconBrandUrl: 'https://img.icons8.com/ios-filled/96/1877F2/facebook-new.png',
+    fluencyIconUrl: 'https://img.icons8.com/fluency/48/facebook-new.png',
+    crimsonIconUrl: 'https://img.icons8.com/ios-filled/50/e81053/facebook-new.png',
+    navyIconUrl: 'https://img.icons8.com/ios-filled/50/010333/facebook-new.png',
+    slateIconUrl: 'https://img.icons8.com/ios-filled/50/475569/facebook-new.png',
   },
   {
     id: 'youtube',
     label: 'YouTube',
     url: 'https://www.youtube.com/channel/UCN0TeaVV29ldOKLqQ2PhuvQ',
-    brandHex: '#FF0000',
-    iconWhiteUrl: 'https://img.icons8.com/ios-filled/96/ffffff/youtube-play.png',
-    iconSlateUrl: 'https://img.icons8.com/ios-filled/96/475569/youtube-play.png',
-    iconCrimsonUrl: 'https://img.icons8.com/ios-filled/96/e81053/youtube-play.png',
-    iconBrandUrl: 'https://img.icons8.com/ios-filled/96/FF0000/youtube-play.png',
+    fluencyIconUrl: 'https://img.icons8.com/fluency/48/youtube-play.png',
+    crimsonIconUrl: 'https://img.icons8.com/ios-filled/50/e81053/youtube-play.png',
+    navyIconUrl: 'https://img.icons8.com/ios-filled/50/010333/youtube-play.png',
+    slateIconUrl: 'https://img.icons8.com/ios-filled/50/475569/youtube-play.png',
   },
 ];
 
@@ -168,7 +165,7 @@ function getAcapLogoFallbackSvg(): string {
     <rect x="56" y="21" width="8" height="8" fill="#e81053"/>
     <rect x="48" y="29" width="8" height="8" fill="#e81053"/>
     <rect x="56" y="37" width="8" height="8" fill="#e81053"/>
-    <rect x="48" y="45" width="8" height="8" height="8" fill="#e81053"/>
+    <rect x="48" y="45" width="8" height="8" fill="#e81053"/>
     <text x="213" y="20" fill="#e81053" font-family="Arial, sans-serif" font-weight="bold" font-size="7">TM</text>
   </svg>`;
   return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
@@ -211,9 +208,12 @@ export default function AcapEmailApp() {
     () => initialParams.get('chapter') || 'Pacific Northwest (PNW)'
   );
 
-  // Appearance & Button Selection State
+  // Appearance, Icons & Button Selection State
   const [colorPalette, setColorPalette] = useState<ColorPaletteMode>('adaptive');
-  const [iconStyle, setIconStyle] = useState<SocialIconStyle>('website-card');
+  const [iconStyle, setIconStyle] = useState<SocialIconStyle>('brand');
+  const [iconBoxMode, setIconBoxMode] = useState<SocialIconBoxMode>('none'); // Default without box as requested!
+  const [buttonEdgeMode, setButtonEdgeMode] = useState<ButtonEdgeMode>('round'); // Option for round edges vs classic
+
   // Selected buttons in order (first button = primary crimson, second = secondary light pill)
   const [selectedButtons, setSelectedButtons] = useState<ActionButtonOption['id'][]>([
     'member',
@@ -243,7 +243,6 @@ export default function AcapEmailApp() {
         return prev.filter((id) => id !== btnId);
       }
       if (prev.length >= 2) {
-        // Replace the second button so it never gets cluttered with too many buttons
         return [prev[0], btnId];
       }
       return [...prev, btnId];
@@ -289,45 +288,45 @@ export default function AcapEmailApp() {
               </tr>`
       : '';
 
-    // 4 Simple & Pretty Social Icon Styles
+    // Pick icon URL based on the 4 Social Icon Styles
+    const getChannelIconUrl = (ch: SocialChannel): string => {
+      if (iconStyle === 'crimson') return ch.crimsonIconUrl;
+      if (iconStyle === 'navy') return ch.navyIconUrl;
+      if (iconStyle === 'slate') return ch.slateIconUrl;
+      return ch.fluencyIconUrl;
+    };
+
+    // Build Social Icons Row — either WITHOUT box (clean icons) or WITH box (rounded card frame)
     const socialCellsHTML = OFFICIAL_SOCIAL_CHANNELS.map((ch, idx) => {
       const isLast = idx === OFFICIAL_SOCIAL_CHANNELS.length - 1;
-      const spacerCell = isLast ? '' : `<td width="7" style="width:7px;font-size:1px;">&nbsp;</td>`;
+      const iconUrl = getChannelIconUrl(ch);
 
-      if (iconStyle === 'website-brand') {
-        // Option 2: Website Filled Brand Tiles
-        return `<td valign="middle" align="center" width="28" height="28" bgcolor="${ch.brandHex}" style="width:28px;height:28px;background-color:${ch.brandHex};border:1px solid ${ch.brandHex};border-radius:7px;text-align:center;vertical-align:middle;">
+      if (iconBoxMode === 'box') {
+        const spacerCell = isLast
+          ? ''
+          : `<td width="7" style="width:7px;font-size:1px;">&nbsp;</td>`;
+        const boxBg = iconStyle === 'crimson' ? '#fff1f5' : '#f8fafc';
+        const boxBorder = iconStyle === 'crimson' ? '#fecdd3' : '#e2e5eb';
+
+        return `<td valign="middle" align="center" width="28" height="28" bgcolor="${boxBg}" style="width:28px;height:28px;background-color:${boxBg};border:1px solid ${boxBorder};border-radius:7px;text-align:center;vertical-align:middle;">
                           <a href="${ch.url}" target="_blank" title="ACAP on ${ch.label}" style="text-decoration:none;display:block;width:28px;height:28px;line-height:28px;">
-                            <img alt="${ch.label}" border="0" width="15" height="15" src="${ch.iconWhiteUrl}" style="border:0px;display:inline-block;vertical-align:middle;width:15px;height:15px;">
+                            <img alt="${ch.label}" border="0" width="16" height="16" src="${iconUrl}" style="border:0px;display:inline-block;vertical-align:middle;width:16px;height:16px;">
                           </a>
                         </td>${spacerCell}`;
       }
 
-      if (iconStyle === 'website-card') {
-        // Option 1: Website Soft Card Badges
-        return `<td valign="middle" align="center" width="28" height="28" bgcolor="#f8fafc" style="width:28px;height:28px;background-color:#f8fafc;border:1px solid #e2e5eb;border-radius:7px;text-align:center;vertical-align:middle;">
-                          <a href="${ch.url}" target="_blank" title="ACAP on ${ch.label}" style="text-decoration:none;display:block;width:28px;height:28px;line-height:28px;">
-                            <img alt="${ch.label}" border="0" width="15" height="15" src="${ch.iconBrandUrl}" style="border:0px;display:inline-block;vertical-align:middle;width:15px;height:15px;">
-                          </a>
-                        </td>${spacerCell}`;
-      }
-
-      if (iconStyle === 'acap-crimson') {
-        // Option 3: ACAP Crimson Badges
-        return `<td valign="middle" align="center" width="28" height="28" bgcolor="#fff1f5" style="width:28px;height:28px;background-color:#fff1f5;border:1px solid #fecdd3;border-radius:7px;text-align:center;vertical-align:middle;">
-                          <a href="${ch.url}" target="_blank" title="ACAP on ${ch.label}" style="text-decoration:none;display:block;width:28px;height:28px;line-height:28px;">
-                            <img alt="${ch.label}" border="0" width="15" height="15" src="${ch.iconCrimsonUrl}" style="border:0px;display:inline-block;vertical-align:middle;width:15px;height:15px;">
-                          </a>
-                        </td>${spacerCell}`;
-      }
-
-      // Option 4: Minimal Clean Icons
-      return `<td valign="middle" align="center" style="padding-right:2px;vertical-align:middle;">
+      // Default: No Box (clean borderless icons)
+      const paddingRight = isLast ? '0px' : '8px';
+      return `<td style="padding-right:${paddingRight};">
                           <a href="${ch.url}" target="_blank" title="ACAP on ${ch.label}" style="text-decoration:none;display:inline-block;">
-                            <img alt="${ch.label}" border="0" width="20" height="20" src="${ch.iconSlateUrl}" style="border:0px;display:block;width:20px;height:20px;">
+                            <img alt="${ch.label}" border="0" width="22" height="22" src="${iconUrl}" style="border:0px;display:block;height:22px;width:22px;">
                           </a>
-                        </td>${spacerCell}`;
+                        </td>`;
     }).join('\n                        ');
+
+    // Button border radius & horizontal padding based on buttonEdgeMode ('round' vs 'classic')
+    const btnRadius = buttonEdgeMode === 'round' ? '999px' : '4px';
+    const btnPadding = buttonEdgeMode === 'round' ? '6px 15px' : '6px 12px';
 
     // Build Selected CTA Buttons (1st button = Primary Crimson, 2nd button = Secondary Light Pill)
     const activeButtonConfigs = selectedButtons
@@ -343,12 +342,12 @@ export default function AcapEmailApp() {
             : '';
 
         if (isPrimary) {
-          return `<td bgcolor="#e81053" style="background-color:#e81053;border:1px solid #e81053;border-radius:4px;padding:6px 12px;text-align:center;">
+          return `<td bgcolor="#e81053" style="background-color:#e81053;border:1px solid #e81053;border-radius:${btnRadius};padding:${btnPadding};text-align:center;">
                           <a href="${btn.url}" target="_blank" style="font-family:Tahoma,Arial,sans-serif;font-size:8.5pt;font-weight:bold;color:#ffffff;text-decoration:none;display:inline-block;white-space:nowrap;">${escapeHtml(btn.buttonText)}</a>
                         </td>${spacer}`;
         }
 
-        return `<td bgcolor="#f1f5f9" style="background-color:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;padding:6px 12px;text-align:center;">
+        return `<td bgcolor="#f1f5f9" style="background-color:#f1f5f9;border:1px solid #cbd5e1;border-radius:${btnRadius};padding:${btnPadding};text-align:center;">
                           <a href="${btn.url}" target="_blank" style="font-family:Tahoma,Arial,sans-serif;font-size:8.5pt;font-weight:bold;color:#0f172a;text-decoration:none;display:inline-block;white-space:nowrap;">${escapeHtml(btn.buttonText)}</a>
                         </td>${spacer}`;
       })
@@ -432,12 +431,32 @@ export default function AcapEmailApp() {
 
   const previewHtml = useMemo(
     () => buildSignatureHTML(true),
-    [name, role, phone, chapter, colorPalette, iconStyle, selectedButtons]
+    [
+      name,
+      role,
+      phone,
+      chapter,
+      colorPalette,
+      iconStyle,
+      iconBoxMode,
+      buttonEdgeMode,
+      selectedButtons,
+    ]
   );
 
   const cleanExportHtml = useMemo(
     () => buildSignatureHTML(false),
-    [name, role, phone, chapter, colorPalette, iconStyle, selectedButtons]
+    [
+      name,
+      role,
+      phone,
+      chapter,
+      colorPalette,
+      iconStyle,
+      iconBoxMode,
+      buttonEdgeMode,
+      selectedButtons,
+    ]
   );
 
   // ============================================================================
@@ -533,7 +552,9 @@ export default function AcapEmailApp() {
     setPhone('');
     setChapter('Pacific Northwest (PNW)');
     setColorPalette('adaptive');
-    setIconStyle('website-card');
+    setIconStyle('brand');
+    setIconBoxMode('none');
+    setButtonEdgeMode('round');
     setSelectedButtons(['member', 'website']);
   };
 
@@ -735,7 +756,10 @@ export default function AcapEmailApp() {
 
               <div className="mt-2.5 space-y-2">
                 {ROLE_GROUPS.map((group) => (
-                  <div key={group.group} className="bg-slate-50/80 border border-slate-200/70 rounded-lg p-2.5">
+                  <div
+                    key={group.group}
+                    className="bg-slate-50/80 border border-slate-200/70 rounded-lg p-2.5"
+                  >
                     <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
                       {group.group}
                     </span>
@@ -821,11 +845,11 @@ export default function AcapEmailApp() {
             </div>
           </div>
 
-          {/* Appearance, Social Icon Look (4 Simple Options) & Action Buttons Card */}
+          {/* Appearance, Social Icon Look & Action Buttons Card */}
           <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-5">
             <div className="flex items-center justify-between">
               <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Buttons, Icons &amp; Dark Mode
+                Buttons, Social Icons &amp; Dark Mode
               </h2>
               <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
                 100% Email-Safe
@@ -833,8 +857,8 @@ export default function AcapEmailApp() {
             </div>
 
             {/* Action Buttons Selector (Choose up to 2 from Member, Conference, Donate, Website) */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
                 <label className="block text-xs font-semibold text-slate-700">
                   Action Buttons (Pick up to 2)
                 </label>
@@ -849,6 +873,7 @@ export default function AcapEmailApp() {
                   </button>
                 )}
               </div>
+
               <div className="grid grid-cols-2 gap-2">
                 {ACTION_BUTTON_OPTIONS.map((opt) => {
                   const selectedIdx = selectedButtons.indexOf(opt.id);
@@ -887,102 +912,114 @@ export default function AcapEmailApp() {
                   );
                 })}
               </div>
+
+              {/* Button Edge Style (Round Edges vs Classic Corners) */}
+              <div className="flex items-center justify-between bg-slate-50 border border-slate-200/80 rounded-lg p-2">
+                <span className="text-xs font-semibold text-slate-700 pl-1">
+                  Button Edges:
+                </span>
+                <div className="inline-flex bg-slate-200/80 p-0.5 rounded-lg">
+                  <button
+                    type="button"
+                    onClick={() => setButtonEdgeMode('round')}
+                    className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                      buttonEdgeMode === 'round'
+                        ? 'bg-white text-[#e81053] shadow-2xs font-bold'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Round Pill Edges
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setButtonEdgeMode('classic')}
+                    className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                      buttonEdgeMode === 'classic'
+                        ? 'bg-white text-[#e81053] shadow-2xs font-bold'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Classic Corners
+                  </button>
+                </div>
+              </div>
             </div>
 
-            {/* Social Media Icon Style (4 Simple, Pretty Website-Inspired Options) */}
-            <div className="pt-3 border-t border-slate-100">
-              <label className="block text-xs font-semibold text-slate-700 mb-2">
-                Social Media Icon Style (4 Options)
+            {/* Social Media Icon Style (4 Simple Options + Separate Box Toggle) */}
+            <div className="pt-3 border-t border-slate-100 space-y-2.5">
+              <label className="block text-xs font-semibold text-slate-700">
+                Social Media Icon Color (4 Options)
               </label>
+
               <div className="grid grid-cols-2 gap-2">
-                {/* 1. Soft Cards */}
+                {/* 1. Official Brand Colors */}
                 <button
                   type="button"
-                  onClick={() => setIconStyle('website-card')}
-                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer space-y-2 ${
-                    iconStyle === 'website-card'
+                  onClick={() => setIconStyle('brand')}
+                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer space-y-1.5 ${
+                    iconStyle === 'brand'
                       ? 'border-2 border-[#e81053] bg-rose-50/40'
                       : 'border-slate-200 hover:border-slate-300 bg-white'
                   }`}
                 >
-                  <div className="text-xs font-bold text-slate-900">1. Soft Card Badges</div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-6 h-6 rounded-md bg-[#f8fafc] border border-[#e2e5eb] text-[#0A66C2] flex items-center justify-center shadow-2xs">
-                      <Linkedin className="w-3.5 h-3.5" />
-                    </span>
-                    <span className="w-6 h-6 rounded-md bg-[#f8fafc] border border-[#e2e5eb] text-[#dc2743] flex items-center justify-center shadow-2xs">
-                      <Instagram className="w-3.5 h-3.5" />
-                    </span>
-                    <span className="w-6 h-6 rounded-md bg-[#f8fafc] border border-[#e2e5eb] text-[#1877F2] flex items-center justify-center shadow-2xs">
-                      <Facebook className="w-3.5 h-3.5" />
-                    </span>
-                    <span className="w-6 h-6 rounded-md bg-[#f8fafc] border border-[#e2e5eb] text-[#FF0000] flex items-center justify-center shadow-2xs">
-                      <Youtube className="w-3.5 h-3.5" />
-                    </span>
+                  <div className="text-xs font-bold text-slate-900">1. Official Brand</div>
+                  <div className="flex items-center gap-2 pt-0.5">
+                    <Linkedin className="w-4 h-4 text-[#0A66C2]" />
+                    <Instagram className="w-4 h-4 text-[#dc2743]" />
+                    <Facebook className="w-4 h-4 text-[#1877F2]" />
+                    <Youtube className="w-4 h-4 text-[#FF0000]" />
                   </div>
                 </button>
 
-                {/* 2. Brand Tiles */}
+                {/* 2. ACAP Crimson */}
                 <button
                   type="button"
-                  onClick={() => setIconStyle('website-brand')}
-                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer space-y-2 ${
-                    iconStyle === 'website-brand'
+                  onClick={() => setIconStyle('crimson')}
+                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer space-y-1.5 ${
+                    iconStyle === 'crimson'
                       ? 'border-2 border-[#e81053] bg-rose-50/40'
                       : 'border-slate-200 hover:border-slate-300 bg-white'
                   }`}
                 >
-                  <div className="text-xs font-bold text-slate-900">2. Brand Color Tiles</div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-6 h-6 rounded-md bg-[#0A66C2] text-white flex items-center justify-center shadow-2xs">
-                      <Linkedin className="w-3.5 h-3.5" />
-                    </span>
-                    <span className="w-6 h-6 rounded-md bg-[#dc2743] text-white flex items-center justify-center shadow-2xs">
-                      <Instagram className="w-3.5 h-3.5" />
-                    </span>
-                    <span className="w-6 h-6 rounded-md bg-[#1877F2] text-white flex items-center justify-center shadow-2xs">
-                      <Facebook className="w-3.5 h-3.5" />
-                    </span>
-                    <span className="w-6 h-6 rounded-md bg-[#FF0000] text-white flex items-center justify-center shadow-2xs">
-                      <Youtube className="w-3.5 h-3.5" />
-                    </span>
+                  <div className="text-xs font-bold text-slate-900">2. ACAP Crimson</div>
+                  <div className="flex items-center gap-2 text-[#e81053] pt-0.5">
+                    <Linkedin className="w-4 h-4" />
+                    <Instagram className="w-4 h-4" />
+                    <Facebook className="w-4 h-4" />
+                    <Youtube className="w-4 h-4" />
                   </div>
                 </button>
 
-                {/* 3. ACAP Crimson */}
+                {/* 3. ACAP Navy */}
                 <button
                   type="button"
-                  onClick={() => setIconStyle('acap-crimson')}
-                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer space-y-2 ${
-                    iconStyle === 'acap-crimson'
+                  onClick={() => setIconStyle('navy')}
+                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer space-y-1.5 ${
+                    iconStyle === 'navy'
                       ? 'border-2 border-[#e81053] bg-rose-50/40'
                       : 'border-slate-200 hover:border-slate-300 bg-white'
                   }`}
                 >
-                  <div className="text-xs font-bold text-slate-900">3. ACAP Crimson</div>
-                  <div className="flex items-center gap-1.5">
-                    {[Linkedin, Instagram, Facebook, Youtube].map((IconComp, idx) => (
-                      <span
-                        key={idx}
-                        className="w-6 h-6 rounded-md bg-[#fff1f5] border border-[#fecdd3] text-[#e81053] flex items-center justify-center shadow-2xs"
-                      >
-                        <IconComp className="w-3.5 h-3.5" />
-                      </span>
-                    ))}
+                  <div className="text-xs font-bold text-slate-900">3. ACAP Navy</div>
+                  <div className="flex items-center gap-2 text-[#010333] pt-0.5">
+                    <Linkedin className="w-4 h-4" />
+                    <Instagram className="w-4 h-4" />
+                    <Facebook className="w-4 h-4" />
+                    <Youtube className="w-4 h-4" />
                   </div>
                 </button>
 
-                {/* 4. Minimal Clean */}
+                {/* 4. Minimal Slate */}
                 <button
                   type="button"
-                  onClick={() => setIconStyle('minimal')}
-                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer space-y-2 ${
-                    iconStyle === 'minimal'
+                  onClick={() => setIconStyle('slate')}
+                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer space-y-1.5 ${
+                    iconStyle === 'slate'
                       ? 'border-2 border-[#e81053] bg-rose-50/40'
                       : 'border-slate-200 hover:border-slate-300 bg-white'
                   }`}
                 >
-                  <div className="text-xs font-bold text-slate-900">4. Minimal Clean</div>
+                  <div className="text-xs font-bold text-slate-900">4. Minimal Slate</div>
                   <div className="flex items-center gap-2 text-slate-600 pt-0.5">
                     <Linkedin className="w-4 h-4" />
                     <Instagram className="w-4 h-4" />
@@ -990,6 +1027,37 @@ export default function AcapEmailApp() {
                     <Youtube className="w-4 h-4" />
                   </div>
                 </button>
+              </div>
+
+              {/* Separate Toggle: Social Icon Box vs No Box */}
+              <div className="flex items-center justify-between bg-slate-50 border border-slate-200/80 rounded-lg p-2">
+                <span className="text-xs font-semibold text-slate-700 pl-1">
+                  Social Icon Box:
+                </span>
+                <div className="inline-flex bg-slate-200/80 p-0.5 rounded-lg">
+                  <button
+                    type="button"
+                    onClick={() => setIconBoxMode('none')}
+                    className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                      iconBoxMode === 'none'
+                        ? 'bg-white text-[#e81053] shadow-2xs font-bold'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    No Box (Clean)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIconBoxMode('box')}
+                    className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                      iconBoxMode === 'box'
+                        ? 'bg-white text-[#e81053] shadow-2xs font-bold'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    With Box Frame
+                  </button>
+                </div>
               </div>
             </div>
 
