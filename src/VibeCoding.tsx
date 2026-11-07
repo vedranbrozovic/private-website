@@ -12,6 +12,7 @@ import {
   TrendingUp,
   Coins,
   Beer,
+  Mail,
   Linkedin, 
   Github, 
   Instagram, 
@@ -32,6 +33,16 @@ interface VibeApp {
 }
 
 const APPS: VibeApp[] = [
+  {
+    id: 'ACAPemail',
+    title: 'ACAP Official Email Signature Studio',
+    category: 'REACT / SELF-SERVICE MEMBER TOOL',
+    year: '2026',
+    description: '100% self-service email signature generator for Association of Croatian American Professionals (ACAP) members and chapters. Features website-styled social icon badges, light/dark mode email client preview, shareable pre-filled links, and 1-click copy for Gmail, Outlook, and Apple Mail.',
+    localUrl: '/vibecoding/ACAPemail',
+    githubUrl: 'https://github.com/vedranbrozovic',
+    icon: Mail
+  },
   {
     id: 'nbagame',
     title: 'NBA Franchise Wins Pool & Snake Draft',

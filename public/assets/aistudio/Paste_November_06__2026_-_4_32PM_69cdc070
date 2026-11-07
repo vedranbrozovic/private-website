@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ACAP Official Email Signature Generator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #1e293b;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 3px;
+    }
+    .viewport-transition {
+      transition: max-width 0.35s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.25s ease, color 0.25s ease;
+    }
+    .step-badge {
+      background: linear-gradient(135deg, #e81053 0%, #be0b42 100%);
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+  <!-- Official ACAP Member Portal Header -->
+  <header class="bg-[#010333] text-white border-b border-slate-800 sticky top-0 z-30 shadow-md">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3.5">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        
+        <!-- Brand Identity -->
+        <div class="flex items-center gap-3.5">
+          <div class="px-2.5 py-1.5 rounded-lg bg-white flex items-center justify-center shadow-sm shrink-0">
+            <span class="text-[#e81053] font-black tracking-tighter text-lg leading-none">ACAP</span>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="text-base sm:text-lg font-bold text-white leading-tight">Official Email Signature Generator</h1>
+              <span class="hidden md:inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#e81053] text-white">Member Tool</span>
+            </div>
+            <p class="text-xs text-slate-300">Association of Croatian American Professionals • Create & install in 60 seconds</p>
+          </div>
+        </div>
+
+        <!-- Primary One-Click Copy CTA -->
+        <div class="flex items-center gap-2.5">
+          <button id="btnHeaderCopy" onclick="copyVisualSignature()" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#e81053] hover:bg-[#ff1f64] active:scale-[0.99] text-white font-semibold text-sm px-5 py-2.5 rounded-lg shadow-md transition-all cursor-pointer">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
+            </svg>
+            <span>Copy Signature</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- Quick 3-Step Progress Bar Banner -->
+  <div class="bg-white border-b border-slate-200">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 text-xs">
+        <div class="flex items-center gap-2.5 py-1">
+          <span class="w-6 h-6 rounded-full step-badge text-white font-bold flex items-center justify-center shrink-0 shadow-xs">1</span>
+          <div>
+            <span class="font-bold text-slate-900">Enter Your Details</span>
+            <span class="text-slate-500 block sm:inline sm:ml-1">— Name, ACAP title & optional contact</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-2.5 py-1">
+          <span class="w-6 h-6 rounded-full step-badge text-white font-bold flex items-center justify-center shrink-0 shadow-xs">2</span>
+          <div>
+            <span class="font-bold text-slate-900">Click "Copy Signature"</span>
+            <span class="text-slate-500 block sm:inline sm:ml-1">— Copies rich formatting, icons & buttons</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-2.5 py-1">
+          <span class="w-6 h-6 rounded-full step-badge text-white font-bold flex items-center justify-center shrink-0 shadow-xs">3</span>
+          <div>
+            <span class="font-bold text-slate-900">Paste in Email Settings</span>
+            <span class="text-slate-500 block sm:inline sm:ml-1">— Follow the 1-minute guide below</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Banner -->
+  <div id="toastBanner" class="fixed bottom-5 right-5 z-50 transform translate-y-24 opacity-0 transition-all duration-300 pointer-events-none">
+    <div class="bg-slate-900 text-white px-5 py-4 rounded-xl shadow-2xl border border-emerald-500/40 flex items-center gap-3.5 max-w-md">
+      <div class="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-sm">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
+        </svg>
+      </div>
+      <div>
+        <p id="toastTitle" class="text-sm font-bold text-white">Signature Copied to Clipboard!</p>
+        <p id="toastSub" class="text-xs text-slate-300 mt-0.5">Now open your Gmail, Outlook, or Apple Mail signature settings and press Cmd+V (Mac) or Ctrl+V (Windows).</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Workspace -->
+  <main class="max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
+    
+    <!-- LEFT COLUMN: Step 1 - Personalize Your Signature (5 cols) -->
+    <section class="lg:col-span-5 space-y-5">
+      
+      <!-- Step 1 Card: Member Details -->
+      <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full step-badge text-white text-xs font-bold flex items-center justify-center">1</span>
+            <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wide">Personalize Your Info</h2>
+          </div>
+          <button onclick="resetForm()" class="text-xs text-slate-400 hover:text-[#e81053] font-medium transition-colors cursor-pointer">
+            Reset Default
+          </button>
+        </div>
+
+        <!-- Full Name -->
+        <div>
+          <label for="inputName" class="block text-xs font-semibold text-slate-700 mb-1">Full Name <span class="text-[#e81053]">*</span></label>
+          <input id="inputName" type="text" value="Vedran Brozović" placeholder="e.g., Ana Horvat" oninput="updateSignature()" class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#e81053] focus:border-transparent font-medium text-slate-900">
+        </div>
+
+        <!-- Role / Title Input + Quick Role Chips -->
+        <div>
+          <label for="inputRole" class="block text-xs font-semibold text-slate-700 mb-1">Your ACAP Title / Role <span class="text-[#e81053]">*</span></label>
+          <input id="inputRole" type="text" value="Board member | Seattle Conference Chair" placeholder="e.g., Member | Seattle Chapter" oninput="updateSignature()" class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#e81053] focus:border-transparent font-medium text-slate-900">
+          
+          <div class="mt-2">
+            <span class="block text-[11px] font-medium text-slate-400 mb-1.5">Quick-fill common templates (click to apply):</span>
+            <div class="flex flex-wrap gap-1.5">
+              <button type="button" onclick="setRolePreset('Board member | Seattle Conference Chair')" class="text-[11px] px-2.5 py-1 rounded-md bg-slate-100 hover:bg-rose-50 hover:text-[#e81053] text-slate-700 font-medium border border-slate-200 transition-colors cursor-pointer">
+                Seattle Conference Chair
+              </button>
+              <button type="button" onclick="setRolePreset('Board member | Technology and Innovation')" class="text-[11px] px-2.5 py-1 rounded-md bg-slate-100 hover:bg-rose-50 hover:text-[#e81053] text-slate-700 font-medium border border-slate-200 transition-colors cursor-pointer">
+                Tech & Innovation Chair
+              </button>
+              <button type="button" onclick="setRolePreset('Board Member')" class="text-[11px] px-2.5 py-1 rounded-md bg-slate-100 hover:bg-rose-50 hover:text-[#e81053] text-slate-700 font-medium border border-slate-200 transition-colors cursor-pointer">
+                Board Member
+              </button>
+              <button type="button" onclick="setRolePreset('Chapter President | ACAP Seattle')" class="text-[11px] px-2.5 py-1 rounded-md bg-slate-100 hover:bg-rose-50 hover:text-[#e81053] text-slate-700 font-medium border border-slate-200 transition-colors cursor-pointer">
+                Chapter President
+              </button>
+              <button type="button" onclick="setRolePreset('Committee Member')" class="text-[11px] px-2.5 py-1 rounded-md bg-slate-100 hover:bg-rose-50 hover:text-[#e81053] text-slate-700 font-medium border border-slate-200 transition-colors cursor-pointer">
+                Committee Member
+              </button>
+              <button type="button" onclick="setRolePreset('Member')" class="text-[11px] px-2.5 py-1 rounded-md bg-slate-100 hover:bg-rose-50 hover:text-[#e81053] text-slate-700 font-medium border border-slate-200 transition-colors cursor-pointer">
+                General Member
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Optional Phone / Email Contact Line -->
+        <div class="pt-2 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label for="inputPhone" class="block text-xs font-medium text-slate-600 mb-1">Phone <span class="text-slate-400 font-normal">(Optional)</span></label>
+            <input id="inputPhone" type="text" value="" placeholder="e.g., +1 (206) 555-0199" oninput="updateSignature()" class="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#e81053]">
+          </div>
+          <div>
+            <label for="inputChapter" class="block text-xs font-medium text-slate-600 mb-1">Org Subtitle Line</label>
+            <input id="inputChapter" type="text" value="ACAP Foundation" placeholder="e.g., ACAP Foundation" oninput="updateSignature()" class="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#e81053]">
+          </div>
+        </div>
+      </div>
+
+      <!-- Dark Mode & Appearance Settings Card -->
+      <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500">Dark Mode & Icon Appearance</h2>
+          <span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">100% Email-Safe</span>
+        </div>
+
+        <!-- Dark Mode Color Strategy Selector -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1.5">
+            Text Color Mode (Light & Dark Mode Visibility)
+          </label>
+          <div class="grid grid-cols-1 gap-2">
+            <button type="button" id="btnPaletteAdaptive" onclick="setColorPalette('adaptive')" class="text-left p-3 rounded-lg border-2 border-[#e81053] bg-rose-50/40 transition-all cursor-pointer">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-900">Universal Adaptive (Recommended)</span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-[#e81053] text-white">Best for Dark Mode</span>
+              </div>
+              <p class="text-[11px] text-slate-600 mt-1 leading-relaxed">
+                Uses client-adaptive text for your Name & Role (automatically turns crisp white in Dark Mode and dark navy/black in Light Mode) + solid pill button so nothing ever disappears.
+              </p>
+            </button>
+
+            <button type="button" id="btnPaletteCrimson" onclick="setColorPalette('crimson')" class="text-left p-3 rounded-lg border border-slate-200 hover:border-slate-300 bg-white transition-all cursor-pointer">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-800">ACAP Crimson Accent Name (<code class="text-[#e81053]">#e81053</code>)</span>
+                <span class="text-[10px] font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600">High Contrast</span>
+              </div>
+              <p class="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                Highlights your name in vibrant ACAP Crimson with adaptive role text — stands out strongly on both white and dark backgrounds.
+              </p>
+            </button>
+
+            <button type="button" id="btnPaletteClassic" onclick="setColorPalette('classic')" class="text-left p-3 rounded-lg border border-slate-200 hover:border-slate-300 bg-white transition-all cursor-pointer">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-800">Classic Hardcoded Navy (<code class="text-slate-600">#010333</code>)</span>
+                <span class="text-[10px] font-medium px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">Light Mode Best</span>
+              </div>
+              <p class="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                Locks `#010333` navy on Name & Role. Looks classic on white backgrounds, though older dark-mode clients without auto-inversion may render `#010333` dim.
+              </p>
+            </button>
+          </div>
+        </div>
+
+        <!-- Social Media Icon Style Toggle -->
+        <div class="pt-2 border-t border-slate-100">
+          <label class="block text-xs font-semibold text-slate-700 mb-1.5">Social Media Icon Style (LinkedIn, Instagram, Facebook, YouTube)</label>
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" id="btnIconsBrand" onclick="setIconStyle('brand')" class="py-2 px-3 rounded-lg border-2 border-[#e81053] bg-rose-50/40 text-[#e81053] text-xs font-bold transition-all cursor-pointer">
+              Official Brand Colors
+            </button>
+            <button type="button" id="btnIconsMinimal" onclick="setIconStyle('minimal')" class="py-2 px-3 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-medium transition-all cursor-pointer">
+              Minimal Dark/Light Safe
+            </button>
+          </div>
+        </div>
+
+        <!-- Button Order Option -->
+        <div class="pt-2 border-t border-slate-100">
+          <label class="block text-xs font-semibold text-slate-700 mb-1.5">Action Button Order</label>
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" id="btnOrderMemberFirst" onclick="setButtonOrder('member-first')" class="text-xs py-2 px-2.5 rounded-lg border-2 border-[#e81053] bg-rose-50/40 text-[#e81053] font-bold transition-all cursor-pointer">
+              "Become a Member" First
+            </button>
+            <button type="button" id="btnOrderWebsiteFirst" onclick="setButtonOrder('website-first')" class="text-xs py-2 px-2.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium transition-all cursor-pointer">
+              "Visit Our Website" First
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- RIGHT COLUMN: Step 2 (Live Preview & Copy) + Step 3 (Setup Instructions) (7 cols) -->
+    <section class="lg:col-span-7 flex flex-col gap-6">
+      
+      <!-- STEP 2 CARD: Live Preview & One-Click Copy -->
+      <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden flex flex-col">
+        
+        <!-- Preview Header Bar with Device & Theme Toggles -->
+        <div class="bg-slate-100 border-b border-slate-200 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full step-badge text-white text-xs font-bold flex items-center justify-center">2</span>
+            <div>
+              <h2 class="text-sm font-bold text-slate-900 leading-none">Live Signature Preview</h2>
+              <span id="viewportBadge" class="text-[11px] text-slate-500">Desktop View • Light Email Client</span>
+            </div>
+          </div>
+
+          <!-- Interactive Simulator Toggles -->
+          <div class="flex flex-wrap items-center gap-2">
+            <!-- Viewport Switcher -->
+            <div class="inline-flex bg-slate-200/80 p-0.5 rounded-lg">
+              <button type="button" id="btnDesktop" onclick="setViewport('desktop')" class="px-2.5 py-1 rounded-md text-xs font-semibold bg-white text-slate-900 shadow-2xs transition-all cursor-pointer">
+                💻 Desktop
+              </button>
+              <button type="button" id="btnMobile" onclick="setViewport('mobile')" class="px-2.5 py-1 rounded-md text-xs font-semibold text-slate-600 hover:text-slate-900 transition-all cursor-pointer">
+                📱 Mobile
+              </button>
+            </div>
+
+            <!-- Light / Dark Theme Switcher -->
+            <div class="inline-flex bg-slate-200/80 p-0.5 rounded-lg">
+              <button type="button" id="btnLight" onclick="setTheme('light')" class="px-2.5 py-1 rounded-md text-xs font-semibold bg-white text-slate-900 shadow-2xs transition-all cursor-pointer">
+                ☀️ Light
+              </button>
+              <button type="button" id="btnDark" onclick="setTheme('dark')" class="px-2.5 py-1 rounded-md text-xs font-semibold text-slate-600 hover:text-slate-900 transition-all cursor-pointer">
+                🌙 Dark Mode
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Outer Canvas Area -->
+        <div class="p-4 sm:p-6 bg-slate-200/60 flex flex-col items-center justify-center">
+          
+          <!-- Simulated Email Client Window -->
+          <div id="emailClientContainer" class="viewport-transition w-full max-w-full bg-white text-slate-900 rounded-xl shadow-md border border-slate-200/90 overflow-hidden">
+            
+            <!-- Simulated Email Header -->
+            <div id="emailHeader" class="px-5 py-2.5 border-b border-slate-100 text-xs flex flex-wrap items-center justify-between gap-2 text-slate-500">
+              <div class="flex items-center gap-2">
+                <span class="font-medium text-slate-400">To:</span>
+                <span id="emailRecipientPill" class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-medium">community@croampro.com</span>
+              </div>
+              <span id="darkModeStatusNote" class="text-[11px] text-emerald-600 font-medium hidden">
+                ✓ Dark Mode Active: All text & buttons remain high-contrast
+              </span>
+            </div>
+
+            <!-- Simulated Email Body + Live Signature Mount -->
+            <div id="emailBodyArea" class="p-5 sm:p-6">
+              <p id="emailGreetingText" class="text-xs sm:text-sm text-slate-600 mb-5 font-sans leading-relaxed">
+                Hi everyone,<br>
+                Looking forward to connecting at our upcoming ACAP events and growing our global network.<br><br>
+                Best regards,
+              </p>
+
+              <!-- ======================================================= -->
+              <!-- ACTUAL EMAIL SIGNATURE CONTAINER (COPIED TO CLIPBOARD)  -->
+              <!-- ======================================================= -->
+              <div id="signatureMountPoint"></div>
+              <!-- ======================================================= -->
+
+            </div>
+
+          </div>
+
+          <!-- Big Prominent Copy Action Bar Under Preview -->
+          <div class="w-full mt-4 bg-white rounded-xl p-4 border border-slate-200/90 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="text-center sm:text-left">
+              <p class="text-xs font-bold text-slate-900">Ready to use your new signature?</p>
+              <p class="text-[11px] text-slate-500">Click the button to copy the visual signature with all images, links & buttons.</p>
+            </div>
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+              <button id="btnMainCopy" onclick="copyVisualSignature()" class="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 bg-[#e81053] hover:bg-[#c90d47] active:scale-[0.99] text-white font-bold text-sm px-6 py-3 rounded-lg shadow-sm transition-all cursor-pointer">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
+                </svg>
+                <span id="btnMainCopyText">Copy Signature to Clipboard</span>
+              </button>
+              <button onclick="copyRawHtml()" title="Copy Raw HTML Source Code" class="inline-flex items-center justify-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs px-3.5 py-3 rounded-lg border border-slate-200 transition-all cursor-pointer">
+                <span>&lt;/&gt; HTML</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- STEP 3 CARD: Easy 1-Minute Setup Guide for Members (Tabbed) -->
+      <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-slate-50/60">
+          <div class="flex items-center gap-2.5">
+            <span class="w-6 h-6 rounded-full step-badge text-white text-xs font-bold flex items-center justify-center">3</span>
+            <div>
+              <h3 class="text-sm font-bold text-slate-900">How to Paste Into Your Email Client</h3>
+              <p class="text-xs text-slate-500">Select your email app below and follow the 4 quick steps</p>
+            </div>
+          </div>
+
+          <!-- Client Instruction Tabs -->
+          <div class="inline-flex bg-slate-200/80 p-1 rounded-lg self-start sm:self-auto">
+            <button type="button" id="tabBtnGmail" onclick="switchGuideTab('gmail')" class="px-3 py-1.5 rounded-md text-xs font-bold bg-white text-slate-900 shadow-2xs transition-all cursor-pointer">
+              Gmail
+            </button>
+            <button type="button" id="tabBtnOutlook" onclick="switchGuideTab('outlook')" class="px-3 py-1.5 rounded-md text-xs font-semibold text-slate-600 hover:text-slate-900 transition-all cursor-pointer">
+              Outlook
+            </button>
+            <button type="button" id="tabBtnApple" onclick="switchGuideTab('apple')" class="px-3 py-1.5 rounded-md text-xs font-semibold text-slate-600 hover:text-slate-900 transition-all cursor-pointer">
+              Apple Mail
+            </button>
+          </div>
+        </div>
+
+        <!-- Tab Content: Gmail -->
+        <div id="guideContentGmail" class="p-5 space-y-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div class="p-3.5 rounded-lg bg-slate-50 border border-slate-200/80 flex gap-3">
+              <span class="w-6 h-6 rounded-full bg-rose-100 text-[#e81053] font-bold flex items-center justify-center shrink-0">1</span>
+              <div>
+                <p class="font-bold text-slate-900">Copy Your Signature</p>
+                <p class="text-slate-600 mt-0.5">Click the pink <strong>"Copy Signature to Clipboard"</strong> button above.</p>
+              </div>
+            </div>
+            <div class="p-3.5 rounded-lg bg-slate-50 border border-slate-200/80 flex gap-3">
+              <span class="w-6 h-6 rounded-full bg-rose-100 text-[#e81053] font-bold flex items-center justify-center shrink-0">2</span>
+              <div>
+                <p class="font-bold text-slate-900">Open Gmail Settings</p>
+                <p class="text-slate-600 mt-0.5">In Gmail on your computer, click the <strong>⚙️ Gear icon</strong> (top right) → <strong>"See all settings"</strong>.</p>
+              </div>
+            </div>
+            <div class="p-3.5 rounded-lg bg-slate-50 border border-slate-200/80 flex gap-3">
+              <span class="w-6 h-6 rounded-full bg-rose-100 text-[#e81053] font-bold flex items-center justify-center shrink-0">3</span>
+              <div>
+                <p class="font-bold text-slate-900">Paste Into Signature Box</p>
+                <p class="text-slate-600 mt-0.5">Scroll down to <strong>Signature</strong>, click inside the text box, and press <strong>Cmd + V</strong> (Mac) or <strong>Ctrl + V</strong> (Windows).</p>
+              </div>
+            </div>
+            <div class="p-3.5 rounded-lg bg-slate-50 border border-slate-200/80 flex gap-3">
+              <span class="w-6 h-6 rounded-full bg-rose-100 text-[#e81053] font-bold flex items-center justify-center shrink-0">4</span>
+              <div>
+                <p class="font-bold text-slate-900">Assign & Save Changes</p>
+                <p class="text-slate-600 mt-0.5">Select your signature under <em>"Signature defaults"</em>, then scroll to the bottom and click <strong>Save Changes</strong>.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab Content: Outlook -->
+        <div id="guideContentOutlook" class="p-5 space-y-3 hidden">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div class="p-3.5 rounded-lg bg-slate-50 border border-slate-200/80 flex gap-3">
+              <span class="w-6 h-6 rounded-full bg-rose-100 text-[#e81053] font-bold flex items-center justify-center shrink-0">1</span>
+              <div>
+                <p class="font-bold text-slate-900">Copy Your Signature</p>
+                <p class="text-slate-600 mt-0.5">Click the pink <strong>"Copy Signature to Clipboard"</strong> button above.</p>
+              </div>
+            </div>
+            <div class="p-3.5 rounded-lg bg-slate-50 border border-slate-200/80 flex gap-3">
+              <span class="w-6 h-6 rounded-full bg-rose-100 text-[#e81053] font-bold flex items-center justify-center shrink-0">2</span>
+              <div>
+                <p class="font-bold text-slate-900">Open Outlook Signatures</p>
+                <p class="text-slate-600 mt-0.5">Go to <strong>Settings (⚙️)</strong> → <strong>Mail</strong> → <strong>Compose and reply</strong> (or <em>File → Options → Mail → Signatures</em> on Desktop).</p>
+              </div>
+            </div>
+            <div class="p-3.5 rounded-lg bg-slate-50 border border-slate-200/80 flex gap-3">
+              <span class="w-6 h-6 rounded-full bg-rose-100 text-[#e81053] font-bold flex items-center justify-center shrink-0">3</span>
+              <div>
+                <p class="font-bold text-slate-900">Create & Paste</p>
+                <p class="text-slate-600 mt-0.5">Click <strong>New signature</strong>, name it "ACAP", and press <strong>Cmd + V</strong> or <strong>Ctrl + V</strong> inside the editor box.</p>
+              </div>
+            </div>
+            <div class="p-3.5 rounded-lg bg-slate-50 border border-slate-200/80 flex gap-3">
+              <span class="w-6 h-6 rounded-full bg-rose-100 text-[#e81053] font-bold flex items-center justify-center shrink-0">4</span>
+              <div>
+                <p class="font-bold text-slate-900">Keep Source Formatting</p>
+                <p class="text-slate-600 mt-0.5">If prompted on paste, choose <strong>"Keep Source Formatting"</strong>, then click <strong>Save</strong>.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab Content: Apple Mail -->
+        <div id="guideContentApple" class="p-5 space-y-3 hidden">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div class="p-3.5 rounded-lg bg-slate-50 border border-slate-200/80 flex gap-3">
+              <span class="w-6 h-6 rounded-full bg-rose-100 text-[#e81053] font-bold flex items-center justify-center shrink-0">1</span>
+              <div>
+                <p class="font-bold text-slate-900">Copy Your Signature</p>
+                <p class="text-slate-600 mt-0.5">Click the pink <strong>"Copy Signature to Clipboard"</strong> button above.</p>
+              </div>
+            </div>
+            <div class="p-3.5 rounded-lg bg-slate-50 border border-slate-200/80 flex gap-3">
+              <span class="w-6 h-6 rounded-full bg-rose-100 text-[#e81053] font-bold flex items-center justify-center shrink-0">2</span>
+              <div>
+                <p class="font-bold text-slate-900">Open Mail Settings</p>
+                <p class="text-slate-600 mt-0.5">In Apple Mail on Mac, open <strong>Mail → Settings (or Preferences) → Signatures</strong> and click <strong>[+]</strong>.</p>
+              </div>
+            </div>
+            <div class="p-3.5 rounded-lg bg-amber-50 border border-amber-200 flex gap-3">
+              <span class="w-6 h-6 rounded-full bg-amber-500 text-white font-bold flex items-center justify-center shrink-0">3</span>
+              <div>
+                <p class="font-bold text-amber-900">Important: Uncheck Match Font</p>
+                <p class="text-amber-800 mt-0.5"><strong>Uncheck</strong> <em>"Always match my default message font"</em> at the bottom BEFORE pasting so your layout stays intact.</p>
+              </div>
+            </div>
+            <div class="p-3.5 rounded-lg bg-slate-50 border border-slate-200/80 flex gap-3">
+              <span class="w-6 h-6 rounded-full bg-rose-100 text-[#e81053] font-bold flex items-center justify-center shrink-0">4</span>
+              <div>
+                <p class="font-bold text-slate-900">Paste & Close Window</p>
+                <p class="text-slate-600 mt-0.5">Press <strong>Cmd + V</strong> in the right preview pane (images may look like boxes in settings, but appear properly when composing an email!).</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Collapsible Raw HTML & Link Verification Footer -->
+        <details class="border-t border-slate-200 bg-slate-50">
+          <summary class="px-5 py-3 text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer flex items-center justify-between">
+            <span>View Embedded Official ACAP Links & Raw HTML Code (For IT / Advanced Users)</span>
+            <span class="text-[#e81053]">Expand ↓</span>
+          </summary>
+          <div class="p-5 pt-2 space-y-3 border-t border-slate-200/60">
+            <div class="flex flex-wrap gap-2 text-xs">
+              <a href="https://croampro.com/" target="_blank" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700 hover:border-[#e81053]">
+                <span class="w-2 h-2 rounded-full bg-[#e81053]"></span> Website: croampro.com ↗
+              </a>
+              <a href="https://members.croampro.com/signup" target="_blank" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700 hover:border-[#e81053]">
+                <span class="w-2 h-2 rounded-full bg-[#e81053]"></span> Join: members.croampro.com/signup ↗
+              </a>
+              <a href="https://www.linkedin.com/company/acap/" target="_blank" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700 hover:border-[#0a66c2]">
+                LinkedIn ↗
+              </a>
+              <a href="https://www.instagram.com/acap_croampro/" target="_blank" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700 hover:border-pink-600">
+                Instagram ↗
+              </a>
+              <a href="https://www.facebook.com/croampro/" target="_blank" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700 hover:border-blue-600">
+                Facebook ↗
+              </a>
+              <a href="https://www.youtube.com/channel/UCN0TeaVV29ldOKLqQ2PhuvQ" target="_blank" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-slate-200 text-slate-700 hover:border-red-600">
+                YouTube ↗
+              </a>
+            </div>
+            <div class="bg-slate-900 p-4 rounded-lg overflow-x-auto max-h-56">
+              <pre id="rawHtmlCodeDisplay" class="text-[11px] text-emerald-300 font-mono leading-relaxed select-all"></pre>
+            </div>
+          </div>
+        </details>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <script>
+    // Application State
+    let currentState = {
+      name: 'Vedran Brozović',
+      role: 'Board member | Seattle Conference Chair',
+      phone: '',
+      chapter: 'ACAP Foundation',
+      viewport: 'desktop',       // 'desktop' | 'mobile'
+      theme: 'light',            // 'light' | 'dark'
+      colorPalette: 'adaptive',  // 'adaptive' | 'crimson' | 'classic'
+      iconStyle: 'brand',        // 'brand' | 'minimal'
+      buttonOrder: 'member-first' // 'member-first' | 'website-first'
+    };
+
+    // Hosted Gmail Signature Logo URL from ACAP
+    const ACAP_HOSTED_LOGO_URL = "https://ci3.googleusercontent.com/mail-sig/AIorK4wEqSyvBO5OYbjCoZh_TRsFJvM1Csn61Zm9l7rRH0bv8K4JYNEqzqLd51uDeazNIjDfrCb6vfQ";
+
+    // Universally accessible PNG Social Media Icons (Icons8 Fluency / Material Filled PNGs)
+    // Works in 100% of email clients (Gmail, Outlook, Apple Mail) & visible in both Light and Dark modes
+    const SOCIAL_ICON_URLS = {
+      brand: {
+        linkedin:  "https://img.icons8.com/fluency/48/linkedin.png",
+        instagram: "https://img.icons8.com/fluency/48/instagram-new.png",
+        facebook:  "https://img.icons8.com/fluency/48/facebook-new.png",
+        youtube:   "https://img.icons8.com/fluency/48/youtube-play.png"
+      },
+      minimal: {
+        linkedin:  "https://img.icons8.com/ios-filled/50/e81053/linkedin.png",
+        instagram: "https://img.icons8.com/ios-filled/50/e81053/instagram-new.png",
+        facebook:  "https://img.icons8.com/ios-filled/50/e81053/facebook-new.png",
+        youtube:   "https://img.icons8.com/ios-filled/50/e81053/youtube-play.png"
+      }
+    };
+
+    // Clean SVG fallback data URI in case preview environment blocks external image host
+    function getAcapLogoFallbackSvg() {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 230 65" width="125" height="35">
+        <g fill="#e81053" font-family="Arial Black, Impact, sans-serif" font-weight="900" font-size="56">
+          <text x="2" y="52">A</text>
+          <text x="68" y="52">C</text>
+          <text x="116" y="52">A</text>
+          <text x="166" y="52">P</text>
+        </g>
+        <rect x="48" y="13" width="8" height="8" fill="#e81053"/>
+        <rect x="56" y="21" width="8" height="8" fill="#e81053"/>
+        <rect x="48" y="29" width="8" height="8" fill="#e81053"/>
+        <rect x="56" y="37" width="8" height="8" fill="#e81053"/>
+        <rect x="48" y="45" width="8" height="8" fill="#e81053"/>
+        <text x="213" y="20" fill="#e81053" font-family="Arial, sans-serif" font-weight="bold" font-size="7">TM</text>
+      </svg>`;
+      return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // Build the 100% email-client-compatible HTML table signature
+    function buildSignatureHTML() {
+      const safeName = escapeHtml(currentState.name || 'Vedran Brozović');
+      const safeRole = escapeHtml(currentState.role || 'Board member');
+      const safePhone = escapeHtml(currentState.phone.trim());
+      const safeChapter = escapeHtml(currentState.chapter.trim() || 'ACAP Foundation');
+
+      // Determine Dark-Mode & Light-Mode safe color styling based on selected palette
+      // Why this matters:
+      // In 'adaptive' mode, omitting a hardcoded dark color on Name & Role allows Gmail/Outlook/Apple Mail
+      // to use the message's default foreground color (#000000 in Light Mode, #ffffff in Dark Mode),
+      // while medium neutral slate (#7c8594) and bright links (#e81053) stay readable on ANY background.
+      let nameColorRule = '';
+      let roleColorRule = '';
+      let orgColorHex = '#7c8594'; // Mid-tone slate: passes contrast on both #ffffff and #121212
+      let linkColorHex = '#e81053'; // ACAP Crimson: high visibility on both light & dark
+
+      if (currentState.colorPalette === 'crimson') {
+        nameColorRule = 'color:#e81053;';
+        roleColorRule = ''; // Adapts automatically to light/dark client foreground
+      } else if (currentState.colorPalette === 'classic') {
+        nameColorRule = 'color:#010333;';
+        roleColorRule = 'color:#010333;';
+        linkColorHex = '#2563eb';
+      } else {
+        // 'adaptive' default: inherits client foreground (dark in light mode, white in dark mode)
+        nameColorRule = '';
+        roleColorRule = '';
+        linkColorHex = '#e81053';
+      }
+
+      const icons = SOCIAL_ICON_URLS[currentState.iconStyle] || SOCIAL_ICON_URLS.brand;
+
+      // Optional Phone Row
+      const phoneRowHTML = safePhone
+        ? `<tr>
+                <td style="padding:0px 0px 8px 0px;font-size:9pt;font-family:Tahoma,Arial,sans-serif;color:${orgColorHex};line-height:1.3;">
+                  ${safePhone}
+                </td>
+              </tr>`
+        : '';
+
+      // Primary Button: ACAP Crimson Fill (#e81053) with White Text
+      const memberBtnHTML = `<td bgcolor="#e81053" style="background-color:#e81053;border:1px solid #e81053;border-radius:4px;padding:6px 12px;text-align:center;">
+                          <a href="https://members.croampro.com/signup" target="_blank" style="font-family:Tahoma,Arial,sans-serif;font-size:8.5pt;font-weight:bold;color:#ffffff;text-decoration:none;display:inline-block;white-space:nowrap;">Become a Member</a>
+                        </td>`;
+
+      // Secondary Button: Solid Light Pill (#f1f5f9) with Dark Navy Text (#0f172a) & Subtle Border
+      // Using #f1f5f9 background guarantees that even in strict Dark Mode, the button pill stays light and its dark text is 100% readable!
+      const websiteBtnHTML = `<td bgcolor="#f1f5f9" style="background-color:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;padding:6px 12px;text-align:center;">
+                          <a href="https://croampro.com/" target="_blank" style="font-family:Tahoma,Arial,sans-serif;font-size:8.5pt;font-weight:bold;color:#0f172a;text-decoration:none;display:inline-block;white-space:nowrap;">Visit Our Website</a>
+                        </td>`;
+
+      const buttonsRowHTML = currentState.buttonOrder === 'member-first'
+        ? `${memberBtnHTML}\n                        <td width="8" style="width:8px;">&nbsp;</td>\n                        ${websiteBtnHTML}`
+        : `${websiteBtnHTML}\n                        <td width="8" style="width:8px;">&nbsp;</td>\n                        ${memberBtnHTML}`;
+
+      return `<div dir="ltr">
+  <table cellpadding="0" cellspacing="0" border="0" style="border-spacing:0px;border-collapse:collapse;width:100%;max-width:480px;font-size:10pt;font-family:Tahoma,Arial,sans-serif;line-height:1.4;">
+    <tbody>
+      <tr>
+        <td valign="top" width="130" style="padding:8px 15px 12px 0px;width:130px;vertical-align:top;">
+          <a href="https://croampro.com/" target="_blank" style="text-decoration:none;background-color:transparent;">
+            <img border="0" alt="ACAP" width="125" src="${ACAP_HOSTED_LOGO_URL}" onerror="this.onerror=null;this.src='${getAcapLogoFallbackSvg()}';" style="border:0px;vertical-align:middle;width:125px;max-width:125px;height:auto;display:block;">
+          </a>
+        </td>
+        <td valign="top" style="padding:4px 0px 12px 0px;vertical-align:top;">
+          <table cellpadding="0" cellspacing="0" border="0" style="border-spacing:0px;border-collapse:collapse;background-color:transparent;width:100%;">
+            <tbody>
+              <tr>
+                <td style="padding:0px 0px 2px 0px;font-size:12pt;font-weight:bold;font-family:Tahoma,Arial,sans-serif;${nameColorRule}line-height:1.2;">
+                  ${safeName}
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:0px 0px 8px 0px;font-size:10pt;font-family:Tahoma,Arial,sans-serif;${roleColorRule}line-height:1.3;">
+                  ${safeRole}
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:0px 0px 2px 0px;font-size:9.5pt;font-family:Tahoma,Arial,sans-serif;color:${orgColorHex};line-height:1.3;">
+                  Association of Croatian American Professionals
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:0px 0px 8px 0px;font-size:9.5pt;font-family:Tahoma,Arial,sans-serif;color:${orgColorHex};line-height:1.3;">
+                  ${safeChapter} <span style="color:#e81053;font-weight:bold;">|</span> <a href="https://croampro.com/" target="_blank" style="color:${linkColorHex};text-decoration:underline;font-weight:bold;">croampro.com</a>
+                </td>
+              </tr>
+              ${phoneRowHTML}
+              <tr>
+                <td style="padding:2px 0px 12px 0px;">
+                  <table cellpadding="0" cellspacing="0" border="0" style="border-spacing:0px;border-collapse:collapse;">
+                    <tbody>
+                      <tr>
+                        <td style="padding-right:8px;">
+                          <a href="https://www.linkedin.com/company/acap/" target="_blank" title="ACAP on LinkedIn" style="text-decoration:none;display:inline-block;">
+                            <img alt="LinkedIn" border="0" width="22" height="22" src="${icons.linkedin}" style="border:0px;display:block;height:22px;width:22px;">
+                          </a>
+                        </td>
+                        <td style="padding-right:8px;">
+                          <a href="https://www.instagram.com/acap_croampro/" target="_blank" title="ACAP on Instagram" style="text-decoration:none;display:inline-block;">
+                            <img alt="Instagram" border="0" width="22" height="22" src="${icons.instagram}" style="border:0px;display:block;height:22px;width:22px;">
+                          </a>
+                        </td>
+                        <td style="padding-right:8px;">
+                          <a href="https://www.facebook.com/croampro/" target="_blank" title="ACAP on Facebook" style="text-decoration:none;display:inline-block;">
+                            <img alt="Facebook" border="0" width="22" height="22" src="${icons.facebook}" style="border:0px;display:block;height:22px;width:22px;">
+                          </a>
+                        </td>
+                        <td>
+                          <a href="https://www.youtube.com/channel/UCN0TeaVV29ldOKLqQ2PhuvQ" target="_blank" title="ACAP on YouTube" style="text-decoration:none;display:inline-block;">
+                            <img alt="YouTube" border="0" width="22" height="22" src="${icons.youtube}" style="border:0px;display:block;height:22px;width:22px;">
+                          </a>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:0px;">
+                  <table cellpadding="0" cellspacing="0" border="0" style="border-spacing:0px;border-collapse:collapse;">
+                    <tbody>
+                      <tr>
+                        ${buttonsRowHTML}
+                      </tr>
+                    </tbody>
+                  </table>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2" style="padding:0px;border-top:2px solid #e81053;width:100%;max-width:480px;font-size:1px;line-height:1px;">&nbsp;</td>
+      </tr>
+    </tbody>
+  </table>
+</div>`;
+    }
+
+    // Strip local preview fallback script for clean raw HTML export
+    function buildCleanExportHTML() {
+      const raw = buildSignatureHTML();
+      return raw.replace(/\s*onerror="[^"]*"/g, '');
+    }
+
+    // Sync inputs and re-render live signature
+    function updateSignature() {
+      currentState.name = document.getElementById('inputName').value;
+      currentState.role = document.getElementById('inputRole').value;
+      currentState.phone = document.getElementById('inputPhone').value;
+      currentState.chapter = document.getElementById('inputChapter').value;
+
+      const mount = document.getElementById('signatureMountPoint');
+      mount.innerHTML = buildSignatureHTML();
+
+      const codeDisplay = document.getElementById('rawHtmlCodeDisplay');
+      if (codeDisplay) {
+        codeDisplay.textContent = buildCleanExportHTML();
+      }
+    }
+
+    // Reset form to default Vedran Brozović values
+    function resetForm() {
+      document.getElementById('inputName').value = 'Vedran Brozović';
+      document.getElementById('inputRole').value = 'Board member | Seattle Conference Chair';
+      document.getElementById('inputPhone').value = '';
+      document.getElementById('inputChapter').value = 'ACAP Foundation';
+      setColorPalette('adaptive');
+      setIconStyle('brand');
+      setButtonOrder('member-first');
+      updateSignature();
+    }
+
+    // Quick-fill Role Preset
+    function setRolePreset(roleText) {
+      document.getElementById('inputRole').value = roleText;
+      updateSignature();
+    }
+
+    // Switch Text Color Strategy (Adaptive vs Crimson vs Classic Navy)
+    function setColorPalette(palette) {
+      currentState.colorPalette = palette;
+      const btnAdaptive = document.getElementById('btnPaletteAdaptive');
+      const btnCrimson = document.getElementById('btnPaletteCrimson');
+      const btnClassic = document.getElementById('btnPaletteClassic');
+
+      const activeClass = "text-left p-3 rounded-lg border-2 border-[#e81053] bg-rose-50/40 transition-all cursor-pointer";
+      const inactiveClass = "text-left p-3 rounded-lg border border-slate-200 hover:border-slate-300 bg-white transition-all cursor-pointer";
+
+      btnAdaptive.className = palette === 'adaptive' ? activeClass : inactiveClass;
+      btnCrimson.className = palette === 'crimson' ? activeClass : inactiveClass;
+      btnClassic.className = palette === 'classic' ? activeClass : inactiveClass;
+
+      updateSignature();
+    }
+
+    // Switch Social Media Icon Style
+    function setIconStyle(style) {
+      currentState.iconStyle = style;
+      const btnBrand = document.getElementById('btnIconsBrand');
+      const btnMinimal = document.getElementById('btnIconsMinimal');
+
+      if (style === 'brand') {
+        btnBrand.className = "py-2 px-3 rounded-lg border-2 border-[#e81053] bg-rose-50/40 text-[#e81053] text-xs font-bold transition-all cursor-pointer";
+        btnMinimal.className = "py-2 px-3 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-medium transition-all cursor-pointer";
+      } else {
+        btnMinimal.className = "py-2 px-3 rounded-lg border-2 border-[#e81053] bg-rose-50/40 text-[#e81053] text-xs font-bold transition-all cursor-pointer";
+        btnBrand.className = "py-2 px-3 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-medium transition-all cursor-pointer";
+      }
+      updateSignature();
+    }
+
+    // Switch Action Button Order
+    function setButtonOrder(order) {
+      currentState.buttonOrder = order;
+      const btnMember = document.getElementById('btnOrderMemberFirst');
+      const btnWebsite = document.getElementById('btnOrderWebsiteFirst');
+
+      if (order === 'member-first') {
+        btnMember.className = "text-xs py-2 px-2.5 rounded-lg border-2 border-[#e81053] bg-rose-50/40 text-[#e81053] font-bold transition-all cursor-pointer";
+        btnWebsite.className = "text-xs py-2 px-2.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium transition-all cursor-pointer";
+      } else {
+        btnWebsite.className = "text-xs py-2 px-2.5 rounded-lg border-2 border-[#e81053] bg-rose-50/40 text-[#e81053] font-bold transition-all cursor-pointer";
+        btnMember.className = "text-xs py-2 px-2.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium transition-all cursor-pointer";
+      }
+      updateSignature();
+    }
+
+    // Update badge label
+    function updateViewportBadge() {
+      const badge = document.getElementById('viewportBadge');
+      const viewText = currentState.viewport === 'mobile' ? 'Mobile View (360px)' : 'Desktop View';
+      const themeText = currentState.theme === 'dark' ? 'Dark Mode Email Client' : 'Light Email Client';
+      badge.textContent = `${viewText} • ${themeText}`;
+    }
+
+    // Viewport simulation toggle
+    function setViewport(mode) {
+      currentState.viewport = mode;
+      const container = document.getElementById('emailClientContainer');
+      const btnDesktop = document.getElementById('btnDesktop');
+      const btnMobile = document.getElementById('btnMobile');
+
+      if (mode === 'mobile') {
+        container.style.maxWidth = '360px';
+        btnMobile.className = "px-2.5 py-1 rounded-md text-xs font-semibold bg-white text-slate-900 shadow-2xs transition-all cursor-pointer";
+        btnDesktop.className = "px-2.5 py-1 rounded-md text-xs font-semibold text-slate-600 hover:text-slate-900 transition-all cursor-pointer";
+      } else {
+        container.style.maxWidth = '100%';
+        btnDesktop.className = "px-2.5 py-1 rounded-md text-xs font-semibold bg-white text-slate-900 shadow-2xs transition-all cursor-pointer";
+        btnMobile.className = "px-2.5 py-1 rounded-md text-xs font-semibold text-slate-600 hover:text-slate-900 transition-all cursor-pointer";
+      }
+      updateViewportBadge();
+    }
+
+    // Light / Dark email client simulation toggle
+    function setTheme(theme) {
+      currentState.theme = theme;
+      const container = document.getElementById('emailClientContainer');
+      const header = document.getElementById('emailHeader');
+      const recipientPill = document.getElementById('emailRecipientPill');
+      const greeting = document.getElementById('emailGreetingText');
+      const darkNote = document.getElementById('darkModeStatusNote');
+      const btnLight = document.getElementById('btnLight');
+      const btnDark = document.getElementById('btnDark');
+
+      if (theme === 'dark') {
+        // Set dark background AND light default text color (#f8fafc) just like Gmail/Outlook/Apple Mail Dark Mode
+        container.classList.remove('bg-white', 'text-slate-900', 'border-slate-200/90');
+        container.classList.add('bg-[#14171f]', 'text-slate-100', 'border-slate-700');
+        header.classList.remove('border-slate-100');
+        header.classList.add('border-slate-800');
+        recipientPill.classList.remove('bg-slate-100', 'text-slate-700');
+        recipientPill.classList.add('bg-slate-800', 'text-slate-200');
+        greeting.classList.remove('text-slate-600');
+        greeting.classList.add('text-slate-300');
+        darkNote.classList.remove('hidden');
+
+        btnDark.className = "px-2.5 py-1 rounded-md text-xs font-semibold bg-white text-slate-900 shadow-2xs transition-all cursor-pointer";
+        btnLight.className = "px-2.5 py-1 rounded-md text-xs font-semibold text-slate-600 hover:text-slate-900 transition-all cursor-pointer";
+      } else {
+        container.classList.add('bg-white', 'text-slate-900', 'border-slate-200/90');
+        container.classList.remove('bg-[#14171f]', 'text-slate-100', 'border-slate-700');
+        header.classList.add('border-slate-100');
+        header.classList.remove('border-slate-800');
+        recipientPill.classList.add('bg-slate-100', 'text-slate-700');
+        recipientPill.classList.remove('bg-slate-800', 'text-slate-200');
+        greeting.classList.add('text-slate-600');
+        greeting.classList.remove('text-slate-300');
+        darkNote.classList.add('hidden');
+
+        btnLight.className = "px-2.5 py-1 rounded-md text-xs font-semibold bg-white text-slate-900 shadow-2xs transition-all cursor-pointer";
+        btnDark.className = "px-2.5 py-1 rounded-md text-xs font-semibold text-slate-600 hover:text-slate-900 transition-all cursor-pointer";
+      }
+      updateViewportBadge();
+    }
+
+    // Switch Step 3 Setup Instruction Tabs (Gmail / Outlook / Apple Mail)
+    function switchGuideTab(client) {
+      const tabs = ['gmail', 'outlook', 'apple'];
+      const btnMap = {
+        gmail: document.getElementById('tabBtnGmail'),
+        outlook: document.getElementById('tabBtnOutlook'),
+        apple: document.getElementById('tabBtnApple')
+      };
+      const contentMap = {
+        gmail: document.getElementById('guideContentGmail'),
+        outlook: document.getElementById('guideContentOutlook'),
+        apple: document.getElementById('guideContentApple')
+      };
+
+      tabs.forEach(t => {
+        if (t === client) {
+          btnMap[t].className = "px-3 py-1.5 rounded-md text-xs font-bold bg-white text-slate-900 shadow-2xs transition-all cursor-pointer";
+          contentMap[t].classList.remove('hidden');
+        } else {
+          btnMap[t].className = "px-3 py-1.5 rounded-md text-xs font-semibold text-slate-600 hover:text-slate-900 transition-all cursor-pointer";
+          contentMap[t].classList.add('hidden');
+        }
+      });
+    }
+
+    // Toast notification helper
+    let toastTimer = null;
+    function showToast(title, subtitle) {
+      const toast = document.getElementById('toastBanner');
+      document.getElementById('toastTitle').textContent = title;
+      document.getElementById('toastSub').textContent = subtitle;
+
+      toast.classList.remove('translate-y-24', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.add('translate-y-24', 'opacity-0');
+        toast.classList.remove('translate-y-0', 'opacity-100');
+      }, 4200);
+    }
+
+    // Copy rendered visual signature for pasting directly into Gmail / Outlook / Apple Mail
+    function copyVisualSignature() {
+      const cleanHtml = buildCleanExportHTML();
+
+      const tempContainer = document.createElement('div');
+      tempContainer.style.position = 'fixed';
+      tempContainer.style.left = '-9999px';
+      tempContainer.style.top = '0';
+      tempContainer.style.backgroundColor = '#ffffff';
+      tempContainer.style.color = '#010333';
+      tempContainer.innerHTML = cleanHtml;
+      document.body.appendChild(tempContainer);
+
+      try {
+        const range = document.createRange();
+        range.selectNodeContents(tempContainer);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        document.execCommand('copy');
+        selection.removeAllRanges();
+
+        // Visual feedback on copy button
+        const btnText = document.getElementById('btnMainCopyText');
+        if (btnText) {
+          const orig = btnText.textContent;
+          btnText.textContent = '✓ Copied! Ready to Paste (Cmd+V / Ctrl+V)';
+          setTimeout(() => { btnText.textContent = orig; }, 3000);
+        }
+
+        showToast(
+          'Signature Copied to Clipboard!',
+          'Follow Step 3 below: Open your email settings and press Cmd+V (Mac) or Ctrl+V (Windows).'
+        );
+      } catch (err) {
+        const mount = document.getElementById('signatureMountPoint');
+        const range = document.createRange();
+        range.selectNodeContents(mount);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        document.execCommand('copy');
+        selection.removeAllRanges();
+        showToast(
+          'Signature Copied!',
+          'Paste directly into your Gmail, Outlook, or Apple Mail signature box.'
+        );
+      } finally {
+        document.body.removeChild(tempContainer);
+      }
+    }
+
+    // Copy Raw HTML source code
+    function copyRawHtml() {
+      const rawHtml = buildCleanExportHTML();
+      const tempTextArea = document.createElement('textarea');
+      tempTextArea.value = rawHtml;
+      tempTextArea.style.position = 'fixed';
+      tempTextArea.style.left = '-9999px';
+      document.body.appendChild(tempTextArea);
+      tempTextArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(tempTextArea);
+
+      showToast(
+        'Raw HTML Source Copied!',
+        'Ready to paste into any HTML-based email signature manager.'
+      );
+    }
+
+    // Initialize on window load
+    window.onload = function () {
+      updateSignature();
+    };
+  </script>
+</body>
+</html>
