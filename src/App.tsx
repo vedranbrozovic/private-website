@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { SocialLink } from './SocialLink';
 import { AskVedranWidget } from './AskVedranWidget';
+import { trackOutreachEvent } from './analytics/tracker';
 
 interface InteractiveItem {
   id: string;
@@ -1046,8 +1047,19 @@ const App = () => {
   const drawerRef = useRef<HTMLDivElement>(null);
   const calendlyContainerRef = useRef<HTMLDivElement>(null);
 
+  const contactFormLoadCountRef = useRef<number>(0);
+
   useEffect(() => {
     setMounted(true);
+
+    // Listen for Calendly postMessage when a visitor finishes scheduling a meeting
+    const handleCalendlyMessage = (e: MessageEvent) => {
+      if (e.data && typeof e.data === 'object' && e.data.event === 'calendly.event_scheduled') {
+        trackOutreachEvent('meeting_booked', 'Scheduled a meeting via Calendly');
+      }
+    };
+    window.addEventListener('message', handleCalendlyMessage);
+    return () => window.removeEventListener('message', handleCalendlyMessage);
   }, []);
 
   useEffect(() => {
@@ -1090,6 +1102,12 @@ const App = () => {
     setDrawerPlacement(placement);
     setActiveDrawer(next);
     if (next) {
+      if (next === 'meeting') {
+        trackOutreachEvent('meeting_opened', 'Opened Book a Meeting drawer');
+      } else if (next === 'contact') {
+        contactFormLoadCountRef.current = 0;
+        trackOutreachEvent('contact_opened', 'Opened Contact Me drawer');
+      }
       setTimeout(() => {
         drawerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }, 120);
@@ -1135,6 +1153,12 @@ const App = () => {
             marginHeight={0}
             marginWidth={0}
             title="Contact Vedran Brozović"
+            onLoad={() => {
+              contactFormLoadCountRef.current += 1;
+              if (contactFormLoadCountRef.current > 1) {
+                trackOutreachEvent('contact_sent', 'Submitted Contact Me form');
+              }
+            }}
             className="w-full max-w-full block border-0"
             style={{
               filter: 'grayscale(1) contrast(1.08) brightness(1.04)',
@@ -1562,6 +1586,24 @@ const App = () => {
           </div>
 
           {drawerPlacement === 'bottom' && renderDrawerContent()}
+
+          <div className="mt-8 pt-2 flex justify-end">
+            <a
+              href="/analytics"
+              onClick={(e) => {
+                if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && e.button === 0) {
+                  e.preventDefault();
+                  window.history.pushState({}, '', '/analytics');
+                  window.dispatchEvent(new PopStateEvent('popstate'));
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+              }}
+              className="text-[11px] font-mono tracking-tight text-[#1c2229] opacity-30 hover:opacity-80 transition-opacity duration-200 select-none"
+              title="View live site analytics"
+            >
+              /analytics
+            </a>
+          </div>
         </footer>
       </main>
     </div>

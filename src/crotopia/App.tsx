@@ -16,6 +16,7 @@ import {
   DEFAULT_CHARACTER_CUSTOMIZATION,
 } from './game/types';
 import { sound } from './game/audio';
+import { trackVibeAppMetric } from '../analytics/tracker';
 
 type GameState = 'title' | 'playing' | 'paused' | 'victory';
 
@@ -137,6 +138,7 @@ export default function App() {
 
       if (newlyFoundLandmarks.length > 0) {
         sound.playDiscoveryChime();
+        trackVibeAppMetric('crotopia', `Crotopia: Discovered ${newlyFoundLandmarks.length} landmark(s)`);
       }
     }
   }, []);
@@ -162,6 +164,7 @@ export default function App() {
             return { ...p, discoveredLandmarks: d, stars: p.stars + 35 };
           });
           sound.playDiscoveryChime();
+          trackVibeAppMetric('crotopia', `Crotopia: Discovered ${lm.name}`);
         }
         setSelectedTile(currentTile);
         setSelectedLandmark(lm);
@@ -433,6 +436,7 @@ export default function App() {
   const handleStartGame = () => {
     setGameState('playing');
     sound.startAmbient();
+    trackVibeAppMetric('crotopia', 'Crotopia: Started biome exploration');
   };
 
   const handleRestart = () => {

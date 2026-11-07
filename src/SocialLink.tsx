@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { trackSocialClick } from './analytics/tracker';
 
 export type PlatformType = 'linkedin' | 'github' | 'instagram' | 'youtube' | 'twitter' | 'email';
 
@@ -83,6 +84,7 @@ export const SocialLink = ({ href, icon: Icon, label, platform, compact = false 
   const style = BRAND_STYLES[platform];
 
   const handleClick = () => {
+    trackSocialClick(platform, href);
     setClicked(true);
     setIsOpened(true);
     try {

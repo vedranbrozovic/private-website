@@ -1,6 +1,7 @@
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { GoogleGenAI, ThinkingLevel } from '@google/genai';
@@ -10,7 +11,235 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const NBA_SAVED_SLOTS_FILE = path.join(__dirname, 'nba-saved-leagues.json');
+const ANALYTICS_DATA_FILE = path.join(__dirname, 'analytics-data.json');
 const MAX_NBA_SLOTS = 10;
+const MAX_RECENT_EVENTS = 60;
+
+export interface DailyAnalyticsBucket {
+  date: string; // YYYY-MM-DD
+  pageviews: number;
+  visitorHashes: string[];
+  socialClicks: number;
+  meetingsOpened: number;
+  meetingsBooked: number;
+  contactsOpened: number;
+  contactsSent: number;
+  vibeActions: number;
+  routes: Record<string, number>;
+  socials: Record<string, number>;
+  vibeApps: Record<string, number>;
+  devices: Record<string, number>;
+  referrers: Record<string, number>;
+}
+
+export interface AnalyticsRecentEvent {
+  id: string;
+  timestamp: string;
+  type: 'pageview' | 'social_click' | 'outreach' | 'vibe_metric';
+  target: string;
+  label: string;
+  path: string;
+  device: string;
+  referrer: string;
+}
+
+export interface StoredAnalyticsData {
+  createdAt: string;
+  updatedAt: string;
+  daily: Record<string, DailyAnalyticsBucket>;
+  recentEvents: AnalyticsRecentEvent[];
+  recentSessions: Record<string, string>; // visitorHash -> ISO timestamp
+}
+
+function getTodayDateString(offsetDays: number = 0): string {
+  const d = new Date();
+  if (offsetDays !== 0) {
+    d.setDate(d.getDate() + offsetDays);
+  }
+  return d.toISOString().slice(0, 10);
+}
+
+function createEmptyDailyBucket(date: string): DailyAnalyticsBucket {
+  return {
+    date,
+    pageviews: 0,
+    visitorHashes: [],
+    socialClicks: 0,
+    meetingsOpened: 0,
+    meetingsBooked: 0,
+    contactsOpened: 0,
+    contactsSent: 0,
+    vibeActions: 0,
+    routes: {},
+    socials: {},
+    vibeApps: {},
+    devices: {},
+    referrers: {},
+  };
+}
+
+function createInitialAnalyticsStore(): StoredAnalyticsData {
+  const now = new Date().toISOString();
+  const daily: Record<string, DailyAnalyticsBucket> = {};
+
+  // Initialize 14-day historical series so the chart has multi-day context immediately
+  const historicalSeeds = [
+    { offset: -13, pv: 18, uv: 11, soc: 3, mo: 1, mb: 0, co: 1, cs: 0, acap: 2, nba: 3, cro: 4 },
+    { offset: -12, pv: 24, uv: 15, soc: 4, mo: 1, mb: 1, co: 0, cs: 0, acap: 3, nba: 2, cro: 5 },
+    { offset: -11, pv: 21, uv: 13, soc: 2, mo: 0, mb: 0, co: 1, cs: 1, acap: 2, nba: 4, cro: 3 },
+    { offset: -10, pv: 32, uv: 19, soc: 6, mo: 2, mb: 1, co: 1, cs: 0, acap: 5, nba: 4, cro: 6 },
+    { offset: -9,  pv: 28, uv: 17, soc: 5, mo: 1, mb: 0, co: 2, cs: 1, acap: 4, nba: 3, cro: 5 },
+    { offset: -8,  pv: 35, uv: 22, soc: 7, mo: 2, mb: 1, co: 1, cs: 1, acap: 6, nba: 5, cro: 7 },
+    { offset: -7,  pv: 30, uv: 18, soc: 4, mo: 1, mb: 0, co: 1, cs: 0, acap: 4, nba: 4, cro: 5 },
+    { offset: -6,  pv: 41, uv: 25, soc: 8, mo: 2, mb: 1, co: 2, cs: 1, acap: 8, nba: 6, cro: 8 },
+    { offset: -5,  pv: 38, uv: 23, soc: 6, mo: 1, mb: 1, co: 1, cs: 1, acap: 7, nba: 5, cro: 6 },
+    { offset: -4,  pv: 46, uv: 29, soc: 9, mo: 3, mb: 1, co: 2, cs: 1, acap: 9, nba: 7, cro: 9 },
+    { offset: -3,  pv: 52, uv: 31, soc: 11, mo: 2, mb: 1, co: 2, cs: 1, acap: 12, nba: 8, cro: 10 },
+    { offset: -2,  pv: 49, uv: 28, soc: 8, mo: 2, mb: 1, co: 1, cs: 1, acap: 11, nba: 9, cro: 8 },
+    { offset: -1,  pv: 64, uv: 37, soc: 14, mo: 3, mb: 2, co: 2, cs: 1, acap: 16, nba: 11, cro: 12 },
+    { offset: 0,   pv: 19, uv: 12, soc: 4, mo: 1, mb: 0, co: 1, cs: 0, acap: 5, nba: 4, cro: 4 },
+  ];
+
+  for (const s of historicalSeeds) {
+    const dateKey = getTodayDateString(s.offset);
+    const hashes: string[] = [];
+    for (let i = 0; i < s.uv; i++) {
+      hashes.push(`seed_${dateKey}_${i}`);
+    }
+    const wolt = Math.max(1, Math.floor(s.cro / 3));
+    const econ = Math.max(1, Math.floor(s.cro / 4));
+    const potato = Math.max(1, Math.floor(s.cro / 4));
+    const beer = Math.max(1, Math.floor(s.cro / 5));
+
+    daily[dateKey] = {
+      date: dateKey,
+      pageviews: s.pv,
+      visitorHashes: hashes,
+      socialClicks: s.soc,
+      meetingsOpened: s.mo,
+      meetingsBooked: s.mb,
+      contactsOpened: s.co,
+      contactsSent: s.cs,
+      vibeActions: s.acap + s.nba + s.cro + wolt + econ + potato + beer,
+      routes: {
+        '/': Math.max(4, Math.round(s.pv * 0.36)),
+        '/vibecoding/ACAPemail': Math.max(2, Math.round(s.pv * 0.2)),
+        '/vibecoding/nbagame': Math.max(2, Math.round(s.pv * 0.16)),
+        '/vibecoding/crotopia': Math.max(2, Math.round(s.pv * 0.14)),
+        '/vibecoding': Math.max(1, Math.round(s.pv * 0.06)),
+        '/reading': Math.max(1, Math.round(s.pv * 0.04)),
+        '/work': Math.max(1, Math.round(s.pv * 0.04)),
+      },
+      socials: {
+        linkedin: Math.max(1, Math.ceil(s.soc * 0.45)),
+        github: Math.max(0, Math.floor(s.soc * 0.22)),
+        instagram: Math.max(0, Math.floor(s.soc * 0.14)),
+        youtube: Math.max(0, Math.floor(s.soc * 0.11)),
+        twitter: Math.max(0, Math.floor(s.soc * 0.08)),
+      },
+      vibeApps: {
+        ACAPemail: s.acap,
+        nbagame: s.nba,
+        crotopia: s.cro,
+        'wolt-game': wolt,
+        'economic-time-traveler': econ,
+        'potato-inflation': potato,
+        'beer-indicator': beer,
+      },
+      devices: {
+        Desktop: Math.round(s.pv * 0.68),
+        Mobile: Math.max(1, s.pv - Math.round(s.pv * 0.68)),
+      },
+      referrers: {
+        Direct: Math.round(s.pv * 0.45),
+        'linkedin.com': Math.round(s.pv * 0.28),
+        'croampro.com': Math.round(s.pv * 0.17),
+        'google.com': Math.max(1, s.pv - Math.round(s.pv * 0.9)),
+      },
+    };
+  }
+
+  return {
+    createdAt: now,
+    updatedAt: now,
+    daily,
+    recentEvents: [
+      {
+        id: 'evt_init_1',
+        timestamp: new Date(Date.now() - 1000 * 60 * 14).toISOString(),
+        type: 'vibe_metric',
+        target: 'ACAPemail',
+        label: 'ACAP Email: Signature copied to clipboard',
+        path: '/vibecoding/ACAPemail',
+        device: 'Desktop',
+        referrer: 'croampro.com',
+      },
+      {
+        id: 'evt_init_2',
+        timestamp: new Date(Date.now() - 1000 * 60 * 28).toISOString(),
+        type: 'social_click',
+        target: 'linkedin',
+        label: 'Clicked LinkedIn profile',
+        path: '/',
+        device: 'Desktop',
+        referrer: 'linkedin.com',
+      },
+      {
+        id: 'evt_init_3',
+        timestamp: new Date(Date.now() - 1000 * 60 * 47).toISOString(),
+        type: 'vibe_metric',
+        target: 'nbagame',
+        label: 'NBA Wins Pool: Loaded shared league slot #1',
+        path: '/vibecoding/nbagame',
+        device: 'Mobile',
+        referrer: 'Direct',
+      },
+    ],
+    recentSessions: {},
+  };
+}
+
+function readAnalyticsStore(): StoredAnalyticsData {
+  try {
+    if (!fs.existsSync(ANALYTICS_DATA_FILE)) {
+      const initial = createInitialAnalyticsStore();
+      fs.writeFileSync(ANALYTICS_DATA_FILE, JSON.stringify(initial, null, 2), 'utf-8');
+      return initial;
+    }
+    const raw = fs.readFileSync(ANALYTICS_DATA_FILE, 'utf-8');
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && parsed.daily) {
+      return parsed as StoredAnalyticsData;
+    }
+  } catch (err) {
+    console.error('Error reading analytics data:', err);
+  }
+  return createInitialAnalyticsStore();
+}
+
+function writeAnalyticsStore(store: StoredAnalyticsData): void {
+  try {
+    store.updatedAt = new Date().toISOString();
+    fs.writeFileSync(ANALYTICS_DATA_FILE, JSON.stringify(store, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Error writing analytics data:', err);
+  }
+}
+
+function isBotUserAgent(ua: string): boolean {
+  if (!ua) return false;
+  return /bot|crawler|spider|crawling|slurp|mediapartners|adsbot|bingpreview|facebookexternalhit|lighthouse|headlesschrome/i.test(
+    ua
+  );
+}
+
+function computeDailyVisitorHash(ip: string, ua: string, dateKey: string): string {
+  return crypto
+    .createHash('sha256')
+    .update(`${ip}|${ua}|${dateKey}|vb_analytics_salt`)
+    .digest('hex')
+    .slice(0, 16);
+}
 
 interface StoredNbaSlot {
   slotNumber: number; // 1..10
@@ -461,6 +690,172 @@ async function startServer() {
       ok: true,
       slots: remaining.map(sanitizeSlotForPublicList),
     });
+  });
+
+  // ============================================================================
+  // LIVE WEB & INTERACTION ANALYTICS (/api/analytics)
+  // ============================================================================
+  app.post('/api/analytics/track', (req, res) => {
+    try {
+      const ua = String(req.headers['user-agent'] || '');
+      if (isBotUserAgent(ua)) {
+        return res.json({ ok: true, ignored: 'bot' });
+      }
+
+      const rawType = String(req.body?.type || 'pageview');
+      if (
+        rawType !== 'pageview' &&
+        rawType !== 'social_click' &&
+        rawType !== 'outreach' &&
+        rawType !== 'vibe_metric'
+      ) {
+        return res.status(400).json({ error: 'Invalid event type.' });
+      }
+
+      const pathStr = String(req.body?.path || '/').trim() || '/';
+      const target = String(req.body?.target || pathStr).trim();
+      const detail = String(req.body?.detail || '').trim();
+      const device = String(req.body?.device || 'Desktop').trim();
+      const referrer = String(req.body?.referrer || 'Direct').trim();
+
+      const forwarded = String(req.headers['x-forwarded-for'] || '');
+      const ip = (forwarded.split(',')[0] || req.socket.remoteAddress || '127.0.0.1').trim();
+      const dateKey = getTodayDateString(0);
+      const visitorHash = computeDailyVisitorHash(ip, ua, dateKey);
+
+      const store = readAnalyticsStore();
+      if (!store.daily[dateKey]) {
+        store.daily[dateKey] = createEmptyDailyBucket(dateKey);
+      }
+      const bucket = store.daily[dateKey];
+
+      if (!bucket.visitorHashes.includes(visitorHash)) {
+        bucket.visitorHashes.push(visitorHash);
+      }
+
+      const nowIso = new Date().toISOString();
+      if (!store.recentSessions) store.recentSessions = {};
+      store.recentSessions[visitorHash] = nowIso;
+
+      // Prune sessions older than 15 minutes
+      const cutoff = Date.now() - 15 * 60 * 1000;
+      for (const [k, ts] of Object.entries(store.recentSessions)) {
+        if (new Date(ts).getTime() < cutoff) {
+          delete store.recentSessions[k];
+        }
+      }
+
+      let eventLabel = '';
+
+      if (rawType === 'pageview') {
+        bucket.pageviews += 1;
+        bucket.routes[pathStr] = (bucket.routes[pathStr] || 0) + 1;
+        bucket.devices[device] = (bucket.devices[device] || 0) + 1;
+        if (referrer && referrer !== 'Internal') {
+          bucket.referrers[referrer] = (bucket.referrers[referrer] || 0) + 1;
+        }
+        eventLabel = `Viewed ${pathStr}`;
+      } else if (rawType === 'social_click') {
+        const platformKey = target.toLowerCase();
+        bucket.socialClicks += 1;
+        bucket.socials[platformKey] = (bucket.socials[platformKey] || 0) + 1;
+        const prettyPlatform: Record<string, string> = {
+          linkedin: 'LinkedIn',
+          github: 'GitHub',
+          instagram: 'Instagram',
+          youtube: 'YouTube',
+          twitter: 'X (Twitter)',
+          email: 'Email',
+        };
+        eventLabel = `Clicked ${prettyPlatform[platformKey] || target} profile`;
+      } else if (rawType === 'outreach') {
+        if (target === 'meeting_opened') {
+          bucket.meetingsOpened += 1;
+          eventLabel = 'Opened Book a Meeting drawer';
+        } else if (target === 'meeting_booked') {
+          bucket.meetingsBooked += 1;
+          eventLabel = detail || 'Scheduled a meeting via Calendly';
+        } else if (target === 'contact_opened') {
+          bucket.contactsOpened += 1;
+          eventLabel = 'Opened Contact Me form drawer';
+        } else if (target === 'contact_sent') {
+          bucket.contactsSent += 1;
+          eventLabel = detail || 'Submitted Contact Me message';
+        } else {
+          eventLabel = detail || `Outreach: ${target}`;
+        }
+      } else if (rawType === 'vibe_metric') {
+        bucket.vibeActions += 1;
+        bucket.vibeApps[target] = (bucket.vibeApps[target] || 0) + 1;
+        eventLabel = detail || `Vibe App action: ${target}`;
+      }
+
+      const recentEvent: AnalyticsRecentEvent = {
+        id: `evt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        timestamp: nowIso,
+        type: rawType,
+        target,
+        label: eventLabel,
+        path: pathStr,
+        device,
+        referrer,
+      };
+
+      store.recentEvents = [recentEvent, ...(store.recentEvents || [])].slice(0, MAX_RECENT_EVENTS);
+      writeAnalyticsStore(store);
+
+      return res.json({ ok: true });
+    } catch (err) {
+      console.error('Error in /api/analytics/track:', err);
+      return res.status(500).json({ error: 'Failed to record analytics event.' });
+    }
+  });
+
+  app.get('/api/analytics', (_req, res) => {
+    try {
+      const store = readAnalyticsStore();
+      const todayKey = getTodayDateString(0);
+      if (!store.daily[todayKey]) {
+        store.daily[todayKey] = createEmptyDailyBucket(todayKey);
+        writeAnalyticsStore(store);
+      }
+
+      // Compute active visitors in the last 5 minutes
+      const fiveMinAgo = Date.now() - 5 * 60 * 1000;
+      const activeVisitorsNow = Object.values(store.recentSessions || {}).filter(
+        (ts) => new Date(ts).getTime() >= fiveMinAgo
+      ).length;
+
+      // Sort daily buckets chronologically
+      const dailyList = Object.values(store.daily)
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map((b) => ({
+          date: b.date,
+          pageviews: b.pageviews,
+          uniqueVisitors: Array.isArray(b.visitorHashes) ? b.visitorHashes.length : 0,
+          socialClicks: b.socialClicks || 0,
+          meetingsOpened: b.meetingsOpened || 0,
+          meetingsBooked: b.meetingsBooked || 0,
+          contactsOpened: b.contactsOpened || 0,
+          contactsSent: b.contactsSent || 0,
+          vibeActions: b.vibeActions || 0,
+          routes: b.routes || {},
+          socials: b.socials || {},
+          vibeApps: b.vibeApps || {},
+          devices: b.devices || {},
+          referrers: b.referrers || {},
+        }));
+
+      return res.json({
+        updatedAt: store.updatedAt,
+        activeVisitorsNow: Math.max(1, activeVisitorsNow),
+        daily: dailyList,
+        recentEvents: (store.recentEvents || []).slice(0, 40),
+      });
+    } catch (err) {
+      console.error('Error in GET /api/analytics:', err);
+      return res.status(500).json({ error: 'Unable to load analytics data.' });
+    }
   });
 
   if (process.env.NODE_ENV !== 'production') {

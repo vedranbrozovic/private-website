@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { trackVibeAppMetric } from '../analytics/tracker';
 import {
   ArrowLeft,
   FolderOpen,
@@ -653,6 +654,7 @@ export default function NbaGameApp() {
         setActiveLeagueId(normalized.id);
         setSelectedSaveSlot(slot.slotNumber);
         closeSharedSavedHub();
+        trackVibeAppMetric('nbagame', `NBA Wins Pool: Loaded Slot #${slot.slotNumber}`);
         showToast(`Loaded Slot #${slot.slotNumber}: "${normalized.name}"`);
       }
     }
@@ -685,6 +687,7 @@ export default function NbaGameApp() {
           setUnlockingSlotNumber(null);
           setUnlockPasswordInput('');
           closeSharedSavedHub();
+          trackVibeAppMetric('nbagame', `NBA Wins Pool: Unlocked & loaded Slot #${slotNumber}`);
           showToast(`Unlocked & loaded Slot #${slotNumber}: "${normalized.name}"!`);
         }
       }
@@ -729,6 +732,7 @@ export default function NbaGameApp() {
         setSessionUnlockedPasswords((prev) => ({ ...prev, [targetSlotNumber]: pwd }));
       }
       setSaveSlotPassword('');
+      trackVibeAppMetric('nbagame', `NBA Wins Pool: Saved league to Slot #${targetSlotNumber}`);
       showToast(
         `Saved "${targetLeague.name}" to Shared Slot #${targetSlotNumber} (/vibecoding/nbagame/saved)!`
       );

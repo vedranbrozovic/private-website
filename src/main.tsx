@@ -7,6 +7,8 @@ import VibeCoding from './VibeCoding.tsx';
 import CrotopiaApp from './crotopia/App.tsx';
 import NbaGameApp from './nbagame/NbaGameApp.tsx';
 import AcapEmailApp from './acap/AcapEmailApp.tsx';
+import AnalyticsDashboard from './analytics/AnalyticsDashboard.tsx';
+import { trackPageView } from './analytics/tracker.ts';
 import {
   EducationPage,
   WorkPage,
@@ -28,6 +30,14 @@ function Root() {
     window.addEventListener('popstate', handleLocationChange);
     return () => window.removeEventListener('popstate', handleLocationChange);
   }, []);
+
+  useEffect(() => {
+    trackPageView(currentPath);
+  }, [currentPath]);
+
+  if (currentPath.toLowerCase().startsWith('/analytics')) {
+    return <AnalyticsDashboard />;
+  }
 
   if (currentPath.startsWith('/old')) {
     return <OldApp />;

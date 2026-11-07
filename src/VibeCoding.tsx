@@ -20,6 +20,7 @@ import {
   Twitter 
 } from 'lucide-react';
 import { SocialLink } from './SocialLink';
+import { trackVibeAppMetric, VibeAppId } from './analytics/tracker';
 
 interface VibeApp {
   id: string;
@@ -153,6 +154,15 @@ const VibeCoding: React.FC = () => {
   const handleSelectApp = (appId: string) => {
     setSelectedAppId(appId);
     setIframeKey(k => k + 1);
+    const matched = APPS.find(a => a.id === appId);
+    if (
+      appId === 'wolt-game' ||
+      appId === 'economic-time-traveler' ||
+      appId === 'potato-inflation' ||
+      appId === 'beer-indicator'
+    ) {
+      trackVibeAppMetric(appId as VibeAppId, `${matched?.title || appId}: Launched app`);
+    }
     const nextUrl = appId === 'crotopia' ? '/vibecoding' : `/vibecoding?app=${appId}`;
     window.history.replaceState({}, '', nextUrl);
     if (playerRef.current) {

@@ -18,6 +18,7 @@ import {
   Facebook,
   Youtube
 } from 'lucide-react';
+import { trackVibeAppMetric } from '../analytics/tracker';
 
 // ============================================================================
 // 1. OFFICIAL ACAP CONSTANTS & SIMPLE SELF-SERVICE OPTIONS
@@ -585,6 +586,7 @@ export default function AcapEmailApp() {
       }
       setCopiedVisual(true);
       setTimeout(() => setCopiedVisual(false), 3000);
+      trackVibeAppMetric('ACAPemail', 'ACAP Email: Signature copied to clipboard');
       triggerToast(
         'Signature Copied to Clipboard!',
         'Now open your Gmail, Outlook, or Apple Mail signature settings and press Cmd+V (Mac) or Ctrl+V (Windows).'
@@ -593,6 +595,7 @@ export default function AcapEmailApp() {
       navigator.clipboard?.writeText(cleanExportHtml);
       setCopiedVisual(true);
       setTimeout(() => setCopiedVisual(false), 3000);
+      trackVibeAppMetric('ACAPemail', 'ACAP Email: Signature copied to clipboard');
       triggerToast(
         'Signature Copied!',
         'Paste directly into your Gmail, Outlook, or Apple Mail signature box.'
@@ -606,6 +609,7 @@ export default function AcapEmailApp() {
     navigator.clipboard.writeText(cleanExportHtml);
     setCopiedHtml(true);
     setTimeout(() => setCopiedHtml(false), 2500);
+    trackVibeAppMetric('ACAPemail', 'ACAP Email: Raw HTML source copied');
     triggerToast(
       'Raw HTML Source Copied!',
       'Ready to paste into any HTML-based email signature manager.'
@@ -626,6 +630,7 @@ export default function AcapEmailApp() {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+    trackVibeAppMetric('ACAPemail', 'ACAP Email: Downloaded HTML signature');
     triggerToast('Downloaded HTML Signature', `Saved acap-signature-${slug}.html`);
   };
 
