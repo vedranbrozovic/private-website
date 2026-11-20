@@ -132,8 +132,8 @@ export const FOUR_PIONEERS: PioneerPlayer[] = [
       '2× European Champion · 1989 EuroLeague Final Four MVP',
       '1994 NBA All-Rookie Second Team (Boston Celtics)',
     ],
-    image: '/assets/mtad/player-radja.jpg',
-    imageAlt: 'Dino Rađa playing for the Boston Celtics wearing number 40',
+    image: '/assets/mtad/player-radja.jpg?v=2',
+    imageAlt: 'Dino Rađa in 1990s basketball action wearing jersey number 14',
   },
   {
     id: 'vrankovic',
