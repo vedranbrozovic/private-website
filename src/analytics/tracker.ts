@@ -335,6 +335,7 @@ export function normalizeRoutePath(rawPath?: string): string {
   if (lower.startsWith('/ballislife')) return '/ballislife';
   if (lower.startsWith('/blog')) return '/blog';
   if (lower.startsWith('/film')) return '/film';
+  if (lower.startsWith('/mtad')) return '/MTAD';
   if (lower.startsWith('/analytics')) return '/analytics';
   return path;
 }

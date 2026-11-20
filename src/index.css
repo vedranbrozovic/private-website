@@ -3,6 +3,9 @@
 @theme {
   --font-sans: "Open Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-serif: "Playfair Display", ui-serif, Georgia, serif;
+  --font-display: "Oswald", Impact, "Arial Narrow", sans-serif;
+  --font-editorial: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* Theme Colors */
   --color-light-bg: #faf9f6;

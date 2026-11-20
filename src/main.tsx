@@ -8,6 +8,7 @@ import CrotopiaApp from './crotopia/App.tsx';
 import NbaGameApp from './nbagame/NbaGameApp.tsx';
 import AcapEmailApp from './acap/AcapEmailApp.tsx';
 import AnalyticsDashboard from './analytics/AnalyticsDashboard.tsx';
+import MtadFilmPage from './mtad/MtadFilmPage.tsx';
 import { trackPageView } from './analytics/tracker.ts';
 import {
   EducationPage,
@@ -34,6 +35,10 @@ function Root() {
   useEffect(() => {
     trackPageView(currentPath);
   }, [currentPath]);
+
+  if (currentPath.toLowerCase().startsWith('/mtad')) {
+    return <MtadFilmPage />;
+  }
 
   if (currentPath.toLowerCase().startsWith('/analytics')) {
     return <AnalyticsDashboard />;
